@@ -1155,7 +1155,7 @@ public class Server extends WritableFrameContainer implements Serializable {
 
         final String withIrcd = "numeric_" + parser.getIRCD(true) + "_" + snumeric;
         final String sansIrcd = "numeric_" + snumeric;
-        StringBuffer target = null;
+        StringBuffer target = new StringBuffer("");
 
         if (getConfigManager().hasOptionString("formatter", withIrcd)) {
             target = new StringBuffer(withIrcd);
@@ -1168,9 +1168,7 @@ public class Server extends WritableFrameContainer implements Serializable {
         ActionManager.processEvent(CoreActionType.SERVER_NUMERIC, target, this,
                 Integer.valueOf(numeric), tokens);
 
-        if (target != null) {
-            handleNotification(target.toString(), (Object[]) tokens);
-        }
+        handleNotification(target.toString(), (Object[]) tokens);
     }
 
     /**

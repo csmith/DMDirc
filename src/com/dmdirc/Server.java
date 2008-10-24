@@ -1153,13 +1153,10 @@ public class Server extends WritableFrameContainer implements Serializable {
             snumeric = "0" + snumeric;
         }
 
-        final String withIrcd = "numeric_" + parser.getIRCD(true) + "_" + snumeric;
         final String sansIrcd = "numeric_" + snumeric;
         StringBuffer target = new StringBuffer("");
 
-        if (getConfigManager().hasOptionString("formatter", withIrcd)) {
-            target = new StringBuffer(withIrcd);
-        } else if (getConfigManager().hasOptionString("formatter", sansIrcd)) {
+        if (getConfigManager().hasOptionString("formatter", sansIrcd)) {
             target = new StringBuffer(sansIrcd);
         } else if (getConfigManager().hasOptionString("formatter", "numeric_unknown")) {
             target = new StringBuffer("numeric_unknown");

@@ -26,8 +26,6 @@ import com.dmdirc.FrameContainer;
 import com.dmdirc.Main;
 import com.dmdirc.ui.interfaces.FrameManager;
 
-import java.awt.Color;
-
 import javax.swing.JComponent;
 
 /**
@@ -44,7 +42,7 @@ public class DummyFrameManager implements FrameManager {
     /** {@inheritDoc} */
     @Override
     public void setParent(final JComponent parent) {
-        parent.setBackground(Color.RED);
+        //Do nothing.
     }
     
     /** {@inheritDoc} */

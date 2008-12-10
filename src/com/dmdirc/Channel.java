@@ -32,6 +32,7 @@ import com.dmdirc.parser.irc.ChannelClientInfo;
 import com.dmdirc.parser.irc.ChannelInfo;
 import com.dmdirc.parser.irc.ClientInfo;
 import com.dmdirc.ui.WindowManager;
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.input.TabCompleter;
 import com.dmdirc.ui.input.TabCompletionType;
 import com.dmdirc.ui.interfaces.ChannelWindow;
@@ -40,7 +41,6 @@ import com.dmdirc.ui.messages.ColourManager;
 import com.dmdirc.ui.messages.Styliser;
 import com.dmdirc.util.RollingList;
 
-import java.awt.Color;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -525,13 +525,13 @@ public final class Channel extends MessageTarget
         if (showColours) {
             final Map map = client.getMap();
             String prefix = null;
-            Color colour;
+            Colour colour;
 
             if (map.containsKey(ChannelClientProperty.TEXT_FOREGROUND)) {
-                colour = (Color) map.get(ChannelClientProperty.TEXT_FOREGROUND);
+                colour = (Colour) map.get(ChannelClientProperty.TEXT_FOREGROUND);
                 prefix = Styliser.CODE_HEXCOLOUR + ColourManager.getHex(colour);
                 if (map.containsKey(ChannelClientProperty.TEXT_BACKGROUND)) {
-                    colour = (Color) map.get(ChannelClientProperty.TEXT_BACKGROUND);
+                    colour = (Colour) map.get(ChannelClientProperty.TEXT_BACKGROUND);
                     prefix = "," + ColourManager.getHex(colour);
                 }
             }

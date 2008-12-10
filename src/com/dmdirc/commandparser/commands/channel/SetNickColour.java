@@ -29,13 +29,13 @@ import com.dmdirc.commandparser.CommandManager;
 import com.dmdirc.commandparser.commands.ChannelCommand;
 import com.dmdirc.commandparser.commands.IntelligentCommand;
 import com.dmdirc.parser.irc.ChannelClientInfo;
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.input.AdditionalTabTargets;
 import com.dmdirc.ui.input.TabCompletionType;
 import com.dmdirc.ui.interfaces.ChannelWindow;
 import com.dmdirc.ui.interfaces.InputWindow;
 import com.dmdirc.ui.messages.ColourManager;
 
-import java.awt.Color;
 import java.util.List;
 
 /**
@@ -96,7 +96,7 @@ public final class SetNickColour extends ChannelCommand implements IntelligentCo
             ((ChannelWindow) channel.getFrame()).redrawNicklist();
         } else {
             // We're setting the colour
-            final Color newColour = ColourManager.parseColour(args[offset], null);
+            final Colour newColour = ColourManager.parseColour(args[offset], null);
             if (newColour == null) {
                 sendLine(origin, isSilent, FORMAT_ERROR, "Invalid colour specified.");
                 return;

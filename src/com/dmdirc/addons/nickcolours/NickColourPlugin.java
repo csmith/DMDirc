@@ -37,9 +37,9 @@ import com.dmdirc.parser.irc.ChannelClientInfo;
 import com.dmdirc.parser.irc.ChannelInfo;
 import com.dmdirc.parser.irc.ClientInfo;
 import com.dmdirc.plugins.Plugin;
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.messages.ColourManager;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +99,7 @@ public final class NickColourPlugin extends Plugin implements ActionListener {
         
         if (IdentityManager.getGlobalConfig().getOptionBool(DOMAIN, "useowncolour", false)
                 && client.getClient().equals(myself)) {
-            final Color color = ColourManager.parseColour(
+            final Colour color = ColourManager.parseColour(
                     IdentityManager.getGlobalConfig().getOption(DOMAIN, "owncolour"));
             putColour(map, color, color);
         }  else if (IdentityManager.getGlobalConfig().getOptionBool(DOMAIN, "userandomcolour", false)) {
@@ -115,8 +115,8 @@ public final class NickColourPlugin extends Plugin implements ActionListener {
         }
         
         if (parts != null) {
-            Color textColor = null;
-            Color nickColor = null;
+            Colour textColor = null;
+            Colour nickColor = null;
             
             if (parts[0] != null) {
                 textColor = ColourManager.parseColour(parts[0], null);
@@ -138,7 +138,7 @@ public final class NickColourPlugin extends Plugin implements ActionListener {
      * @param nickColour Nick colour to be inserted
      */
     @SuppressWarnings("unchecked")
-    private void putColour(final Map map, final Color textColour, final Color nickColour) {
+    private void putColour(final Map map, final Colour textColour, final Colour nickColour) {
         if (IdentityManager.getGlobalConfig().getOptionBool(DOMAIN, "settext", false) 
                 && textColour != null) {
             map.put(ChannelClientProperty.TEXT_FOREGROUND, textColour);
@@ -156,7 +156,7 @@ public final class NickColourPlugin extends Plugin implements ActionListener {
      * @param nick The nickname of the client whose colour we're determining
      * @return Colour of the specified nickname
      */
-    private Color getColour(final String nick) {
+    private Colour getColour(final String nick) {
         int count = 0;
         
         for (int i = 0; i < nick.length(); i++) {

@@ -30,10 +30,10 @@ import com.dmdirc.interfaces.SelectionListener;
 import com.dmdirc.logger.ErrorLevel;
 import com.dmdirc.logger.Logger;
 import com.dmdirc.ui.IconManager;
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.interfaces.Window;
 import com.dmdirc.util.ListenerList;
 
-import java.awt.Color;
 import java.beans.PropertyVetoException;
 
 import javax.swing.Icon;
@@ -47,7 +47,7 @@ import javax.swing.Icon;
 public abstract class FrameContainer {
 
     /** The colour of our frame's notifications. */
-    protected Color notification = Color.BLACK;
+    protected Colour notification = Colour.BLACK;
 
     /** A list of listeners for this containers's events. */
     protected final ListenerList listeners = new ListenerList();
@@ -163,7 +163,7 @@ public abstract class FrameContainer {
      */
     protected void clearNotification() {
         // TODO: This should default ot something colour independent
-        notification = Color.BLACK;
+        notification = Colour.BLACK;
 
         synchronized (listeners) {
             for (NotificationListener listener : listeners.get(NotificationListener.class)) {
@@ -177,7 +177,7 @@ public abstract class FrameContainer {
      *
      * @param colour The colour to use for the notification
      */
-    public void sendNotification(final Color colour) {
+    public void sendNotification(final Colour colour) {
         final Window activeFrame = Main.getUI().getActiveWindow();
 
         if (activeFrame != null && !activeFrame.equals(getFrame())
@@ -197,7 +197,7 @@ public abstract class FrameContainer {
      *
      * @return This channel's notification colour
      */
-    public Color getNotification() {
+    public Colour getNotification() {
         return notification;
     }
 

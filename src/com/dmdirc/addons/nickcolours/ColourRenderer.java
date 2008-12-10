@@ -22,6 +22,7 @@
 
 package com.dmdirc.addons.nickcolours;
 
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.messages.ColourManager;
 
 import java.awt.Color;
@@ -58,7 +59,7 @@ public class ColourRenderer extends DefaultTableCellRenderer {
     public Component getTableCellRendererComponent(final JTable table,
             final Object value, final boolean isSelected,
             final boolean hasFocus, final int row, final int column) {
-        Color colour = null;
+        Colour colour = null;
         if (value != null && !((String) value).isEmpty()) {
             colour = ColourManager.parseColour((String) value, null);
         }

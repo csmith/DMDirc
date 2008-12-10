@@ -24,9 +24,9 @@ package com.dmdirc.config;
 
 import com.dmdirc.logger.ErrorLevel;
 import com.dmdirc.logger.Logger;
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.messages.ColourManager;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -98,8 +98,8 @@ public abstract class ConfigSource {
      * @param fallback The colour that should be used in case of error
      * @return The colour representation of the option
      */
-    public Color getOptionColour(final String domain, final String option,
-            final Color fallback) {
+    public Colour getOptionColour(final String domain, final String option,
+            final Colour fallback) {
         if (!hasOption(domain, option)) {
             return fallback;
         }

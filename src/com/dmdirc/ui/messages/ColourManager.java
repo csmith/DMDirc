@@ -26,8 +26,8 @@ import com.dmdirc.config.IdentityManager;
 import com.dmdirc.interfaces.ConfigChangeListener;
 import com.dmdirc.logger.ErrorLevel;
 import com.dmdirc.logger.Logger;
+import com.dmdirc.ui.core.Colour;
 
-import java.awt.Color;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,18 +39,18 @@ import java.util.Map;
 public final class ColourManager {
     
     /** Colour cache. */
-    private static final Map<String, Color> COLOUR_CACHE = new HashMap<String, Color>();
+    private static final Map<String, Colour> COLOUR_CACHE = new HashMap<String, Colour>();
     
     /** Default colours used for the standard 16 IRC colours. */
-    private static final Color[] DEFAULT_COLOURS = {
-        Color.WHITE, Color.BLACK, new Color(0, 0, 127), new Color(0, 141, 0),
-        Color.RED, new Color(127, 0, 0), new Color(160, 15, 160), new Color(252, 127, 0),
-        Color.YELLOW, new Color(0, 252, 0), new Color(0, 128, 128), new Color(0, 255, 255),
-        Color.BLUE, new Color(255, 0, 255), Color.GRAY, Color.LIGHT_GRAY,
+    private static final Colour[] DEFAULT_COLOURS = {
+        Colour.WHITE, Colour.BLACK, new Colour(0, 0, 127), new Colour(0, 141, 0),
+        Colour.RED, new Colour(127, 0, 0), new Colour(160, 15, 160), new Colour(252, 127, 0),
+        Colour.YELLOW, new Colour(0, 252, 0), new Colour(0, 128, 128), new Colour(0, 255, 255),
+        Colour.BLUE, new Colour(255, 0, 255), Colour.GRAY, Colour.LIGHT_GRAY,
     };
     
     /** Actual colours we're using for the 16 IRC colours. */
-    private static Color[] IRC_COLOURS = DEFAULT_COLOURS.clone();
+    private static Colour[] IRC_COLOURS = DEFAULT_COLOURS.clone();
        
     /** Creates a new instance of ColourManager. */
     private ColourManager() {
@@ -80,12 +80,12 @@ public final class ColourManager {
      * @param fallback The colour to use if the spec isn't valid
      * @return A colour representation of the specified string
      */
-    public static Color parseColour(final String spec, final Color fallback) {
+    public static Colour parseColour(final String spec, final Colour fallback) {
         if (COLOUR_CACHE.containsKey(spec)) {
             return COLOUR_CACHE.get(spec);
         }
         
-        Color res = null;
+        Colour res = null;
         
         if (spec != null) {
             if (spec.length() < 3) {
@@ -119,31 +119,33 @@ public final class ColourManager {
      * Parses either a 1-2 digit IRC colour, or a 6 digit hex colour from the
      * target string, and returns the corresponding colour. Returns white if the
      * spec can't be parsed.
+     *
      * @param spec The string to parse
      * @return A colour representation of the specified string
      */
-    public static Color parseColour(final String spec) {
-        return parseColour(spec, Color.WHITE);
+    public static Colour parseColour(final String spec) {
+        return parseColour(spec, Colour.WHITE);
     }
     
     /**
      * Returns a Color object that corresponds to the specified 6-digit hex
      * string. If the string is invalid, logs a warning and returns white.
+     *
      * @param hex The hex string to convert into a Color
      * @return A Color object corresponding to the hex input
      */
-    public static Color getColour(final String hex) {
+    public static Colour getColour(final String hex) {
         if (COLOUR_CACHE.containsKey(hex)) {
             return COLOUR_CACHE.get(hex);
         }
         
-        Color colour = null;
+        Colour colour = null;
         
         try {
-            colour = Color.decode("#" + hex);
+            colour = Colour.decode("#" + hex);
         } catch (NumberFormatException ex) {
             Logger.userError(ErrorLevel.MEDIUM, "Invalid colour #" + hex);
-            return Color.WHITE;
+            return Colour.WHITE;
         }
         
         COLOUR_CACHE.put(hex, colour);
@@ -157,13 +159,13 @@ public final class ColourManager {
      * @param number The IRC colour code to look up
      * @return The corresponding Color object
      */
-    public static Color getColour(final int number) {
+    public static Colour getColour(final int number) {
         
         if (number >= 0 && number <= 15) {
             return IRC_COLOURS[number];
         } else {
             Logger.userError(ErrorLevel.MEDIUM, "Invalid colour: " + number);
-            return Color.WHITE;
+            return Colour.WHITE;
         }
     }
     
@@ -172,7 +174,7 @@ public final class ColourManager {
      * @param colour The colour to be parsed
      * @return A 6-digit hex string representing the colour
      */
-    public static String getHex(final Color colour) {
+    public static String getHex(final Colour colour) {
         final int r = colour.getRed();
         final int g = colour.getGreen();
         final int b = colour.getBlue();

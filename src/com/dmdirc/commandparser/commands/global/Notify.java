@@ -25,11 +25,11 @@ package com.dmdirc.commandparser.commands.global;
 import com.dmdirc.commandparser.CommandManager;
 import com.dmdirc.commandparser.commands.GlobalCommand;
 import com.dmdirc.commandparser.commands.IntelligentCommand;
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.input.AdditionalTabTargets;
 import com.dmdirc.ui.interfaces.InputWindow;
 import com.dmdirc.ui.messages.ColourManager;
 
-import java.awt.Color;
 import java.util.List;
 
 /**
@@ -58,7 +58,7 @@ public final class Notify extends GlobalCommand implements IntelligentCommand {
             return;
         }
         
-        final Color colour = ColourManager.parseColour(args[0], null);
+        final Colour colour = ColourManager.parseColour(args[0], null);
         
         if (colour == null) {
             showUsage(origin, isSilent, "notify",

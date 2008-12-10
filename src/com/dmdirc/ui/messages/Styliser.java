@@ -28,8 +28,8 @@ import com.dmdirc.interfaces.ConfigChangeListener;
 import com.dmdirc.config.IdentityManager;
 import com.dmdirc.logger.ErrorLevel;
 import com.dmdirc.logger.Logger;
+import com.dmdirc.ui.core.Colour;
 
-import java.awt.Color;
 import java.util.Locale;
 
 import javax.swing.UIManager;
@@ -575,7 +575,7 @@ public final class Styliser {
                     attribs.removeAttribute(StyleConstants.FontConstants.Foreground);
                 }
                 
-                attribs.addAttribute(StyleConstants.FontConstants.Foreground, Color.BLUE);
+                attribs.addAttribute(StyleConstants.FontConstants.Foreground, Colour.BLUE);
                 
             } else {
                 // Remove the hyperlink style

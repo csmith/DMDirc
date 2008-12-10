@@ -26,8 +26,8 @@ import com.dmdirc.ChannelClientProperty;
 import com.dmdirc.interfaces.ConfigChangeListener;
 import com.dmdirc.config.ConfigManager;
 import com.dmdirc.parser.irc.ChannelClientInfo;
+import com.dmdirc.ui.core.Colour;
 
-import java.awt.Color;
 import java.awt.Component;
 import java.util.Map;
 
@@ -48,7 +48,7 @@ public final class NicklistRenderer extends DefaultListCellRenderer implements
     /** Config manager. */
     private final ConfigManager config;
     /** Nicklist alternate background colour. */
-    private Color altBackgroundColour;
+    private Colour altBackgroundColour;
     /** Show nick colours. */
     private boolean showColours;
     /** The list that we're using for the nicklist. */
@@ -74,7 +74,7 @@ public final class NicklistRenderer extends DefaultListCellRenderer implements
                 config.getOptionColour("ui", "nickListAltBackgroundColour",
                 config.getOptionColour("ui", "nicklistbackgroundcolour",
                 config.getOptionColour("ui", "backgroundcolour",
-                Color.WHITE)));
+                Colour.WHITE)));
         showColours =
                 config.getOptionBool("ui", "shownickcoloursinnicklist", false);
     }
@@ -96,11 +96,11 @@ public final class NicklistRenderer extends DefaultListCellRenderer implements
 
         if (showColours && map != null) {
             if (map.containsKey(ChannelClientProperty.NICKLIST_FOREGROUND)) {
-                setForeground((Color) map.get(ChannelClientProperty.NICKLIST_FOREGROUND));
+                setForeground((Colour) map.get(ChannelClientProperty.NICKLIST_FOREGROUND));
             }
 
             if (map.containsKey(ChannelClientProperty.NICKLIST_BACKGROUND)) {
-                setBackground((Color) map.get(ChannelClientProperty.NICKLIST_BACKGROUND));
+                setBackground((Colour) map.get(ChannelClientProperty.NICKLIST_BACKGROUND));
             }
         }
 
@@ -122,7 +122,7 @@ public final class NicklistRenderer extends DefaultListCellRenderer implements
                     config.getOptionColour("ui", "nickListAltBackgroundColour",
                     config.getOptionColour("ui", "nicklistbackgroundcolour",
                     config.getOptionColour("ui", "backgroundcolour",
-                    Color.WHITE)));
+                    Colour.WHITE)));
         }
         nicklist.repaint();
     }

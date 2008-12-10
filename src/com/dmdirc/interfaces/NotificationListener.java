@@ -22,9 +22,9 @@
 
 package com.dmdirc.interfaces;
 
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.interfaces.Window;
 
-import java.awt.Color;
 import java.util.EventListener;
 
 /**
@@ -41,7 +41,7 @@ public interface NotificationListener extends EventListener {
      * @param window The window whose notification has changed
      * @param colour The new colour of the notification
      */
-    void notificationSet(final Window window, final Color colour);
+    void notificationSet(final Window window, final Colour colour);
 
     /**
      * Called when a notification has been cleared.

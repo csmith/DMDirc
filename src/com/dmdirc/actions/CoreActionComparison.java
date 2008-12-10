@@ -23,9 +23,9 @@
 package com.dmdirc.actions;
 
 import com.dmdirc.actions.interfaces.ActionComparison;
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.messages.ColourManager;
 
-import java.awt.Color;
 import java.util.regex.PatternSyntaxException;
 
 /**
@@ -127,10 +127,10 @@ public enum CoreActionComparison implements ActionComparison {
     COLOUR_EQUALS {
         /** {@inheritDoc} */
         public boolean test(final Object arg1, final Object arg2) {
-            return ((Color) arg1).equals(ColourManager.parseColour((String) arg2));
+            return ((Colour) arg1).equals(ColourManager.parseColour((String) arg2));
         }
         /** {@inheritDoc} */
-        public Class appliesTo() { return Color.class; }
+        public Class appliesTo() { return Colour.class; }
         /** {@inheritDoc} */
         public String getName() { return "equals"; }
     },
@@ -142,7 +142,7 @@ public enum CoreActionComparison implements ActionComparison {
             return !COLOUR_EQUALS.test(arg1, arg2);
         }
         /** {@inheritDoc} */
-        public Class appliesTo() { return Color.class; }
+        public Class appliesTo() { return Colour.class; }
         /** {@inheritDoc} */
         public String getName() { return "does not equal"; }
     },

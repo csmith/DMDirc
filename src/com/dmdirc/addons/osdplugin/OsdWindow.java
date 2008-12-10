@@ -24,6 +24,7 @@ package com.dmdirc.addons.osdplugin;
 
 import com.dmdirc.Main;
 import com.dmdirc.config.IdentityManager;
+import com.dmdirc.ui.core.Colour;
 import com.dmdirc.ui.messages.ColourManager;
 import com.dmdirc.ui.swing.MainFrame;
 
@@ -162,14 +163,14 @@ public final class OsdWindow extends JDialog implements MouseListener,
         panel = new JPanel();
         panel.setBorder(new LineBorder(Color.BLACK));
         panel.setBackground(IdentityManager.getGlobalConfig().getOptionColour("plugin-OSD",
-                "bgcolour", Color.decode("#2222aa")));
+                "bgcolour", Colour.decode("#2222aa")));
         
         setContentPane(panel);
         setLayout(new MigLayout("wmin 500, wmax 500, ins rel, fill"));
         
         label = new JLabel(text);
         label.setForeground(IdentityManager.getGlobalConfig().getOptionColour("plugin-OSD",
-                "fgcolour", Color.decode("#ffffff")));
+                "fgcolour", Colour.decode("#ffffff")));
         label.setFont(label.getFont().deriveFont(
                 (float) IdentityManager.getGlobalConfig().getOptionInt("plugin-OSD",
                 "fontSize", 20)));

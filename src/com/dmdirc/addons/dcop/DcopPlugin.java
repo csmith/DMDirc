@@ -24,6 +24,7 @@ package com.dmdirc.addons.dcop;
 
 import com.dmdirc.plugins.Plugin;
 import com.dmdirc.commandparser.CommandManager;
+import com.dmdirc.config.IdentityManager;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -58,8 +59,10 @@ public final class DcopPlugin extends Plugin {
         BufferedReader input;
         Process process;
         
+        final String dcopCommand = IdentityManager.getGlobalConfig().getOption("plugin-dcop", "dcopCommand", "");
+        
         try {
-            process = Runtime.getRuntime().exec(command);
+            process = Runtime.getRuntime().exec((!dcopCommand.isEmpty()) ? dcopCommand+' '+command : command);
             
             reader = new InputStreamReader(process.getInputStream());
             input = new BufferedReader(reader);

@@ -25,15 +25,22 @@ package com.dmdirc.ui.core.dialogs.prefs.addons;
 import com.dmdirc.ui.themes.Theme;
 
 /**
+ * Represents a theme.
  *
  * @since 0.6.3
  * @author chris
  */
 public class ThemeAddon extends Addon {
 
+    /** The theme that's being represented. */
     private final Theme theme;
 
-    public ThemeAddon(Theme theme) {
+    /**
+     * Creates a new ThemeAddon for the specified {@link Theme}.
+     *
+     * @param theme The theme to represent.
+     */
+    public ThemeAddon(final Theme theme) {
         this.theme = theme;
     }
 

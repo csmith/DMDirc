@@ -81,30 +81,27 @@ public abstract class Addon {
     public abstract String getDescription();
 
     /**
-     * Enables the addon, if it wasn't previously enabled.
+     * Transitions the addon to the specific status, if possible.
      *
-     * @return True if the addon is now enabled, false if it is disabled
+     * @param newStatus The desired status of the addon
+     * @return The new status of the addon (after the attempt has been made)
      */
-    protected abstract boolean enable();
+    public abstract AddonStatus setStatus(final AddonStatus newStatus);
 
     /**
-     * Disables the addon, if it wasn't previously disabled.
+     * Determines whether or not the addon can be transitioned to the
+     * specified status.
      *
-     * @return True if the addon is now enabled, false if it is disabled
+     * @param newStatus The desired status of the addon
+     * @return True if such a transition is supported, false otherwise
      */
-    protected abstract boolean disable();
+    public abstract boolean canSetStatus(final AddonStatus newStatus);
 
     /**
-     * Installs the addon.
+     * Sets whether or not the client should check for updates to this addon.
+     *
+     * @param check Whether or not to check for updates
      */
-    protected abstract void install();
-
-    /**
-     * Uninstalls the addon.
-     */
-    protected abstract void uninstall();
-
-    
-    protected abstract void setUpdateState(final boolean check);
+    public abstract void setUpdateState(final boolean check);
 
 }

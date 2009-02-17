@@ -89,34 +89,20 @@ public class ThemeAddon extends Addon {
 
     /** {@inheritDoc} */
     @Override
-    protected boolean enable() {
-        theme.applyTheme();
-        return true;
+    public void setUpdateState(final boolean check) {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /** {@inheritDoc} */
     @Override
-    protected boolean disable() {
-        theme.removeTheme();
+    public AddonStatus setStatus(final AddonStatus newStatus) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean canSetStatus(final AddonStatus newStatus) {
         return false;
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected void install() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected void uninstall() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected void setUpdateState(boolean check) {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 
 }

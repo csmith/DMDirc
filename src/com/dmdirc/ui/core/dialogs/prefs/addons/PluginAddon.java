@@ -102,7 +102,15 @@ public class PluginAddon extends Addon {
     /** {@inheritDoc} */
     @Override
     public boolean canSetStatus(final AddonStatus newStatus) {
-        return false;
+        if (newStatus == AddonStatus.ERROR) {
+            return false;
+        }
+
+        if (newStatus == AddonStatus.DISABLED) {
+            return plugin.isUnloadable();
+        }
+
+        return true;
     }
 
 }

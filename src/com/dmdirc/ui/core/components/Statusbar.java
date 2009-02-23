@@ -29,6 +29,7 @@ import com.dmdirc.actions.ActionManager;
 import com.dmdirc.actions.CoreActionType;
 import com.dmdirc.actions.interfaces.ActionType;
 import com.dmdirc.interfaces.ActionListener;
+import com.dmdirc.parser.irc.ClientInfo;
 import com.dmdirc.ui.interfaces.StatusBar;
 import com.dmdirc.ui.interfaces.StatusMessageNotifier;
 
@@ -45,7 +46,9 @@ public class Statusbar implements ActionListener {
     public Statusbar(final StatusBar statusbar) {
         this.statusbar = statusbar;
         
-        ActionManager.addListener(this, CoreActionType.SERVER_CONNECTED,
+        ActionManager.addListener(this,
+                CoreActionType.SERVER_CONNECTED,
+                CoreActionType.SERVER_INVITERECEIVED,
                 CoreActionType.CLIENT_OPENED);
     }
 
@@ -59,17 +62,23 @@ public class Statusbar implements ActionListener {
                         "Connected to " + ((Server) arguments[0]).getName(),
                         new WindowActivationNotifier(((Server) arguments[0])));
                 break;
+            case SERVER_INVITERECEIVED:
+                statusbar.setMessage("invite",
+                        ((ClientInfo) arguments[1]).getNickname()
+                        + " has invited you to " + arguments[2],
+                        new JoinChannelNotifier(((Server) arguments[0]), (String) arguments[2]));
+                break;
             case CLIENT_OPENED:
                 statusbar.setMessage("icon", "Welcome to DMDirc " + Main.VERSION);
                 break;
         }
     }
 
-    protected static class WindowActivationNotifier implements StatusMessageNotifier {
+    protected class WindowActivationNotifier implements StatusMessageNotifier {
 
         private final FrameContainer target;
 
-        public WindowActivationNotifier(FrameContainer target) {
+        public WindowActivationNotifier(final FrameContainer target) {
             this.target = target;
         }
 
@@ -77,6 +86,26 @@ public class Statusbar implements ActionListener {
         @Override
         public void clickReceived(final int mousebutton, final int clickCount) {
             target.activateFrame();
+            statusbar.clearMessage();
+        }
+
+    }
+
+    protected class JoinChannelNotifier implements StatusMessageNotifier {
+
+        private final Server server;
+        private final String channel;
+
+        public JoinChannelNotifier(final Server server, final String channel) {
+            this.server = server;
+            this.channel = channel;
+        }
+
+        /** {@inheritDoc} */
+        @Override
+        public void clickReceived(final int mousebutton, final int clickCount) {
+            server.join(channel);
+            statusbar.clearMessage();
         }
 
     }

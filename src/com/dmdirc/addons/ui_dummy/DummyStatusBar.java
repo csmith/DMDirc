@@ -26,7 +26,6 @@ import com.dmdirc.ui.interfaces.StatusBar;
 import com.dmdirc.ui.interfaces.StatusMessageNotifier;
 
 import java.awt.Component;
-import javax.swing.Icon;
 
 /**
  * Dummy status bar, used for testing.
@@ -59,18 +58,18 @@ public final class DummyStatusBar implements StatusBar {
     }
     
     @Override
-    public void setMessage(Icon icon, String newMessage) {
+    public void setMessage(String icon, String newMessage) {
         System.out.println("DummyStatusBar: " + newMessage);
     }
 
     @Override
-    public void setMessage(Icon icon, String newMessage,
+    public void setMessage(String icon, String newMessage,
             StatusMessageNotifier newNotifier) {
         System.out.println("DummyStatusBar: " + newMessage);
     }
 
     @Override
-    public void setMessage(Icon icon, String newMessage,
+    public void setMessage(String icon, String newMessage,
             StatusMessageNotifier newNotifier, int timeout) {
         System.out.println("DummyStatusBar: " + newMessage);
     }

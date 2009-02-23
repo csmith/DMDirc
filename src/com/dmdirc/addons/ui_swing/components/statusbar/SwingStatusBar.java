@@ -28,7 +28,6 @@ import com.dmdirc.ui.interfaces.StatusMessageNotifier;
 import java.awt.Component;
 import java.util.Arrays;
 
-import javax.swing.Icon;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
@@ -86,13 +85,13 @@ public final class SwingStatusBar extends JPanel implements StatusBar {
 
     /** {@inheritDoc} */
     @Override
-    public void setMessage(final Icon icon, final String newMessage) {
+    public void setMessage(final String icon, final String newMessage) {
         messageLabel.setMessage(icon, newMessage);
     }
 
     /** {@inheritDoc} */
     @Override
-    public void setMessage(final Icon icon, final String newMessage,
+    public void setMessage(final String icon, final String newMessage,
             final StatusMessageNotifier newNotifier) {
         messageLabel.setMessage(icon, newMessage, newNotifier);
     }
@@ -106,7 +105,7 @@ public final class SwingStatusBar extends JPanel implements StatusBar {
 
     /** {@inheritDoc} */
     @Override
-    public synchronized void setMessage(final Icon icon,
+    public synchronized void setMessage(final String icon,
             final String newMessage,
             final StatusMessageNotifier newNotifier, final int timeout) {
         messageLabel.setMessage(icon, newMessage, newNotifier, timeout);

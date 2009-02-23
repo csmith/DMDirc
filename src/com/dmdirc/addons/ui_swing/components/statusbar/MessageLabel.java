@@ -23,6 +23,7 @@
 package com.dmdirc.addons.ui_swing.components.statusbar;
 
 import com.dmdirc.config.IdentityManager;
+import com.dmdirc.ui.IconManager;
 import com.dmdirc.ui.interfaces.StatusMessageNotifier;
 
 import java.awt.event.MouseEvent;
@@ -32,7 +33,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import javax.swing.BorderFactory;
-import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 
@@ -65,7 +65,7 @@ public class MessageLabel extends JLabel implements MouseListener {
     }
 
     public void setMessage(final String newMessage) {
-        setMessage(newMessage, null);
+        setMessage(newMessage, (StatusMessageNotifier) null);
     }
 
     public void setMessage(final String newMessage,
@@ -73,11 +73,11 @@ public class MessageLabel extends JLabel implements MouseListener {
         setMessage(null, newMessage, newNotifier);
     }
 
-    public void setMessage(final Icon icon, final String newMessage) {
+    public void setMessage(final String icon, final String newMessage) {
         setMessage(icon, newMessage, null);
     }
 
-    public void setMessage(final Icon icon, final String newMessage,
+    public void setMessage(final String icon, final String newMessage,
             final StatusMessageNotifier newNotifier) {
         final int timeout =
                 IdentityManager.getGlobalConfig().
@@ -90,14 +90,14 @@ public class MessageLabel extends JLabel implements MouseListener {
         setMessage(null, newMessage, newNotifier, timeout);
     }
 
-    public synchronized void setMessage(final Icon icon, final String newMessage,
+    public synchronized void setMessage(final String icon, final String newMessage,
             final StatusMessageNotifier newNotifier, final int timeout) {
         SwingUtilities.invokeLater(new Runnable() {
 
             /** {@inheritDoc} */
             @Override
             public void run() {
-                setIcon(icon);
+                setIcon(IconManager.getIconManager().getIcon(icon));
                 setText(newMessage);
                 messageNotifier = newNotifier;
 

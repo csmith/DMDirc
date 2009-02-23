@@ -24,8 +24,6 @@ package com.dmdirc.ui.interfaces;
 
 import java.awt.Component;
 
-import javax.swing.Icon;
-
 /**
  * Status bar interface.
  */
@@ -44,9 +42,9 @@ public interface StatusBar {
      * @param icon Message icon
      * @param newMessage Message to display
      * 
-     * @since 0.6
+     * @since 0.6.3
      */
-    void setMessage(final Icon icon, final String newMessage);
+    void setMessage(final String icon, final String newMessage);
     
     /**
      * Sets the message in the status bar with a specified callback event
@@ -70,9 +68,9 @@ public interface StatusBar {
      * @param newNotifier status message notifier to be notified for events on
      * this message
      * 
-     * @since 0.6
+     * @since 0.6.3
      */
-    void setMessage(final Icon icon, final String newMessage, 
+    void setMessage(final String icon, final String newMessage,
             final StatusMessageNotifier newNotifier);
     
     /**
@@ -97,9 +95,9 @@ public interface StatusBar {
      * this message
      * @param timeout message timeout in seconds
      * 
-     * @since 0.6
+     * @since 0.6.3
      */
-    void setMessage(final Icon icon, final String newMessage,
+    void setMessage(final String icon, final String newMessage,
             final StatusMessageNotifier newNotifier, final int timeout);
     
     /**

@@ -22,25 +22,63 @@
 
 package com.dmdirc.ui.core.components;
 
+import com.dmdirc.FrameContainer;
+import com.dmdirc.Main;
+import com.dmdirc.Server;
 import com.dmdirc.actions.ActionManager;
+import com.dmdirc.actions.CoreActionType;
 import com.dmdirc.actions.interfaces.ActionType;
 import com.dmdirc.interfaces.ActionListener;
+import com.dmdirc.ui.interfaces.StatusBar;
+import com.dmdirc.ui.interfaces.StatusMessageNotifier;
 
 /**
+ * Listens for relevant actions and shows status bar messages informing the
+ * user of events.
  *
  * @author chris
  */
 public class Statusbar implements ActionListener {
 
-    public Statusbar() {
+    private final StatusBar statusbar;
 
+    public Statusbar(final StatusBar statusbar) {
+        this.statusbar = statusbar;
+        
+        ActionManager.addListener(this, CoreActionType.SERVER_CONNECTED,
+                CoreActionType.CLIENT_OPENED);
     }
 
     /** {@inheritDoc} */
     @Override
     public void processEvent(final ActionType type, final StringBuffer format,
             final Object... arguments) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        switch ((CoreActionType) type) {
+            case SERVER_CONNECTED:
+                statusbar.setMessage("server",
+                        "Connected to " + ((Server) arguments[0]).getName(),
+                        new WindowActivationNotifier(((Server) arguments[0])));
+                break;
+            case CLIENT_OPENED:
+                statusbar.setMessage("icon", "Welcome to DMDirc " + Main.VERSION);
+                break;
+        }
+    }
+
+    protected static class WindowActivationNotifier implements StatusMessageNotifier {
+
+        private final FrameContainer target;
+
+        public WindowActivationNotifier(FrameContainer target) {
+            this.target = target;
+        }
+
+        /** {@inheritDoc} */
+        @Override
+        public void clickReceived(final int mousebutton, final int clickCount) {
+            target.activateFrame();
+        }
+
     }
 
 }

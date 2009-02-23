@@ -36,6 +36,7 @@ import com.dmdirc.plugins.Service;
 import com.dmdirc.ui.themes.ThemeManager;
 import com.dmdirc.ui.interfaces.UIController;
 import com.dmdirc.ui.NoUIDialog;
+import com.dmdirc.ui.core.components.Statusbar;
 import com.dmdirc.updater.UpdateChannel;
 import com.dmdirc.updater.UpdateChecker;
 import com.dmdirc.util.resourcemanager.ResourceManager;
@@ -128,6 +129,8 @@ public final class Main {
         ActionManager.loadActions();
 
         getUI().getMainWindow();
+
+        new Statusbar(getUI().getStatusBar()); // Yuck
 
         ActionManager.processEvent(CoreActionType.CLIENT_OPENED, null);
 

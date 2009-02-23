@@ -97,7 +97,7 @@ public class MessageLabel extends JLabel implements MouseListener {
             /** {@inheritDoc} */
             @Override
             public void run() {
-                setIcon(IconManager.getIconManager().getIcon(icon));
+                setIcon(icon == null ? null : IconManager.getIconManager().getIcon(icon));
                 setText(newMessage);
                 messageNotifier = newNotifier;
 

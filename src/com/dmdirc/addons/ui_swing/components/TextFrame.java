@@ -106,7 +106,7 @@ public abstract class TextFrame extends JInternalFrame implements Window,
      */
     private static final long serialVersionUID = 5;
     /** The channel object that owns this frame. */
-    private final FrameContainer parent;
+    protected final FrameContainer parent;
     /** Frame output pane. */
     private TextPane textPane;
     /** search bar. */

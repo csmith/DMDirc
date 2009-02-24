@@ -241,9 +241,10 @@ public abstract class TextFrame extends JInternalFrame implements Window,
                         lines.add(new Line(new String[]{
                             Formatter.formatMessage(getConfigManager(),
                             "timestamp", new Date()), myLine,
-                        }));
+                        }, getConfigManager()));
                     } else {
-                        lines.add(new Line(new String[]{myLine,}));
+                        lines.add(new Line(new String[]{myLine,}, 
+                                getConfigManager()));
                     }
 
                     new LoggingSwingWorker() {

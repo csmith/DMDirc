@@ -162,6 +162,12 @@ public final class ServerSettingsDialog extends StandardDialog implements Action
 
     /** Adds the settings to the panel. */
     private void addSettings() {
+        settingsPanel.addOption("ui. textPaneFontName", "Text pane font name",
+                OptionType.TEXTFIELD);
+        settingsPanel.addOption("ui.textPaneFontSize", "Text pane font size",
+                OptionType.SPINNER);
+        
+        
         settingsPanel.addOption("channel.splitusermodes", "Split user modes",
                 OptionType.CHECKBOX);
         settingsPanel.addOption("channel.sendwho", "Send WHO",

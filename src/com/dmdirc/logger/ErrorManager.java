@@ -30,6 +30,7 @@ import com.dmdirc.util.ListenerList;
 
 import java.awt.GraphicsEnvironment;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;

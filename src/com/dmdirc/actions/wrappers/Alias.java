@@ -24,10 +24,10 @@ package com.dmdirc.actions.wrappers;
 
 import com.dmdirc.actions.Action;
 import com.dmdirc.actions.ActionCondition;
-import com.dmdirc.actions.interfaces.ActionType;
 import com.dmdirc.actions.CoreActionComparison;
 import com.dmdirc.actions.CoreActionComponent;
 import com.dmdirc.actions.CoreActionType;
+import com.dmdirc.actions.interfaces.ActionType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -209,7 +209,7 @@ public final class Alias implements Serializable {
     }
     
     /**
-     * Checks if the specified alias matches this one
+     * Checks if the specified alias matches this one.
      *
      * @param alias Alias to check a match with
      *

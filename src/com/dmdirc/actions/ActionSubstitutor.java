@@ -22,11 +22,11 @@
 
 package com.dmdirc.actions;
 
-import com.dmdirc.actions.interfaces.ActionType;
-import com.dmdirc.actions.interfaces.ActionComponent;
 import com.dmdirc.FrameContainer;
 import com.dmdirc.Server;
 import com.dmdirc.ServerState;
+import com.dmdirc.actions.interfaces.ActionType;
+import com.dmdirc.actions.interfaces.ActionComponent;
 import com.dmdirc.config.IdentityManager;
 
 import java.util.HashMap;

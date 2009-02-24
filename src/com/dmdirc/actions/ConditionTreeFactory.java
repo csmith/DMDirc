@@ -47,7 +47,7 @@ public abstract class ConditionTreeFactory {
     public abstract ConditionTreeFactoryType getType();
     
     /**
-     * The possible types of ConditionTreeFactories
+     * The possible types of ConditionTreeFactories.
      */
     public static enum ConditionTreeFactoryType {
         /** Factories that produce disjunction (OR) trees. */

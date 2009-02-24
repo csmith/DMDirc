@@ -53,31 +53,31 @@ import java.util.Map;
 public final class ActionManager {
 
     /** A list of registered action types. */
-    private final static List<ActionType> actionTypes
+    private static final List<ActionType> actionTypes
             = new ArrayList<ActionType>();
 
     /** A list of registered action components. */
-    private final static List<ActionComponent> actionComponents
+    private static final List<ActionComponent> actionComponents
             = new ArrayList<ActionComponent>();
 
     /** A list of registered action comparisons. */
-    private final static List<ActionComparison> actionComparisons
+    private static final List<ActionComparison> actionComparisons
             = new ArrayList<ActionComparison>();
 
     /** A map linking types and a list of actions that're registered for them. */
-    private final static MapList<ActionType, Action> actions
+    private static final MapList<ActionType, Action> actions
             = new MapList<ActionType, Action>();
 
     /** A map linking groups and a list of actions that're in them. */
-    private final static Map<String, ActionGroup> groups
+    private static final Map<String, ActionGroup> groups
             = new HashMap<String, ActionGroup>();
 
     /** A map of the action type groups to the action types within. */
-    private final static MapList<String, ActionType> actionTypeGroups
+    private static final MapList<String, ActionType> actionTypeGroups
             = new MapList<String, ActionType>();
 
     /** The listeners that we have registered. */
-    private final static MapList<ActionType, ActionListener> listeners
+    private static final MapList<ActionType, ActionListener> listeners
             = new MapList<ActionType, ActionListener>();
 
     /** Indicates whether or not user actions should be killed (not processed). */
@@ -162,7 +162,7 @@ public final class ActionManager {
         for (ActionType type : types) {
             Logger.assertTrue(type != null);
             
-            if(!actionTypes.contains(type)) {
+            if (!actionTypes.contains(type)) {
                 actionTypes.add(type);
                 actionTypeGroups.add(type.getType().getGroup(), type);
             }
@@ -367,8 +367,8 @@ public final class ActionManager {
         Logger.assertTrue(type.getType().getArity() == arguments.length);
 
         if (listeners.containsKey(type)) {
-            for (ActionListener listener :
-                new ArrayList<ActionListener>(listeners.get(type))) {
+            for (ActionListener listener
+                    : new ArrayList<ActionListener>(listeners.get(type))) {
                 listener.processEvent(type, format, arguments);
             }
         }

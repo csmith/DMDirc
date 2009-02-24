@@ -22,9 +22,9 @@
 
 package com.dmdirc.actions;
 
-import com.dmdirc.actions.interfaces.ActionType;
 import com.dmdirc.actions.interfaces.ActionComponent;
 import com.dmdirc.actions.interfaces.ActionComparison;
+import com.dmdirc.actions.interfaces.ActionType;
 import com.dmdirc.config.prefs.PreferencesSetting;
 import com.dmdirc.config.prefs.PreferencesType;
 import com.dmdirc.logger.ErrorLevel;
@@ -66,11 +66,11 @@ public class Action extends ActionModel implements Serializable {
     /** The domain name for triggers. */
     private static final String DOMAIN_TRIGGERS = "triggers".intern();
 
-    /** The location of the file we're reading/saving. */
-    private String location;
-
     /** The config file we're using. */
     protected ConfigFile config;
+
+    /** The location of the file we're reading/saving. */
+    private String location;
 
     /**
      * Creates a new instance of Action. The group and name specified must
@@ -163,7 +163,7 @@ public class Action extends ActionModel implements Serializable {
             response = new String[config.getFlatDomain(DOMAIN_RESPONSE).size()];
 
             int i = 0;
-            for (String line: config.getFlatDomain(DOMAIN_RESPONSE)) {
+            for (String line : config.getFlatDomain(DOMAIN_RESPONSE)) {
                 response[i++] = line;
             }
         } else {
@@ -172,8 +172,8 @@ public class Action extends ActionModel implements Serializable {
         }
 
         if (config.isFlatDomain(DOMAIN_FORMAT)) {
-            newFormat = config.getFlatDomain(DOMAIN_FORMAT).size() == 0 ? "" :
-                config.getFlatDomain(DOMAIN_FORMAT).get(0);
+            newFormat = config.getFlatDomain(DOMAIN_FORMAT).size() == 0 ? ""
+                    : config.getFlatDomain(DOMAIN_FORMAT).get(0);
         }
 
         for (int cond = 0; config.isKeyDomain("condition " + cond); cond++) {
@@ -366,7 +366,7 @@ public class Action extends ActionModel implements Serializable {
      * @param data The relevant section of the action configuration
      * @return True if the condition is valid, false otherwise
      */
-    private boolean readCondition(final Map<String,String> data) {
+    private boolean readCondition(final Map<String, String> data) {
         int arg = 0;
         ActionComponent component = null;
         ActionComparison comparison = null;

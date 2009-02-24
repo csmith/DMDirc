@@ -27,8 +27,8 @@ import com.dmdirc.actions.interfaces.ActionMetaType;
 import com.dmdirc.commandparser.PopupMenu;
 import com.dmdirc.commandparser.PopupType;
 import com.dmdirc.config.ConfigManager;
-
 import com.dmdirc.config.prefs.PreferencesManager;
+
 import javax.swing.KeyStroke;
 import javax.swing.text.StyledDocument;
 

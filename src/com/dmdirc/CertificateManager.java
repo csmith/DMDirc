@@ -57,6 +57,7 @@ import javax.naming.ldap.Rdn;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.X509TrustManager;
+
 import net.miginfocom.Base64;
 
 /**
@@ -375,11 +376,11 @@ public class CertificateManager implements X509TrustManager {
         private static final long serialVersionUID = 1;
 
         /**
-         * Creates a new CertificateDoesntMatchHostException
+         * Creates a new CertificateDoesntMatchHostException.
          *
          * @param msg A description of the problem
          */
-        public CertificateDoesntMatchHostException(String msg) {
+        public CertificateDoesntMatchHostException(final String msg) {
             super(msg);
         }
 
@@ -399,11 +400,11 @@ public class CertificateManager implements X509TrustManager {
         private static final long serialVersionUID = 1;
 
         /**
-         * Creates a new CertificateNotTrustedException
+         * Creates a new CertificateNotTrustedException.
          *
          * @param msg A description of the problem
          */
-        public CertificateNotTrustedException(String msg) {
+        public CertificateNotTrustedException(final String msg) {
             super(msg);
         }
 

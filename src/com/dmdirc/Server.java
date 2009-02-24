@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+
 import javax.net.ssl.TrustManager;
 
 /**
@@ -294,7 +295,7 @@ public final class Server extends WritableFrameContainer implements Serializable
 
             final MyInfo myInfo = getMyInfo();
 
-            CertificateManager certManager
+            final CertificateManager certManager
                     = new CertificateManager(server, getConfigManager());
 
             parser = parserFactory.getParser(myInfo, serverInfo);

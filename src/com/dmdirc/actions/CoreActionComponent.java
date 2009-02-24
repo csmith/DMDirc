@@ -22,11 +22,11 @@
 
 package com.dmdirc.actions;
 
-import com.dmdirc.actions.interfaces.ActionComponent;
 import com.dmdirc.Channel;
 import com.dmdirc.FrameContainer;
 import com.dmdirc.Query;
 import com.dmdirc.Server;
+import com.dmdirc.actions.interfaces.ActionComponent;
 import com.dmdirc.logger.ErrorLevel;
 import com.dmdirc.logger.Logger;
 import com.dmdirc.parser.irc.ChannelClientInfo;

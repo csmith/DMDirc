@@ -48,10 +48,10 @@ public class ConditionTree {
     }
 
     /** The left subtree of this tree. */
-    private ConditionTree leftArg = null;
+    private ConditionTree leftArg;
 
     /** The right subtree of this tree. */
-    private ConditionTree rightArg = null;
+    private ConditionTree rightArg;
 
     /** The argument of this tree (only used for VAR ops). */
     private int argument = -1;
@@ -76,8 +76,8 @@ public class ConditionTree {
     /**
      * Creates a new ConditionTree for a unary operation.
      *
-     * @param op
-     * @param argument
+     * @param op The operation to perform
+     * @param argument The argument to the operation
      */
     private ConditionTree(final OPERATION op, final ConditionTree argument) {
         this.op = op;

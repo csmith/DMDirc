@@ -51,10 +51,10 @@ public class ActionGroup implements Iterable<Action> {
     private final String name;
     
     /** The description of this action group. */
-    private String description = null;
+    private String description;
     
     /** The author of this action group. */
-    private String author = null;
+    private String author;
     
     /** The component number of this action group (for updating). */
     private int component = -1;

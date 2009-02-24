@@ -39,11 +39,11 @@ import com.dmdirc.ui.interfaces.InputWindow;
  */
 public class GlobalWindow extends WritableFrameContainer {
 
-    /** The window we're using. */
-    private final InputWindow window;
-
     /** The global window that's in use, if any. */
     private static GlobalWindow globalWindow;
+
+    /** The window we're using. */
+    private final InputWindow window;
 
     /** The tab completer we use. */
     private final TabCompleter tabCompleter;

@@ -102,7 +102,15 @@ public final class Main {
 
         CommandManager.initCommands();
 
-        loadUI(pm, IdentityManager.getGlobalConfig(), true);
+        if (!loadService(pm, "ui", "ui_", IdentityManager.getGlobalConfig(), true)) {
+            if (!GraphicsEnvironment.isHeadless()) {
+                // Show a dialog informing the user that no UI was found.
+                NoUIDialog.displayBlocking();
+            }
+
+            // Can't find any
+            throw new IllegalStateException("No UIs could be loaded");
+        }
 
         getUI().initUISettings();
 
@@ -136,50 +144,48 @@ public final class Main {
     }
 
     /**
-     * Attempts to find and activate a service which provides a UI that we
-     * can use.
+     * Attempts to find and activate a plugin which provides the specified
+     * service.
      *
      * @param pm The plugin manager to use to load plugins
+     * @param serviceType The type of service which should be loaded
+     * @param prefix The .jar file name prefix to use if extracting
      * @param cm The config manager to use to retrieve settings
      * @param tryExtracting If no suitable plugins are found and tryExtracting
-     * is true, the method will try extracting core UI plugins bundled with
+     * is true, the method will try extracting core plugins bundled with
      * DMDirc before giving up.
+     * @return True if a valid service was found, false otherwise
+     * @since 0.6.3
      */
-    protected static void loadUI(final PluginManager pm, final ConfigManager cm,
-            final boolean tryExtracting) {
-        final List<Service> uis = pm.getServicesByType("ui");
-        final String desired = cm.getOption("general", "ui");
+    protected static boolean loadService(final PluginManager pm,
+            final String serviceType, final String prefix,
+            final ConfigManager cm, final boolean tryExtracting) {
+        final List<Service> uis = pm.getServicesByType(serviceType);
+        final String desired = cm.getOption("services", serviceType);
 
         // First try: go for our desired service type
         for (Service service : uis) {
             if (service.getName().equals(desired) && service.activate()) {
-                return;
+                return true;
             }
         }
 
         // Second try: go for any service type
         for (Service service : uis) {
             if (service.activate()) {
-                return;
+                return true;
             }
         }
 
         // Third try: extract some core plugins and go again
         if (tryExtracting) {
-            extractCorePlugins("ui_");
+            extractCorePlugins(prefix);
             pm.getPossiblePluginInfos(true);
 
-            loadUI(pm, cm, false);
-            return;
+            return loadService(pm, serviceType, prefix, cm, false);
         }
 
-        if (!GraphicsEnvironment.isHeadless()) {
-            // Show a dialog informing the user that no UI was found.
-            NoUIDialog.displayBlocking();
-        }
-
-        // Can't find any
-        throw new IllegalStateException("No UIs could be loaded");
+        return false;
     }
     
     /**

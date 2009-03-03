@@ -24,6 +24,7 @@ keysections:
   temp
   dialogstate
   browser
+  services
 
 identity:
   name=DMDirc default settings
@@ -61,7 +62,6 @@ general:
   showrawwindow=false
   silencechar=.
   submitErrors=false
-  ui=swing
   whotime=60000
 
 notifications:
@@ -288,3 +288,7 @@ dialogstate:
 browser:
   uselaunchdelay=true
   launchdelay=500
+
+services:
+  ui=swing
+  tabcompleter=mirc

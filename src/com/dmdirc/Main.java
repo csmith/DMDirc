@@ -33,6 +33,7 @@ import com.dmdirc.logger.ErrorLevel;
 import com.dmdirc.logger.Logger;
 import com.dmdirc.plugins.PluginManager;
 import com.dmdirc.plugins.Service;
+import com.dmdirc.plugins.services.DMDircService;
 import com.dmdirc.ui.themes.ThemeManager;
 import com.dmdirc.ui.interfaces.UIController;
 import com.dmdirc.ui.NoUIDialog;
@@ -95,6 +96,7 @@ public final class Main {
         IdentityManager.load();
 
         final PluginManager pm = PluginManager.getPluginManager();
+        loadServices(pm, IdentityManager.getGlobalConfig());
         
         ThemeManager.loadThemes();
 
@@ -137,6 +139,16 @@ public final class Main {
                 IdentityManager.save();
             }
         }, "Shutdown thread"));        
+    }
+
+    /**
+     * Loads the DMDirc pseudo-services into the specified plugin manager.
+     *
+     * @param pm The plugin manager to which the services should be added
+     * @param cm The config manager to read settings from
+     */
+    protected static void loadServices(final PluginManager pm, final ConfigManager cm) {
+        new DMDircService(pm, cm.getOption("version", "version"));
     }
 
     /**

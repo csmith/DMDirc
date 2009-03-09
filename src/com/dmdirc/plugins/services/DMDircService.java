@@ -22,6 +22,7 @@
 
 package com.dmdirc.plugins.services;
 
+import com.dmdirc.plugins.ExportedService;
 import com.dmdirc.plugins.PluginManager;
 import com.dmdirc.plugins.Service;
 import com.dmdirc.plugins.ServiceProvider;
@@ -79,6 +80,12 @@ public class DMDircService implements ServiceProvider {
     @Override
     public String getProviderName() {
         return "(pseudo service)";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public ExportedService getExportedService(final String name) {
+        return new ExportedService(null, null);
     }
 
 }

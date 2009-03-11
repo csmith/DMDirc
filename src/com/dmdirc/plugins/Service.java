@@ -34,6 +34,9 @@ public class Service {
 	/** Service Name. */
 	private final String name;
 	
+	/** Service Version. */
+	private final float version;
+	
 	/** List of ServiceProviders that implement this service. */
 	private List<ServiceProvider> serviceproviders = new ArrayList<ServiceProvider>();
 	
@@ -44,8 +47,20 @@ public class Service {
 	 * @param name Name of this service
 	 */
 	protected Service(final String type, final String name) {
+		this(type, name, 0.0);
+	}
+	
+	/**
+	 * Create a new Service
+	 *
+	 * @param type Type of this service
+	 * @param name Name of this service
+	 * @param version Version of this service
+	 */
+	protected Service(final String type, final String name, final float version) {
 		this.type = type;
 		this.name = name;
+		this.version = version
 	}
 	
 	/**
@@ -64,6 +79,15 @@ public class Service {
 	 */
 	public String getType() {
 		return type;
+	}
+	
+	/**
+	 * Get the version of this service
+	 *
+	 * @return The version of this service
+	 */
+	public float getVersion() {
+		return version;
 	}
 	
 	/**

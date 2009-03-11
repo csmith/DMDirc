@@ -372,6 +372,7 @@ public class PluginInfo implements Comparable<PluginInfo>, ServiceProvider {
 				final String[] bits = item.split(" ");
 				final String name = bits[0];
 				final String type = (bits.length > 1) ? bits[1] : "misc";
+				final String version = (bits.length > 2) ? bits[2] : "0.0";
 				
 				if (!name.equalsIgnoreCase("any") && !type.equalsIgnoreCase("export")) {
 					final Service service = PluginManager.getPluginManager().getService(type, name, true);

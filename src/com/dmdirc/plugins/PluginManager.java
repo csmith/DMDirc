@@ -80,7 +80,19 @@ public class PluginManager implements ActionListener {
 	 * @return The service requested, or null if service wasn't found and create wasn't specifed
 	 */
 	public Service getService(final String type, final String name) {
-		return getService(type, name, false);
+		return getService(type, name, "", false);
+	}
+	
+	/**
+	 * Get a service object for the given name/type if one exists.
+	 *
+	 * @param type Type of this service
+	 * @param name Name of this service
+	 * @param version Required version. (eg "=1.0", ">1.0", "<1.0" or "")
+	 * @return The service requested, or null if service wasn't found and create wasn't specifed
+	 */
+	public Service getService(final String type, final String name, final String version) {
+		return getService(type, name, version, false);
 	}
 	
 	/**
@@ -92,6 +104,36 @@ public class PluginManager implements ActionListener {
 	 * @return The service requested, or null if service wasn't found and create wasn't specifed
 	 */
 	public Service getService(final String type, final String name, final boolean create) {
+		return getService(type, name, version, create);
+	}
+	
+	/**
+	 * Get a service object for the given name/type.
+	 *
+	 * @param type Type of this service
+	 * @param name Name of this service
+	 * @param version Required version.
+	 *                If create is true, this should be something like "1.0" or ""
+	 *                If create is false, this should be something like "=1.0", ">1.0", "<1.0" or ""
+	 * @param create If the requested service doesn't exist, should it be created?
+	 * @return The service requested, or null if service wasn't found and create wasn't specifed
+	 */
+	public Service getService(final String type, final String name, final String version, final boolean create) {
+		float version;
+		char comparison = '=';
+		try {
+			if (version.isEmpty()) {
+				comparison = '>';
+				version = -1;
+			} else if (create) {
+				version = Float.parseFloat(version);
+				if (version < 0.0) { version = 0.0; }
+			} else {
+				comparison = version.charAt(0);
+				version = Float.parseFloat(version.substring(1));
+			}
+		} catch (NumberFormatException nfe) { version = 0.0; }
+	
 		// Find the type first
 		if (services.containsKey(type)) {
 			final Map<String, Service> map = services.get(type);

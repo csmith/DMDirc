@@ -23,6 +23,7 @@
 package com.dmdirc.serverlists;
 
 /**
+ * Describes an entry for a server within a {@link ServerGroup}.
  *
  * @since 0.6.3
  * @author chris
@@ -33,5 +34,15 @@ public class ServerEntry {
     private int port;
     private boolean ssl;
     private String password;
+    private String profile;
+
+    public ServerEntry(final String host, final int port, final boolean ssl,
+            final String password, final String profile) {
+        this.host = host;
+        this.port = port;
+        this.ssl = ssl;
+        this.password = password;
+        this.profile = profile;
+    }
 
 }

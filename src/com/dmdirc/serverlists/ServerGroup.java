@@ -34,11 +34,15 @@ public class ServerGroup {
     private String name;
     private List<ServerEntry> entries;
 
+    public ServerGroup(final String name) {
+        this.name = name;
+    }
+
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(final String name) {
         this.name = name;
     }
 }

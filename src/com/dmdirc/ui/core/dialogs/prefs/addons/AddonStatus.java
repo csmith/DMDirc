@@ -23,15 +23,18 @@
 package com.dmdirc.ui.core.dialogs.prefs.addons;
 
 /**
+ * Describes the status of an addon.
  *
  * @since 0.6.3
  * @author chris
  */
 public enum AddonStatus {
 
-    NOTINSTALLED,
+    /** The addon is enabled. */
     ENABLED,
+    /** The addon is disabled. */
     DISABLED,
+    /** There was an error loading the addon. */
     ERROR;
 
 }

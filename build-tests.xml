@@ -6,6 +6,7 @@
     <taskdef resource="cloverlib.xml" classpath="${clover.jar}"/>
     <taskdef resource="cloverjunitlib.xml" classpath="${clover.jar}"/>
     <available property="clover.installed" classname="com.cenqua.clover.CloverInstr" />
+    <available file="/usr/bin/xvfb-run" property="has.xvfb"/>
 
     <target name="with.clover" depends="clean" if="clover.installed"
             description="Set up Clover to instrument tests.">
@@ -56,6 +57,20 @@
             <report todir="${test.reports}" />
         </junitreport>
     </target>
+
+    <target name="test" depends="-test-xvfb, -test-no-xvfb"/>
+
+    <target name="-test-xvfb" if="has.xvfb">
+        <exec executable="/usr/bin/xvfb-run">
+            <arg value="-a"/>
+            <!-- <arg value="-s"/>
+            <arg value="1280x1024x24"/> -->
+            <arg value="/usr/bin/ant"/>
+            <arg value="do-real-test"/>
+        </exec>
+    </target>
+
+    <target name="-test-no-xvfb" unless="has.xvfb" depends="do-real-test"/>
 
     <target name="test-html" depends="with.clover,compile-test,test,clover.html,clover.snapshot"
             description="Run tests and generate a Clover HTML report."/>

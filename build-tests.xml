@@ -70,7 +70,9 @@
         </exec>
     </target>
 
-    <target name="-test-no-xvfb" unless="has.xvfb" depends="do-real-test"/>
+    <target name="-test-no-xvfb" unless="has.xvfb">
+        <antcall target="do-real-test"/>
+    </target>
 
     <target name="test-html" depends="with.clover,compile-test,test,clover.html,clover.snapshot"
             description="Run tests and generate a Clover HTML report."/>

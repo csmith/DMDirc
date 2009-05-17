@@ -51,7 +51,12 @@ public class ExportInfo {
 	 */
 	public ExportedService getExportedService() {
 		try {
-			final Class<?> c = pluginInfo.getPluginClassLoader().loadClass(className, false);
+			final Class<?> c;
+			if (pluginInfo.isPersistent(className)) {
+				c = GlobalClassLoader.getGlobalClassLoader().loadClass(className);
+			} else {
+				c = pluginInfo.getPluginClassLoader().loadClass(className, false);
+			}
 			final Plugin p = className.equals(pluginInfo.getMainClass()) ? pluginInfo.getPluginObject() : null;
 			return new ExportedService(c, methodName, p);
 		} catch (ClassNotFoundException cnfe) {

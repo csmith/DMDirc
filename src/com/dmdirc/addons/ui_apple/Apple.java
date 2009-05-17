@@ -242,11 +242,11 @@ public final class Apple extends Plugin implements InvocationHandler, ActionList
 		return false;
 	}
 	
-    /**
-     * {@inheritDoc}
-     *
-     * @throws Throwable Throws stuff on errors
-     */
+	/**
+	 * {@inheritDoc}
+	 *
+	 * @throws Throwable Throws stuff on errors
+	 */
 	@Override
 	public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
 		if (!isApple()) { return null; }

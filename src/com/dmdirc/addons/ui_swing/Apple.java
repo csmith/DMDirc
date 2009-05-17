@@ -24,6 +24,7 @@ package com.dmdirc.addons.ui_swing;
 
 import com.dmdirc.plugins.PluginManager;
 import com.dmdirc.addons.ui_swing.components.MenuBar;
+import com.dmdirc.plugins.NoSuchProviderException;
 
 /**
  * Integrate DMDirc with OS X better.
@@ -57,7 +58,11 @@ public final class Apple {
 	 * @return Object that on OSX will be an "Application"
 	 */
 	public static Object getApplication() {
-		return PluginManager.getPluginManager().getExportedService("apple_getApplication").execute();
+		try {
+			return PluginManager.getPluginManager().getExportedService("apple_getApplication").execute();
+		} catch (final NoSuchProviderException nspe) {
+			return null;
+		}
 	}
 	
 	/**
@@ -66,7 +71,11 @@ public final class Apple {
 	 * @return Object that on OSX will be an "NSApplication"
 	 */
 	public static Object getNSApplication() {
-		return PluginManager.getPluginManager().getExportedService("apple_getNSApplication").execute();
+		try {
+			return PluginManager.getPluginManager().getExportedService("apple_getNSApplication").execute();
+		} catch (final NoSuchProviderException nspe) {
+			return null;
+		}
 	}
 	
 	/**
@@ -75,10 +84,14 @@ public final class Apple {
 	 * @return true if we are running on OS X
 	 */
 	public static boolean isApple() {
-		final Object obj = PluginManager.getPluginManager().getExportedService("apple_isApple").execute();
-		if (obj instanceof Boolean) {
-			return (Boolean)obj;
-		} else {
+		try {
+			final Object obj = PluginManager.getPluginManager().getExportedService("apple_isApple").execute();
+			if (obj instanceof Boolean) {
+				return (Boolean)obj;
+			} else {
+				return false;
+			}
+		} catch (final NoSuchProviderException nspe) {
 			return false;
 		}
 	}
@@ -89,10 +102,14 @@ public final class Apple {
 	 * @return true if we are using the OS X look and feel
 	 */
 	public static boolean isAppleUI() {
-		final Object obj = PluginManager.getPluginManager().getExportedService("apple_isAppleUI").execute();
-		if (obj instanceof Boolean) {
-			return (Boolean)obj;
-		} else {
+		try {
+			final Object obj = PluginManager.getPluginManager().getExportedService("apple_isAppleUI").execute();
+			if (obj instanceof Boolean) {
+				return (Boolean)obj;
+			} else {
+				return false;
+			}
+		} catch (final NoSuchProviderException nspe) {
 			return false;
 		}
 	}
@@ -101,7 +118,9 @@ public final class Apple {
 	 * Set some OS X only UI settings.
 	 */
 	public void setUISettings() {
-		PluginManager.getPluginManager().getExportedService("apple_setUISettings").execute();
+		try {
+			PluginManager.getPluginManager().getExportedService("apple_setUISettings").execute();
+		} catch (final NoSuchProviderException nspe) { }
 	}
 	
 	/**
@@ -111,7 +130,9 @@ public final class Apple {
 	 *                   otherwise it will bounce until clicked on.
 	 */
 	public void requestUserAttention(final boolean isCritical) {
-		PluginManager.getPluginManager().getExportedService("apple_requestUserAttention").execute(isCritical);
+		try {
+			PluginManager.getPluginManager().getExportedService("apple_requestUserAttention").execute(isCritical);
+		} catch (final NoSuchProviderException nspe) { }
 	}
 	
 	/**
@@ -120,10 +141,14 @@ public final class Apple {
 	 * @return True if the listener was added, else false.
 	 */
 	public boolean setListener() {
-		final Object obj = PluginManager.getPluginManager().getExportedService("apple_setListener").execute();
-		if (obj instanceof Boolean) {
-			return (Boolean)obj;
-		} else {
+		try {
+			final Object obj = PluginManager.getPluginManager().getExportedService("apple_setListener").execute();
+			if (obj instanceof Boolean) {
+				return (Boolean)obj;
+			} else {
+				return false;
+			}
+		} catch (final NoSuchProviderException nspe) {
 			return false;
 		}
 	}
@@ -135,6 +160,8 @@ public final class Apple {
 	 * @param menuBar MenuBar to use to send events to,
 	 */
 	public void setMenuBar(final MenuBar menuBar) {
-		PluginManager.getPluginManager().getExportedService("apple_setMenuBar").execute(menuBar);
+		try {
+			PluginManager.getPluginManager().getExportedService("apple_setMenuBar").execute(menuBar);
+		} catch (final NoSuchProviderException nspe) { }
 	}
 }

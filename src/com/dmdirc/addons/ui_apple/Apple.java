@@ -105,8 +105,12 @@ public final class Apple extends Plugin implements InvocationHandler, ActionList
 		if (isApple()) {
 			try {
 				System.loadLibrary("DMDirc-Apple");
-				registerOpenURLCallback();
-				ActionManager.addListener(this, CoreActionType.CLIENT_OPENED);
+				try {
+					registerOpenURLCallback();
+					ActionManager.addListener(this, CoreActionType.CLIENT_OPENED);
+				} catch (UnsatisfiedLinkError ule) {
+					Logger.userError(ErrorLevel.MEDIUM, "Error calling method in JNI library. ("+ule.getMessage()+")", ule);
+				}
 			} catch (UnsatisfiedLinkError ule) {
 				Logger.userError(ErrorLevel.MEDIUM, "Unable to load JNI library.", ule);
 			}

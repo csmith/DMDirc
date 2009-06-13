@@ -117,7 +117,7 @@ public final class WindowMenuFrameManager extends JMenu implements FrameManager,
         itemCount = getMenuComponentCount();
         checkMenuItems();
 
-        MenuScroller.setScrollerFor(this, 20);
+        new MenuScroller(this, 20, 250, 4, 0).setShowSeperators(false);
     }
 
     /**

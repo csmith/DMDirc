@@ -20,8 +20,10 @@
  * SOFTWARE.
  */
 
-package com.dmdirc.addons.ui_swing.components;
+package com.dmdirc.addons.ui_swing.components.colours;
 
+import com.dmdirc.addons.ui_swing.dialogs.StandardDialog;
+import com.dmdirc.addons.ui_swing.components.*;
 import com.dmdirc.addons.ui_swing.SwingController;
 
 import java.awt.Window;

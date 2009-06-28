@@ -24,8 +24,8 @@
 package com.dmdirc.addons.ui_swing.dialogs.prefs;
 
 import com.dmdirc.addons.ui_swing.PrefsComponentFactory;
-import com.dmdirc.addons.ui_swing.components.ColourChooser;
-import com.dmdirc.addons.ui_swing.components.OptionalColourChooser;
+import com.dmdirc.addons.ui_swing.components.colours.ColourChooser;
+import com.dmdirc.addons.ui_swing.components.colours.OptionalColourChooser;
 import com.dmdirc.addons.ui_swing.components.text.TextLabel;
 import com.dmdirc.addons.ui_swing.components.durationeditor.DurationDisplay;
 import com.dmdirc.config.prefs.PreferencesCategory;

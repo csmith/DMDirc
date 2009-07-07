@@ -46,7 +46,7 @@ import java.util.regex.PatternSyntaxException;
 
 /**
  * Process PRIVMSGs and NOTICEs.
- * This horrible handles PRIVMSGs and NOTICES<br>
+ * This horrible handles PRIVMSGs and NOTICE<br>
  * This inclues CTCPs and CTCPReplies<br>
  * It handles all 3 targets (Channel, Private, Unknown)<br>
  * Actions are handled here aswell separately from CTCPs.<br>
@@ -159,7 +159,7 @@ public class ProcessMessage extends IRCProcessor {
 		// CTCP and CTCPReplies that are aimed at a channel with a prefix are
 		// handled as if the prefix wasn't used. This can be changed in the future
 		// if desired.
-		final char modePrefix = token[2].charAt(1);
+		final char modePrefix = token[2].charAt(0);
 		final boolean hasModePrefix =  (myParser.prefixMap.containsKey(modePrefix) && !myParser.prefixModes.containsKey(modePrefix));
 		final String targetName = (hasModePrefix) ? token[2].substring(1) : token[2];
 		

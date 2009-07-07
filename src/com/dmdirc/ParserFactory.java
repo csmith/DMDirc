@@ -26,6 +26,7 @@ import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.parser.irc.IRCParser;
 import com.dmdirc.parser.irc.MyInfo;
 import com.dmdirc.parser.irc.ServerInfo;
+import com.dmdirc.parser.rss.RSSParser;
 
 /**
  * Provides a method to retrieve a parser.
@@ -43,7 +44,7 @@ public class ParserFactory {
      * @return An appropriately configured parser
      */
     public Parser getParser(final MyInfo myInfo, final ServerInfo serverInfo) {
-        return new IRCParser(myInfo, serverInfo);
+        return new RSSParser();// IRCParser(myInfo, serverInfo);
     }
 
 }

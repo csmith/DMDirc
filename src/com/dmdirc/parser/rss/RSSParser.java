@@ -28,7 +28,7 @@ import com.dmdirc.parser.interfaces.LocalClientInfo;
 import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.parser.irc.IRCStringConverter;
 import com.dmdirc.parser.irc.RegexStringList;
-import com.dmdirc.parser.irc.callbacks.CallbackManager;
+import com.dmdirc.parser.common.CallbackManager;
 
 import java.util.Collection;
 
@@ -164,8 +164,8 @@ public class RSSParser implements Parser {
     }
 
     @Override
-    public CallbackManager getCallbackManager() {
-        return new CallbackManager(null);
+    public CallbackManager<?> getCallbackManager() {
+        return null;//new CallbackManager(null);
     }
 
     @Override

@@ -51,6 +51,8 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     TwitterChannelClientInfo(TwitterChannelInfo channel, TwitterClientInfo ci) {
         this.myChannel = channel;
         this.myClient = ci;
+
+        myClient.addChannel(myChannel);
     }
 
     /** {@inheritDoc} */
@@ -77,6 +79,12 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
         return myClient.getUser().getFollowing() ? "v" : "";
     }
 
+    /**
+     * Get the value for the mode this client has.
+     * Used for sorting.
+     *
+     * @return Value for this clients modes.
+     */
     public int getImportantModeValue() {
         return myClient.getUser().getFollowing() ? 1 : 0;
     }
@@ -95,8 +103,9 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
 
     /** {@inheritDoc} */
     @Override
-    public void kick(String message) {
+    public void kick(final String message) {
         ((Twitter)myClient.getParser()).getApi().destroyFriendship(myClient.getUser().getScreenName()).build().post();
+        myClient.delChannel(myChannel);
     }
 
     /**

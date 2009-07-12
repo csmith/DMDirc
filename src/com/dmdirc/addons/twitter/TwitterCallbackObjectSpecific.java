@@ -72,7 +72,7 @@ public class TwitterCallbackObjectSpecific extends CallbackObjectSpecific {
 
     /** {@inheritDoc} */
     @Override
-    protected Class<?> getImplementation(Class<?> type) {
+    protected Class<?> getImplementation(final Class<?> type) {
         return IMPL_MAP.containsKey(type) ? IMPL_MAP.get(type) : type;
     }
 

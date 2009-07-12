@@ -23,7 +23,13 @@ package com.dmdirc.addons.twitter;
 
 import com.dmdirc.parser.interfaces.LocalClientInfo;
 import com.dmdirc.parser.interfaces.Parser;
+import com.dmdirc.parser.interfaces.callbacks.ChannelMessageListener;
+import com.dmdirc.parser.interfaces.callbacks.ChannelNickChangeListener;
+import com.dmdirc.parser.interfaces.callbacks.ChannelSingleModeChangeListener;
+import com.dmdirc.parser.interfaces.callbacks.ChannelUserModeChangeListener;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.unto.twitter.TwitterProtos.User;
 
@@ -41,6 +47,9 @@ public class TwitterClientInfo implements LocalClientInfo {
 
     /** Map of random objects. */
     final Map<Object, Object> myMap = new HashMap<Object, Object>();
+
+    /** List of channels I am in. */
+    final List<TwitterChannelInfo> channels = new ArrayList<TwitterChannelInfo>();
 
     /**
      * Parse an IRC Hostname into its separate parts.
@@ -67,7 +76,7 @@ public class TwitterClientInfo implements LocalClientInfo {
      * @param hostname host to parse
      * @return nickname
      */
-    static String parseHost(String hostname) {
+    static String parseHost(final String hostname) {
         return parseHostFull(hostname)[0];
     }
 
@@ -84,7 +93,7 @@ public class TwitterClientInfo implements LocalClientInfo {
 
     /** {@inheritDoc} */
     @Override
-    public void setNickname(String name) {
+    public void setNickname(final String name) {
         if (this == myParser.getLocalClient()) {
             throw new UnsupportedOperationException("Not supported yet.");
         } else {
@@ -101,6 +110,31 @@ public class TwitterClientInfo implements LocalClientInfo {
         return myUser;
     }
 
+    /**
+     * Change the user object for this client.
+     *
+     * @param newUser new User object for this client.
+     */
+    public void setUser(final User newUser) {
+        final User oldUser = myUser;
+        myUser = newUser;
+
+        // Check if user nickname changed.
+        if (!newUser.getScreenName().equalsIgnoreCase(oldUser.getScreenName())) {
+            myParser.renameClient(this, newUser.getScreenName());
+            for (TwitterChannelInfo ci : channels) {
+                myParser.getCallbackManager().getCallbackType(ChannelNickChangeListener.class).call(ci, ci.getChannelClient(this), oldUser.getScreenName());
+            }
+        }
+        // Check if friendship status changed.
+        if (newUser.getFollowing() != myUser.getFollowing()) {
+            for (TwitterChannelInfo ci : channels) {
+                final char type = newUser.getFollowing() ? '+' : '-';
+                myParser.getCallbackManager().getCallbackType(ChannelUserModeChangeListener.class).call(ci, ci.getChannelClient(this), null, "twitter.com", type+"v");
+            }
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
     public String getModes() {
@@ -109,7 +143,7 @@ public class TwitterClientInfo implements LocalClientInfo {
 
     /** {@inheritDoc} */
     @Override
-    public void setAway(String reason) {
+    public void setAway(final String reason) {
         return;
     }
 
@@ -121,7 +155,7 @@ public class TwitterClientInfo implements LocalClientInfo {
 
     /** {@inheritDoc} */
     @Override
-    public void alterMode(boolean add, Character mode) {
+    public void alterMode(final boolean add, final Character mode) {
         return;
     }
 
@@ -158,7 +192,9 @@ public class TwitterClientInfo implements LocalClientInfo {
     /** {@inheritDoc} */
     @Override
     public int getChannelCount() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        synchronized (channels) {
+            return channels.size();
+        }
     }
 
     /** {@inheritDoc} */
@@ -171,6 +207,32 @@ public class TwitterClientInfo implements LocalClientInfo {
     @Override
     public Parser getParser() {
         return myParser;
+    }
+
+    /**
+     * Add this client to the given channel.
+     * 
+     * @param channel channel to add us to.
+     */
+    public void addChannel(final TwitterChannelInfo channel) {
+        synchronized (channels) {
+            if (!channels.contains(channel)) {
+                channels.add(channel);
+            }
+        }
+    }
+
+    /**
+     * Remove this client from the given channel.
+     *
+     * @param channel channel to remove us from.
+     */
+    public void delChannel(final TwitterChannelInfo channel) {
+        synchronized (channels) {
+            if (channels.contains(channel)) {
+                channels.remove(channel);
+            }
+        }
     }
 
 }

@@ -51,6 +51,14 @@ public class TwitterCallbackObjectSpecific extends CallbackObjectSpecific {
         IMPL_MAP.put(LocalClientInfo.class, TwitterClientInfo.class);
     }
 
+    /**
+     * Create a new TwitterCallbackObjectSpecific.
+     * This is a TwitterCallbackObject that has a specific target.
+     *
+     * @param parser Parser that owns this object.
+     * @param manager Callback Manager that owns this object.
+     * @param type Type of callback.
+     */
     public TwitterCallbackObjectSpecific(final Parser parser,
             final CallbackManager<?> manager, final Class<? extends CallbackInterface> type) {
         super(parser, manager, type);

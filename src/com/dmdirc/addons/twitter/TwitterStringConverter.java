@@ -8,21 +8,25 @@ package com.dmdirc.addons.twitter;
 import com.dmdirc.parser.interfaces.StringConverter;
 
 /**
+ * StringConverter that just uses the standard string conversion.
  *
  * @author shane
  */
 class TwitterStringConverter implements StringConverter {
 
+    /** {@inheritDoc} */
     @Override
     public String toLowerCase(String input) {
         return input.toLowerCase();
     }
 
+    /** {@inheritDoc} */
     @Override
     public String toUpperCase(String input) {
         return input.toUpperCase();
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean equalsIgnoreCase(String first, String second) {
         return first.equalsIgnoreCase(second);

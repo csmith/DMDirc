@@ -33,7 +33,11 @@ import com.dmdirc.parser.interfaces.callbacks.CallbackInterface;
  * @author chris
  */
 public class TwitterCallbackManager extends CallbackManager<Twitter> {
-
+    /**
+     * Create a new TwitterCallbackManager
+     * 
+     * @param parser Parser that owns this callback manager.
+     */
     public TwitterCallbackManager(final Twitter parser) {
         super(parser);
     }

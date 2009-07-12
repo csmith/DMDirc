@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * ChannelInfo class for the Twitter plugin.
  *
  * @author shane
  */
@@ -66,82 +67,97 @@ public class TwitterChannelInfo implements ChannelInfo {
         this.myParser = myParser;
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getName() {
         return myName;
     }
 
+    /** {@inheritDoc} */
     @Override
     public void setTopic(String topic) {
-        // Todo: This should tell the main twitter parser that we have changed
-        // the topic, which may or may not do something.
+        myParser.setStatus(topic);
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getTopic() {
         return myTopic;
     }
 
+    /** {@inheritDoc} */
     @Override
     public long getTopicTime() {
         return topicTime;
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getTopicSetter() {
         return topicSetter;
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getModes() {
         return "";
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getMode(char mode) {
         return "";
     }
 
+    /** {@inheritDoc} */
     @Override
     public void sendMessage(String message) {
         myParser.sendMessage(myName, message);
     }
 
+    /** {@inheritDoc} */
     @Override
     public void sendAction(String action) {
         myParser.sendAction(myName, action);
     }
 
+    /** {@inheritDoc} */
     @Override
     public void part(String reason) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    /** {@inheritDoc} */
     @Override
     public void sendWho() {
         return;
     }
 
+    /** {@inheritDoc} */
     @Override
     public void alterMode(boolean add, Character mode, String parameter) {
         return;
     }
 
+    /** {@inheritDoc} */
     @Override
     public void flushModes() {
         return;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChannelClientInfo getChannelClient(ClientInfo client) {
         return getChannelClient(client.getNickname());
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChannelClientInfo getChannelClient(String client) {
         return channelClients.containsKey(client.toLowerCase()) ? channelClients.get(client.toLowerCase()) : null;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChannelClientInfo getChannelClient(String client, boolean create) {
         ChannelClientInfo cci = getChannelClient(client);
@@ -151,31 +167,63 @@ public class TwitterChannelInfo implements ChannelInfo {
         return cci;
     }
 
+    /** {@inheritDoc} */
     @Override
     public Collection<ChannelClientInfo> getChannelClients() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return new ArrayList<ChannelClientInfo>(channelClients.values());
     }
 
+    /** {@inheritDoc} */
     @Override
     public int getChannelClientCount() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return channelClients.size();
     }
 
+    /** {@inheritDoc} */
     @Override
     public Parser getParser() {
         return myParser;
     }
 
-    void addChannelClient(TwitterChannelClientInfo cci) {
-        throw new UnsupportedOperationException("Not yet implemented");
+    /**
+     * Add a channel client to this channel.
+     * 
+     * @param cci Channel Client to add.
+     */
+    public void addChannelClient(TwitterChannelClientInfo cci) {
+        channelClients.put(cci.getClient().getNickname().toLowerCase(), cci);
     }
 
+    /** {@inheritDoc} */
     @Override
     public Collection<ChannelListModeItem> getListMode(char mode) {
         return new ArrayList<ChannelListModeItem>();
     }
 
+    /**
+     * Set the topic for this channel.
+     *
+     * @param string Topic to set.
+     */
     void setLocalTopic(String string) {
         myTopic = string;
+    }
+
+    /**
+     * Set the topic time for this channel.
+     *
+     * @param newValue New Time
+     */
+    public void setTopicTime(final long newValue) {
+        topicTime = newValue;
+    }
+
+    /**
+     * Set the topic setter for this channel.
+     *
+     * @param newValue New Setter
+     */
+    public void setTopicSetter(final String newValue) {
+        topicSetter = newValue;
     }
 }

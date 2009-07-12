@@ -28,6 +28,7 @@ import java.util.Map;
 import net.unto.twitter.TwitterProtos.User;
 
 /**
+ * ClientInfo class for the Twitter plugin.
  *
  * @author shane
  */
@@ -41,6 +42,12 @@ public class TwitterClientInfo implements LocalClientInfo {
     /** Map of random objects. */
     final Map<Object, Object> myMap = new HashMap<Object, Object>();
 
+    /**
+     * Parse an IRC Hostname into its separate parts.
+     *
+     * @param hostname Hostname to parse
+     * @return String array of nick, ident and host.
+     */
     static String[] parseHostFull(String hostname) {
         String[] temp = null;
         final String[] result = new String[3];
@@ -54,15 +61,28 @@ public class TwitterClientInfo implements LocalClientInfo {
         return result;
     }
 
+    /**
+     * Return the nickname from an irc hostname.
+     *
+     * @param hostname host to parse
+     * @return nickname
+     */
     static String parseHost(String hostname) {
         return parseHostFull(hostname)[0];
     }
 
+    /**
+     * Create a new TwitterClientInfo
+     *
+     * @param user User object for this client.
+     * @param parser Parser that owns this client.
+     */
     public TwitterClientInfo(final User user, final Twitter parser) {
         this.myUser = user;
         this.myParser = parser;
     }
 
+    /** {@inheritDoc} */
     @Override
     public void setNickname(String name) {
         if (this == myParser.getLocalClient()) {
@@ -72,65 +92,82 @@ public class TwitterClientInfo implements LocalClientInfo {
         }
     }
 
+    /**
+     * Get the user object for this client.
+     *
+     * @return User object for this client.
+     */
     public User getUser() {
         return myUser;
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getModes() {
         return "";
     }
 
+    /** {@inheritDoc} */
     @Override
     public void setAway(String reason) {
         return;
     }
 
+    /** {@inheritDoc} */
     @Override
     public void setBack() {
         return;
     }
 
+    /** {@inheritDoc} */
     @Override
     public void alterMode(boolean add, Character mode) {
         return;
     }
 
+    /** {@inheritDoc} */
     @Override
     public void flushModes() {
         return;
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getNickname() {
         return myUser.getScreenName();
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getUsername() {
         return "user";
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getHostname() {
         return "twitter.com";
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getRealname() {
         return String.format("%s - http://%s/%s", myUser.getName(), getHostname(), getNickname());
     }
 
+    /** {@inheritDoc} */
     @Override
     public int getChannelCount() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    /** {@inheritDoc} */
     @Override
     public Map<Object, Object> getMap() {
         return myMap;
     }
 
+    /** {@inheritDoc} */
     @Override
     public Parser getParser() {
         return myParser;

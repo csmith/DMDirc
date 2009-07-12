@@ -24,6 +24,7 @@ package com.dmdirc.addons.twitter;
 import com.dmdirc.parser.common.CallbackManager;
 import com.dmdirc.parser.common.DefaultStringConverter;
 import com.dmdirc.parser.common.IgnoreList;
+import com.dmdirc.parser.common.MyInfo;
 import com.dmdirc.parser.interfaces.ChannelClientInfo;
 import com.dmdirc.parser.interfaces.ChannelInfo;
 import com.dmdirc.parser.interfaces.ClientInfo;
@@ -46,6 +47,8 @@ import com.dmdirc.parser.interfaces.callbacks.Post005Listener;
 import com.dmdirc.parser.interfaces.callbacks.PrivateMessageListener;
 import com.dmdirc.parser.interfaces.callbacks.ServerReadyListener;
 import com.dmdirc.parser.interfaces.callbacks.UserModeDiscoveryListener;
+import com.dmdirc.plugins.Plugin;
+import com.dmdirc.util.IrcAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -111,21 +114,27 @@ public class Twitter implements Parser {
     /** Myself. */
     private TwitterClientInfo myself = null;
 
+    /** List of currently active twitter parsers. */
+    protected static List<Twitter> currentParsers = new ArrayList<Twitter>();
+
     /**
      * Create a new Twitter Parser!
      *
-     * @param myUsername Username for twitter.
-     * @param myPassword Password for twitter.
+     * @param myInfo The client information to use
+     * @param address The address of the server to connect to
      */
-    public Twitter(final String myUsername, final String myPassword) {
-        this.myUsername = myUsername;
-        this.myPassword = myPassword;
+    protected Twitter(final MyInfo myInfo, final IrcAddress address) {
+        // TODO: irc address should allow usernames shortly.
+        final String[] bits = address.getPassword().split(":");
+        this.myUsername = bits[0];
+        this.myPassword = (bits.length > 1) ? bits[1] : "";
     }
 
     /** {@inheritDoc} */
 		@Override
 		public void disconnect(final String message) {
         connected = false;
+        currentParsers.remove(this);
         api.endSession().build().post();
 		}
 
@@ -289,13 +298,15 @@ public class Twitter implements Parser {
     /** {@inheritDoc} */
 		@Override
 		public void sendCTCP(final String target, final String type, final String message) {
-				throw new UnsupportedOperationException("Not supported yet.");
+				// throw new UnsupportedOperationException("Not supported yet.");
+        //TODO: CTCP
 		}
 
     /** {@inheritDoc} */
 		@Override
 		public void sendCTCPReply(final String target, final String type, final String message) {
-				throw new UnsupportedOperationException("Not supported yet.");
+				// throw new UnsupportedOperationException("Not supported yet.");
+        //TODO: CTCPReply
 		}
 
     /** {@inheritDoc} */
@@ -312,26 +323,27 @@ public class Twitter implements Parser {
         } else if (!target.matches("^#.+$")) {
             api.newDirectMessage(target, message);
         } else {
-            throw new UnsupportedOperationException("Not supported yet.");
+            // TODO: throw new UnsupportedOperationException("Not supported yet.");
         }
 		}
 
     /** {@inheritDoc} */
 		@Override
 		public void sendNotice(final String target, final String message) {
-				throw new UnsupportedOperationException("Not supported yet.");
+				// TODO: throw new UnsupportedOperationException("Not supported yet.");
 		}
 
     /** {@inheritDoc} */
 		@Override
 		public void sendAction(final String target, final String message) {
-				throw new UnsupportedOperationException("Not supported yet.");
+				// TODO: throw new UnsupportedOperationException("Not supported yet.");
 		}
 
     /** {@inheritDoc} */
 		@Override
 		public String getLastLine() {
-				throw new UnsupportedOperationException("Not supported yet.");
+				// TODO: throw new UnsupportedOperationException("Not supported yet.");
+        return "";
 		}
 
     /** {@inheritDoc} */
@@ -367,13 +379,16 @@ public class Twitter implements Parser {
     /** {@inheritDoc} */
 		@Override
 		public void setPingTimerFraction(final int newValue) {
-				throw new UnsupportedOperationException("Not supported by this parser.");
+				// throw new UnsupportedOperationException("Not supported by this parser.");
+        //TODO: Do someting.
 		}
 
     /** {@inheritDoc} */
 		@Override
 		public int getPingTimerFraction() {
-				throw new UnsupportedOperationException("Not supported by this parser.");
+				// throw new UnsupportedOperationException("Not supported by this parser.");
+        //TODO: Do this better.
+        return 1;
 		}
 
     /**
@@ -382,6 +397,7 @@ public class Twitter implements Parser {
     @Override
 		public void run() {
         resetState();
+        currentParsers.add(this);
         connected = true;
 
         Status myStatus = null;
@@ -391,7 +407,7 @@ public class Twitter implements Parser {
         }
 
         // myself = new TwitterClientInfo(myStatus.getUser(), this);
-        myself = new TwitterClientInfo(api.showUser().build().get(), this);
+        myself = new TwitterClientInfo(api.showUser().screenName(myUsername).build().get(), this);
         
         final TwitterChannelInfo channel = new TwitterChannelInfo("&twitter", this);
         channels.put("&twitter", channel);
@@ -558,5 +574,4 @@ public class Twitter implements Parser {
     public int getMaxLength() {
         return 140;
     }
-
 }

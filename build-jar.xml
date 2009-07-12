@@ -14,11 +14,39 @@
         <jar destfile="plugins/ui_swing.jar" compress="${jar.compress}" keepcompression="true" update="true">
             <zipfileset src="${file.reference.jxlayer.jar}" includes="org/jdesktop/jxlayer/**"/>
         </jar>
+
         <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
             <zipfileset src="${file.reference.twitter.jar}" includes="net/unto/twitter/**"/>
         </jar>
         <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
             <zipfileset src="${file.reference.protobuf.jar}" includes="com/google/**"/>
+        </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.google.collect.jar}" includes="com/google/**"/>
+        </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.commons.http.jar}" includes="org/apache/**"/>
+        </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.commons.logging.jar}" includes="org/apache/**"/>
+        </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.commons.codec.jar}" includes="org/apache/**"/>
+        </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.json.lib.jar}" includes="net/sf/**"/>
+        </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.commons.lang.jar}" includes="org/apache/**"/>
+        </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.ezmorph.jar}" includes="net/sf/**"/>
+        </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.commons.collections.jar}" includes="org/apache/**"/>
+        </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.commons.beanutils.jar}" includes="org/apache/**"/>
         </jar>
     </target>
 

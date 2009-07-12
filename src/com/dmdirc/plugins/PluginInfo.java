@@ -1436,7 +1436,7 @@ public class PluginInfo implements Comparable<PluginInfo>, ServiceProvider {
 	/**
 	 * Get an ExportedService object from this provider.
 	 *
-	 * @param name Service name
+	 * @param name Service namacte
 	 * @return ExportedService object. If no such service exists, the execute
 	 *         method of this ExportedService will always return null.
 	 */

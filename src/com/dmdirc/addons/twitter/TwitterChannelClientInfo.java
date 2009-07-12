@@ -26,9 +26,9 @@ import com.dmdirc.parser.interfaces.ChannelInfo;
 import com.dmdirc.parser.interfaces.ClientInfo;
 import java.util.Map;
 import java.util.HashMap;
-import net.unto.twitter.Api;
 
 /**
+ * ChannelClientInfo class for the Twitter plugin.
  *
  * @author shane
  */
@@ -42,49 +42,76 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     /** Map of random objects. */
     final Map<Object, Object> myMap = new HashMap<Object, Object>();
 
+    /**
+     * Create a new TwitterChannelClientInfo
+     *
+     * @param channel Channel that this client is in.
+     * @param ci Client that we represent.
+     */
     TwitterChannelClientInfo(TwitterChannelInfo channel, TwitterClientInfo ci) {
         this.myChannel = channel;
         this.myClient = ci;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ClientInfo getClient() {
         return myClient;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChannelInfo getChannel() {
         return myChannel;
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getImportantModePrefix() {
         return myClient.getUser().getFollowing() ? "+" : "";
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getImportantMode() {
         return myClient.getUser().getFollowing() ? "v" : "";
     }
 
+    public int getImportantModeValue() {
+        return myClient.getUser().getFollowing() ? 1 : 0;
+    }
+
+    /** {@inheritDoc} */
     @Override
     public String getAllModes() {
         return myClient.getUser().getFollowing() ? "v" : "";
     }
 
+    /** {@inheritDoc} */
     @Override
     public Map<Object, Object> getMap() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    /** {@inheritDoc} */
     @Override
     public void kick(String message) {
         ((Twitter)myClient.getParser()).getApi().destroyFriendship(myClient.getUser().getScreenName()).build().post();
     }
 
+    /**
+     * Compare this TwitterChannelClientInfo to another.
+     *
+     * @param arg0
+     * @return
+     */
     @Override
-    public int compareTo(ChannelClientInfo arg0) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+    public int compareTo(final ChannelClientInfo arg0) {
+        if (arg0 instanceof TwitterChannelClientInfo) {
+            final TwitterChannelClientInfo other = (TwitterChannelClientInfo) arg0;
+            return (this.getImportantModeValue() - other.getImportantModeValue());
+        }
 
+        return 0;
+    }
 }

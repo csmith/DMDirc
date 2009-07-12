@@ -49,6 +49,7 @@ import java.util.Map;
 import net.unto.twitter.Api;
 import net.unto.twitter.TwitterProtos.Status;
 import net.unto.twitter.TwitterProtos.User;
+import net.unto.twitter.methods.UpdateStatusRequest.Builder;
 
 /**
  * Twitter Parser for DMDirc.
@@ -103,104 +104,124 @@ public class Twitter implements Parser {
         this.myPassword = myPassword;
     }
 
+    /** {@inheritDoc} */
 		@Override
 		public void disconnect(String message) {
         connected = false;
         api.endSession().build().post();
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void joinChannel(String channel) {
         joinChannel(channel, "");
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void joinChannel(String channel, String key) {
         getCallbackManager().getCallbackType(NumericListener.class).call(474, new String[]{":twitter.com", "474", myself.getNickname(), channel, "Cannot join channel, not yet implemented."});
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public ChannelInfo getChannel(String channel) {
 				return channels.containsKey(channel.toLowerCase()) ? channels.get(channel.toLowerCase()) : null;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public Collection<? extends ChannelInfo> getChannels() {
 				return new ArrayList<TwitterChannelInfo>(channels.values());
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void setBindIP(String ip) {
 				return;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public int getMaxLength(String type, String target) {
 				return 140;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public LocalClientInfo getLocalClient() {
 				return myself;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public ClientInfo getClient(String details) {
         final String client = TwitterClientInfo.parseHost(details);
 				return clients.containsKey(client.toLowerCase()) ? clients.get(client.toLowerCase()) : null;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void sendRawMessage(String message) {
         // TODO: Parse some lines in order to fake IRC.
         System.out.println("Twitter: "+message);
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public boolean isValidChannelName(String name) {
 				return (name.matches("^&[0-9]+$") || name.equalsIgnoreCase("&twitter") || name.startsWith("&"));
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getServerName() {
 				return "twitter.com";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getNetworkName() {
 				return "twitter";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getServerSoftware() {
 				return "twitter";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getServerSoftwareType() {
 				return "twitter";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public int getMaxTopicLength() {
 				return 140;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getBooleanChannelModes() {
 				return "";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getListChannelModes() {
 				return "b";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public int getMaxListModes(char mode) {
 				return 0;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public boolean isUserSettable(char mode) {
 				switch (mode) {
@@ -211,114 +232,134 @@ public class Twitter implements Parser {
         }
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getParameterChannelModes() {
 				return "";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getDoubleParameterChannelModes() {
 				return "b";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getUserModes() {
 				return "";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getChannelUserModes() {
 				return "ov";
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public CallbackManager<? extends Parser> getCallbackManager() {
 				return myCallbackManager;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public long getServerLatency() {
 				return 0;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void sendCTCP(String target, String type, String message) {
 				throw new UnsupportedOperationException("Not supported yet.");
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void sendCTCPReply(String target, String type, String message) {
 				throw new UnsupportedOperationException("Not supported yet.");
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void sendMessage(String target, String message) {
         final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(target);
         if (target.equalsIgnoreCase("&twitter")) {
-            api.updateStatus(message).build().post();
-            channel.setLocalTopic(message);
+            setStatus(message);
         } else if (target.matches("^&[0-9]+$")) {
             try {
                 long id = Long.parseLong(target.substring(1));
-                api.updateStatus(message).inReplyToStatusId(id).build().post();
-                channel.setLocalTopic(message);
+                setStatus(message, id);
             } catch (NumberFormatException nfe) { }
         } else {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void sendNotice(String target, String message) {
 				throw new UnsupportedOperationException("Not supported yet.");
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void sendAction(String target, String message) {
 				throw new UnsupportedOperationException("Not supported yet.");
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String getLastLine() {
 				throw new UnsupportedOperationException("Not supported yet.");
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public String[] parseHostmask(String hostmask) {
         return TwitterClientInfo.parseHostFull(hostmask);
     }
 
+    /** {@inheritDoc} */
 		@Override
 		public int getLocalPort() {
 				return Api.DEFAULT_PORT;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public long getPingTime() {
 				return System.currentTimeMillis() - lastQueryTime;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void setPingTimerInterval(long newValue) {
 				pingTimerInterval = newValue;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public long getPingTimerInterval() {
 				return pingTimerInterval;
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public void setPingTimerFraction(int newValue) {
 				throw new UnsupportedOperationException("Not supported by this parser.");
 		}
 
+    /** {@inheritDoc} */
 		@Override
 		public int getPingTimerFraction() {
 				throw new UnsupportedOperationException("Not supported by this parser.");
 		}
 
-		@Override
+    /**
+     * Run the twitter parser.
+     */
+    @Override
 		public void run() {
         resetState();
         connected = true;
@@ -391,23 +432,62 @@ public class Twitter implements Parser {
         clients.clear();
     }
 
+    /**
+     * Get the Twitter API Object
+     * 
+     * @return The Twitter API Object
+     */
     public Api getApi() {
         return api;
     }
 
+    /** {@inheritDoc} */
     @Override
     public StringConverter getStringConverter() {
         return myStringConverter;
     }
 
+    /** {@inheritDoc} */
     @Override
     public void setIgnoreList(IgnoreList ignoreList) {
         myIgnoreList = ignoreList;
     }
 
+    /** {@inheritDoc} */
     @Override
     public IgnoreList getIgnoreList() {
         return myIgnoreList;
+    }
+
+    /**
+     * Set the twitter status
+     * 
+     * @param message Status to use.
+     */
+    public void setStatus(String message) {
+        setStatus(message, -1);
+    }
+
+    /**
+     * Set the twitter status
+     *
+     * @param message Status to use.
+     * @param id
+     */
+    private void setStatus(String message, long id) {
+        Builder foo = api.updateStatus(message);
+        if (id != -1) {
+            foo = foo.inReplyToStatusId(id);
+        }
+        
+        foo.build().post();
+
+        final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel("&twitter");
+        if (channel != null) {
+            channel.setLocalTopic(message);
+            channel.setTopicTime(System.currentTimeMillis());
+            channel.setTopicSetter(myself.getHostname());
+        }
     }
 
 }

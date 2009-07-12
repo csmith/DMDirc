@@ -51,6 +51,13 @@ public class TwitterCallbackObject extends CallbackObject {
         IMPL_MAP.put(LocalClientInfo.class, TwitterClientInfo.class);
     }
 
+    /**
+     * Create a new TwitterCallbackObject.
+     *
+     * @param parser Parser that owns this object.
+     * @param manager Callback Manager that owns this object.
+     * @param type Type of callback.
+     */
     public TwitterCallbackObject(Parser parser, CallbackManager<?> manager,
             Class<? extends CallbackInterface> type) {
         super(parser, manager, type);

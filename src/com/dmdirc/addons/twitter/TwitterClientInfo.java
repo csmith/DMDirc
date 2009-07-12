@@ -95,9 +95,9 @@ public class TwitterClientInfo implements LocalClientInfo {
     @Override
     public void setNickname(final String name) {
         if (this == myParser.getLocalClient()) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            // TODO: throw new UnsupportedOperationException("Not supported yet.");
         } else {
-            throw new UnsupportedOperationException("Can not set nickname on non-local clients");
+            // TODO: throw new UnsupportedOperationException("Can not set nickname on non-local clients");
         }
     }
 

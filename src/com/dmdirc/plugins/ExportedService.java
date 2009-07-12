@@ -74,6 +74,7 @@ public class ExportedService {
 	 * @return result of executing the method
 	 */
 	public Object execute(final Object... args) {
+    System.out.println("Execute Method: "+myMethod);
 		if (myMethod == null) { return null; }
 		
 		try {

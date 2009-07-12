@@ -98,7 +98,7 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     /** {@inheritDoc} */
     @Override
     public Map<Object, Object> getMap() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return myMap;
     }
 
     /** {@inheritDoc} */

@@ -103,7 +103,7 @@ public class Twitter implements Parser {
     private CallbackManager<Twitter> myCallbackManager = new TwitterCallbackManager(this);
 
     /** String Convertor. */
-    private TwitterStringConverter myStringConverter = new DefaultStringConverter();
+    private DefaultStringConverter myStringConverter = new DefaultStringConverter();
 
     /** Ignore list (unused). */
     private IgnoreList myIgnoreList = new IgnoreList();
@@ -552,6 +552,11 @@ public class Twitter implements Parser {
         clients.put(client.getNickname().toLowerCase(), client);
         
         getCallbackManager().getCallbackType(NickChangeListener.class).call(client, old);
+    }
+
+    @Override
+    public int getMaxLength() {
+        return 140;
     }
 
 }

@@ -17,6 +17,9 @@
         <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
             <zipfileset src="${file.reference.twitter.jar}" includes="net/unto/twitter/**"/>
         </jar>
+        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+            <zipfileset src="${file.reference.protobuf.jar}" includes="com/google/**"/>
+        </jar>
     </target>
 
 </project>

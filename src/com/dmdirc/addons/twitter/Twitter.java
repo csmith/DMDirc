@@ -323,7 +323,7 @@ public class Twitter implements Parser {
         resetState();
         connected = true;
 
-        Status myStatus = Status.newBuilder().build();
+        Status myStatus = null;
         for (Status status : api.userTimeline().build().get()) {
             myStatus = status;
             break;
@@ -334,7 +334,7 @@ public class Twitter implements Parser {
         
         final TwitterChannelInfo channel = new TwitterChannelInfo("&twitter", this);
         channels.put("&twitter", channel);
-        channel.setLocalTopic(myStatus.getText());
+        if (myStatus != null) { channel.setLocalTopic(myStatus.getText()); }
         channel.addChannelClient(new TwitterChannelClientInfo(channel, myself));
 
         for (User user : api.friends().build().get()) {

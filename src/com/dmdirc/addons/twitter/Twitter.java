@@ -22,6 +22,7 @@
 package com.dmdirc.addons.twitter;
 
 import com.dmdirc.parser.common.CallbackManager;
+import com.dmdirc.parser.common.DefaultStringConverter;
 import com.dmdirc.parser.common.IgnoreList;
 import com.dmdirc.parser.interfaces.ChannelClientInfo;
 import com.dmdirc.parser.interfaces.ChannelInfo;
@@ -102,7 +103,7 @@ public class Twitter implements Parser {
     private CallbackManager<Twitter> myCallbackManager = new TwitterCallbackManager(this);
 
     /** String Convertor. */
-    private TwitterStringConverter myStringConverter = new TwitterStringConverter();
+    private TwitterStringConverter myStringConverter = new DefaultStringConverter();
 
     /** Ignore list (unused). */
     private IgnoreList myIgnoreList = new IgnoreList();

@@ -31,6 +31,7 @@ import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.parser.interfaces.callbacks.ChannelMessageListener;
 import com.dmdirc.parser.interfaces.StringConverter;
 import com.dmdirc.parser.interfaces.callbacks.AuthNoticeListener;
+import com.dmdirc.parser.interfaces.callbacks.ChannelModeChangeListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelNamesListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelSelfJoinListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelTopicListener;
@@ -38,15 +39,20 @@ import com.dmdirc.parser.interfaces.callbacks.MotdEndListener;
 import com.dmdirc.parser.interfaces.callbacks.MotdLineListener;
 import com.dmdirc.parser.interfaces.callbacks.MotdStartListener;
 import com.dmdirc.parser.interfaces.callbacks.NetworkDetectedListener;
+import com.dmdirc.parser.interfaces.callbacks.NickChangeListener;
 import com.dmdirc.parser.interfaces.callbacks.NumericListener;
 import com.dmdirc.parser.interfaces.callbacks.Post005Listener;
+import com.dmdirc.parser.interfaces.callbacks.PrivateMessageListener;
 import com.dmdirc.parser.interfaces.callbacks.ServerReadyListener;
+import com.dmdirc.parser.interfaces.callbacks.UserModeDiscoveryListener;
 import java.util.ArrayList;
 import java.util.Collection;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.unto.twitter.Api;
+import net.unto.twitter.TwitterProtos.DirectMessage;
 import net.unto.twitter.TwitterProtos.Status;
 import net.unto.twitter.TwitterProtos.User;
 import net.unto.twitter.methods.UpdateStatusRequest.Builder;
@@ -60,17 +66,28 @@ public class Twitter implements Parser {
     /** Are we connected? */
     private boolean connected = false;
 
-    /** Twitter API */
+    /** Twitter API. */
     private Api api = null;
 
     /** Channels we are in. */
-    final Map<String, TwitterChannelInfo> channels = new HashMap<String, TwitterChannelInfo>();
+    private final Map<String, TwitterChannelInfo> channels = new HashMap<String, TwitterChannelInfo>();
 
     /** Clients we know. */
-    final Map<String, TwitterClientInfo> clients = new HashMap<String, TwitterClientInfo>();
+    private final Map<String, TwitterClientInfo> clients = new HashMap<String, TwitterClientInfo>();
 
-    /** How long between querying the API? */
-    private long pingTimerInterval = 30000;
+    /**
+     * How long between querying the API?
+     * Every time we query we use 3 API calls. (Direct Message, friends_timeline,
+     * direct_replies)
+     * Defaults to every 180 seconds (same as tircd) which results in using 60
+     * API Calls an hour (Current limit is 150).
+     * TODO: Different time per request type.
+     */
+    private long pingTimerInterval = 180 * 1000;
+
+// TODO: Not yet supported by library.
+//    /** How many statuses to request at a time? (Max 200, Default 20)*/
+//    private long statusRequests = 20;
 
     /** When did we last query the API? */
     private long lastQueryTime = 0;
@@ -87,9 +104,9 @@ public class Twitter implements Parser {
     /** String Convertor. */
     private TwitterStringConverter myStringConverter = new TwitterStringConverter();
 
-    /** Ignore list (unused) */
+    /** Ignore list (unused). */
     private IgnoreList myIgnoreList = new IgnoreList();
-    
+
     /** Myself. */
     private TwitterClientInfo myself = null;
 
@@ -99,33 +116,33 @@ public class Twitter implements Parser {
      * @param myUsername Username for twitter.
      * @param myPassword Password for twitter.
      */
-    public Twitter(String myUsername, String myPassword) {
+    public Twitter(final String myUsername, final String myPassword) {
         this.myUsername = myUsername;
         this.myPassword = myPassword;
     }
 
     /** {@inheritDoc} */
 		@Override
-		public void disconnect(String message) {
+		public void disconnect(final String message) {
         connected = false;
         api.endSession().build().post();
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public void joinChannel(String channel) {
+		public void joinChannel(final String channel) {
         joinChannel(channel, "");
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public void joinChannel(String channel, String key) {
+		public void joinChannel(final String channel, final String key) {
         getCallbackManager().getCallbackType(NumericListener.class).call(474, new String[]{":twitter.com", "474", myself.getNickname(), channel, "Cannot join channel, not yet implemented."});
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public ChannelInfo getChannel(String channel) {
+		public ChannelInfo getChannel(final String channel) {
 				return channels.containsKey(channel.toLowerCase()) ? channels.get(channel.toLowerCase()) : null;
 		}
 
@@ -137,13 +154,13 @@ public class Twitter implements Parser {
 
     /** {@inheritDoc} */
 		@Override
-		public void setBindIP(String ip) {
+		public void setBindIP(final String ip) {
 				return;
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public int getMaxLength(String type, String target) {
+		public int getMaxLength(final String type, final String target) {
 				return 140;
 		}
 
@@ -155,21 +172,21 @@ public class Twitter implements Parser {
 
     /** {@inheritDoc} */
 		@Override
-		public ClientInfo getClient(String details) {
+		public ClientInfo getClient(final String details) {
         final String client = TwitterClientInfo.parseHost(details);
 				return clients.containsKey(client.toLowerCase()) ? clients.get(client.toLowerCase()) : null;
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public void sendRawMessage(String message) {
+		public void sendRawMessage(final String message) {
         // TODO: Parse some lines in order to fake IRC.
         System.out.println("Twitter: "+message);
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public boolean isValidChannelName(String name) {
+		public boolean isValidChannelName(final String name) {
 				return (name.matches("^&[0-9]+$") || name.equalsIgnoreCase("&twitter") || name.startsWith("&"));
 		}
 
@@ -182,7 +199,7 @@ public class Twitter implements Parser {
     /** {@inheritDoc} */
 		@Override
 		public String getNetworkName() {
-				return "twitter";
+				return "twitter-"+myself.getNickname();
 		}
 
     /** {@inheritDoc} */
@@ -217,13 +234,13 @@ public class Twitter implements Parser {
 
     /** {@inheritDoc} */
 		@Override
-		public int getMaxListModes(char mode) {
+		public int getMaxListModes(final char mode) {
 				return 0;
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public boolean isUserSettable(char mode) {
+		public boolean isUserSettable(final char mode) {
 				switch (mode) {
             case 'b':
                 return true;
@@ -270,19 +287,19 @@ public class Twitter implements Parser {
 
     /** {@inheritDoc} */
 		@Override
-		public void sendCTCP(String target, String type, String message) {
+		public void sendCTCP(final String target, final String type, final String message) {
 				throw new UnsupportedOperationException("Not supported yet.");
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public void sendCTCPReply(String target, String type, String message) {
+		public void sendCTCPReply(final String target, final String type, final String message) {
 				throw new UnsupportedOperationException("Not supported yet.");
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public void sendMessage(String target, String message) {
+		public void sendMessage(final String target, final String message) {
         final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(target);
         if (target.equalsIgnoreCase("&twitter")) {
             setStatus(message);
@@ -291,6 +308,8 @@ public class Twitter implements Parser {
                 long id = Long.parseLong(target.substring(1));
                 setStatus(message, id);
             } catch (NumberFormatException nfe) { }
+        } else if (!target.matches("^#.+$")) {
+            api.newDirectMessage(target, message);
         } else {
             throw new UnsupportedOperationException("Not supported yet.");
         }
@@ -298,13 +317,13 @@ public class Twitter implements Parser {
 
     /** {@inheritDoc} */
 		@Override
-		public void sendNotice(String target, String message) {
+		public void sendNotice(final String target, final String message) {
 				throw new UnsupportedOperationException("Not supported yet.");
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public void sendAction(String target, String message) {
+		public void sendAction(final String target, final String message) {
 				throw new UnsupportedOperationException("Not supported yet.");
 		}
 
@@ -316,7 +335,7 @@ public class Twitter implements Parser {
 
     /** {@inheritDoc} */
 		@Override
-		public String[] parseHostmask(String hostmask) {
+		public String[] parseHostmask(final String hostmask) {
         return TwitterClientInfo.parseHostFull(hostmask);
     }
 
@@ -334,7 +353,7 @@ public class Twitter implements Parser {
 
     /** {@inheritDoc} */
 		@Override
-		public void setPingTimerInterval(long newValue) {
+		public void setPingTimerInterval(final long newValue) {
 				pingTimerInterval = newValue;
 		}
 
@@ -346,7 +365,7 @@ public class Twitter implements Parser {
 
     /** {@inheritDoc} */
 		@Override
-		public void setPingTimerFraction(int newValue) {
+		public void setPingTimerFraction(final int newValue) {
 				throw new UnsupportedOperationException("Not supported by this parser.");
 		}
 
@@ -380,6 +399,7 @@ public class Twitter implements Parser {
 
         for (User user : api.friends().build().get()) {
             final TwitterClientInfo ci = new TwitterClientInfo(user, this);
+            clients.put(ci.getNickname().toLowerCase(), ci);
             final TwitterChannelClientInfo cci = new TwitterChannelClientInfo(channel, ci);
 
             channel.addChannelClient(cci);
@@ -403,19 +423,49 @@ public class Twitter implements Parser {
         getCallbackManager().getCallbackType(MotdLineListener.class).call("- Messages can be replied to using /msg &<messageid> <reply>");
         getCallbackManager().getCallbackType(MotdLineListener.class).call("- ");
         getCallbackManager().getCallbackType(MotdEndListener.class).call("End of /MOTD command");
+        // Fake some more on-connect crap
+        getCallbackManager().getCallbackType(UserModeDiscoveryListener.class).call(myself, "");
         // Fake Join Channel
         getCallbackManager().getCallbackType(ChannelSelfJoinListener.class).call(channel);
         getCallbackManager().getCallbackType(ChannelTopicListener.class).call(channel, true);
         getCallbackManager().getCallbackType(ChannelNamesListener.class).call(channel);
-        
+        getCallbackManager().getCallbackType(ChannelModeChangeListener.class).call(channel, null, "", "");
+
+        long lastReplyId = -1;
+        long lastTimelineId = -1;
+        long lastDirectMessageId = -1;
 				while (connected) {
             lastQueryTime = System.currentTimeMillis();
-                    
-            for (Status status : api.friendsTimeline().build().get()) {
-                final ChannelClientInfo cci = channel.getChannelClient(status.getUser().getScreenName());
-                final String message = status.getText();
+            
+            final List<Status> statuses = new ArrayList<Status>();
+            for (Status status : api.replies().sinceId(lastReplyId).build().get()) {
+                statuses.add(status);
+            }
 
-                getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, cci, message, cci.getClient().getHostname());
+            for (Status status : api.friendsTimeline().sinceId(lastTimelineId).build().get()) {
+                if (!statuses.contains(status)) {
+                    statuses.add(status);
+                }
+            }
+
+            for (Status status : statuses) {
+                final ChannelClientInfo cci = channel.getChannelClient(status.getUser().getScreenName());
+                ((TwitterClientInfo) cci.getClient()).setUser(status.getUser());
+                final String message = String.format("(&%d) %s", status.getId(), status.getText());
+                final String hostname = status.getUser().getScreenName()+"!user@twitter.com";
+
+                getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, cci, message, hostname);
+            }
+
+            for (DirectMessage directMessage : api.directMessages().sinceId(lastDirectMessageId).build().get()) {
+                final TwitterClientInfo ci = (TwitterClientInfo) getClient(directMessage.getSenderScreenName());
+                if (ci != null) {
+                    ci.setUser(directMessage.getSender());
+                }
+                final String message = directMessage.getText();
+                final String hostname = directMessage.getSenderScreenName()+"!user@twitter.com";
+
+                getCallbackManager().getCallbackType(PrivateMessageListener.class).call(channel, ci, message, hostname);
             }
 
             try { Thread.sleep(getPingTimerInterval()); } catch (InterruptedException ex) { }
@@ -449,7 +499,7 @@ public class Twitter implements Parser {
 
     /** {@inheritDoc} */
     @Override
-    public void setIgnoreList(IgnoreList ignoreList) {
+    public void setIgnoreList(final IgnoreList ignoreList) {
         myIgnoreList = ignoreList;
     }
 
@@ -460,21 +510,21 @@ public class Twitter implements Parser {
     }
 
     /**
-     * Set the twitter status
+     * Set the twitter status.
      * 
      * @param message Status to use.
      */
-    public void setStatus(String message) {
+    public void setStatus(final String message) {
         setStatus(message, -1);
     }
 
     /**
-     * Set the twitter status
+     * Set the twitter status.
      *
      * @param message Status to use.
      * @param id
      */
-    private void setStatus(String message, long id) {
+    private void setStatus(final String message, final long id) {
         Builder foo = api.updateStatus(message);
         if (id != -1) {
             foo = foo.inReplyToStatusId(id);
@@ -488,6 +538,19 @@ public class Twitter implements Parser {
             channel.setTopicTime(System.currentTimeMillis());
             channel.setTopicSetter(myself.getHostname());
         }
+    }
+
+    /**
+     * Rename the given client from the given name.
+     *
+     * @param client Client to rename
+     * @param old Old nickname
+     */
+    void renameClient(final TwitterClientInfo client, final String old) {
+        clients.remove(old.toLowerCase());
+        clients.put(client.getNickname().toLowerCase(), client);
+        
+        getCallbackManager().getCallbackType(NickChangeListener.class).call(client, old);
     }
 
 }

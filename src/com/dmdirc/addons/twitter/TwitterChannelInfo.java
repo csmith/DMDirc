@@ -62,7 +62,7 @@ public class TwitterChannelInfo implements ChannelInfo {
      * @param myName Name of this channel
      * @param myParser parser that owns this TwitterChannelInfo
      */
-    public TwitterChannelInfo(String myName, Twitter myParser) {
+    public TwitterChannelInfo(final String myName, final Twitter myParser) {
         this.myName = myName;
         this.myParser = myParser;
     }
@@ -75,7 +75,7 @@ public class TwitterChannelInfo implements ChannelInfo {
 
     /** {@inheritDoc} */
     @Override
-    public void setTopic(String topic) {
+    public void setTopic(final String topic) {
         myParser.setStatus(topic);
     }
 
@@ -105,25 +105,25 @@ public class TwitterChannelInfo implements ChannelInfo {
 
     /** {@inheritDoc} */
     @Override
-    public String getMode(char mode) {
+    public String getMode(final char mode) {
         return "";
     }
 
     /** {@inheritDoc} */
     @Override
-    public void sendMessage(String message) {
+    public void sendMessage(final String message) {
         myParser.sendMessage(myName, message);
     }
 
     /** {@inheritDoc} */
     @Override
-    public void sendAction(String action) {
+    public void sendAction(final String action) {
         myParser.sendAction(myName, action);
     }
 
     /** {@inheritDoc} */
     @Override
-    public void part(String reason) {
+    public void part(final String reason) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -135,7 +135,7 @@ public class TwitterChannelInfo implements ChannelInfo {
 
     /** {@inheritDoc} */
     @Override
-    public void alterMode(boolean add, Character mode, String parameter) {
+    public void alterMode(final boolean add, final Character mode, final String parameter) {
         return;
     }
 
@@ -147,19 +147,19 @@ public class TwitterChannelInfo implements ChannelInfo {
 
     /** {@inheritDoc} */
     @Override
-    public ChannelClientInfo getChannelClient(ClientInfo client) {
+    public ChannelClientInfo getChannelClient(final ClientInfo client) {
         return getChannelClient(client.getNickname());
     }
 
     /** {@inheritDoc} */
     @Override
-    public ChannelClientInfo getChannelClient(String client) {
+    public ChannelClientInfo getChannelClient(final String client) {
         return channelClients.containsKey(client.toLowerCase()) ? channelClients.get(client.toLowerCase()) : null;
     }
 
     /** {@inheritDoc} */
     @Override
-    public ChannelClientInfo getChannelClient(String client, boolean create) {
+    public ChannelClientInfo getChannelClient(final String client, final boolean create) {
         ChannelClientInfo cci = getChannelClient(client);
         if (create && cci == null) {
             cci = new TwitterChannelClientInfo(this, (TwitterClientInfo)myParser.getClient(client));
@@ -190,13 +190,13 @@ public class TwitterChannelInfo implements ChannelInfo {
      * 
      * @param cci Channel Client to add.
      */
-    public void addChannelClient(TwitterChannelClientInfo cci) {
+    public void addChannelClient(final TwitterChannelClientInfo cci) {
         channelClients.put(cci.getClient().getNickname().toLowerCase(), cci);
     }
 
     /** {@inheritDoc} */
     @Override
-    public Collection<ChannelListModeItem> getListMode(char mode) {
+    public Collection<ChannelListModeItem> getListMode(final char mode) {
         return new ArrayList<ChannelListModeItem>();
     }
 
@@ -205,7 +205,7 @@ public class TwitterChannelInfo implements ChannelInfo {
      *
      * @param string Topic to set.
      */
-    void setLocalTopic(String string) {
+    void setLocalTopic(final String string) {
         myTopic = string;
     }
 

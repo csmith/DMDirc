@@ -58,14 +58,14 @@ public class TwitterCallbackObject extends CallbackObject {
      * @param manager Callback Manager that owns this object.
      * @param type Type of callback.
      */
-    public TwitterCallbackObject(Parser parser, CallbackManager<?> manager,
-            Class<? extends CallbackInterface> type) {
+    public TwitterCallbackObject(final Parser parser, final CallbackManager<?> manager,
+            final Class<? extends CallbackInterface> type) {
         super(parser, manager, type);
     }
 
     /** {@inheritDoc} */
     @Override
-    protected Class<?> getImplementation(Class<?> type) {
+    protected Class<?> getImplementation(final Class<?> type) {
         return IMPL_MAP.containsKey(type) ? IMPL_MAP.get(type) : type;
     }
 

@@ -70,13 +70,13 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     /** {@inheritDoc} */
     @Override
     public String getImportantModePrefix() {
-        return myClient.getUser().getFollowing() ? "+" : "";
+        return myClient.getUser().isFollowing() ? "+" : "";
     }
 
     /** {@inheritDoc} */
     @Override
     public String getImportantMode() {
-        return myClient.getUser().getFollowing() ? "v" : "";
+        return myClient.getUser().isFollowing() ? "v" : "";
     }
 
     /**
@@ -86,13 +86,13 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
      * @return Value for this clients modes.
      */
     public int getImportantModeValue() {
-        return myClient.getUser().getFollowing() ? 1 : 0;
+        return myClient.getUser().isFollowing() ? 1 : 0;
     }
 
     /** {@inheritDoc} */
     @Override
     public String getAllModes() {
-        return myClient.getUser().getFollowing() ? "v" : "";
+        return myClient.getUser().isFollowing() ? "v" : "";
     }
 
     /** {@inheritDoc} */
@@ -104,7 +104,7 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     /** {@inheritDoc} */
     @Override
     public void kick(final String message) {
-        ((Twitter)myClient.getParser()).getApi().destroyFriendship(myClient.getUser().getScreenName()).build().post();
+        ((Twitter)myClient.getParser()).getApi().destroyFriendship(myClient.getUser());
         myClient.delChannel(myChannel);
     }
 

@@ -21,17 +21,15 @@
  */
 package com.dmdirc.addons.twitter;
 
+import com.dmdirc.addons.twitter.api.TwitterUser;
 import com.dmdirc.parser.interfaces.LocalClientInfo;
 import com.dmdirc.parser.interfaces.Parser;
-import com.dmdirc.parser.interfaces.callbacks.ChannelMessageListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelNickChangeListener;
-import com.dmdirc.parser.interfaces.callbacks.ChannelSingleModeChangeListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelUserModeChangeListener;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import net.unto.twitter.TwitterProtos.User;
 
 /**
  * ClientInfo class for the Twitter plugin.
@@ -40,7 +38,7 @@ import net.unto.twitter.TwitterProtos.User;
  */
 public class TwitterClientInfo implements LocalClientInfo {
     /** This Clients User */
-    private User myUser;
+    private TwitterUser myUser;
 
     /** My Parser */
     private Twitter myParser;
@@ -86,7 +84,7 @@ public class TwitterClientInfo implements LocalClientInfo {
      * @param user User object for this client.
      * @param parser Parser that owns this client.
      */
-    public TwitterClientInfo(final User user, final Twitter parser) {
+    public TwitterClientInfo(final TwitterUser user, final Twitter parser) {
         this.myUser = user;
         this.myParser = parser;
     }
@@ -106,7 +104,7 @@ public class TwitterClientInfo implements LocalClientInfo {
      *
      * @return User object for this client.
      */
-    public User getUser() {
+    public TwitterUser getUser() {
         return myUser;
     }
 
@@ -115,8 +113,8 @@ public class TwitterClientInfo implements LocalClientInfo {
      *
      * @param newUser new User object for this client.
      */
-    public void setUser(final User newUser) {
-        final User oldUser = myUser;
+    public void setUser(final TwitterUser newUser) {
+        final TwitterUser oldUser = myUser;
         myUser = newUser;
 
         // Check if user nickname changed.
@@ -127,9 +125,9 @@ public class TwitterClientInfo implements LocalClientInfo {
             }
         }
         // Check if friendship status changed.
-        if (newUser.getFollowing() != myUser.getFollowing()) {
+        if (newUser.isFollowing() != myUser.isFollowing()) {
             for (TwitterChannelInfo ci : channels) {
-                final char type = newUser.getFollowing() ? '+' : '-';
+                final char type = newUser.isFollowing() ? '+' : '-';
                 myParser.getCallbackManager().getCallbackType(ChannelUserModeChangeListener.class).call(ci, ci.getChannelClient(this), null, "twitter.com", type+"v");
             }
         }
@@ -186,7 +184,7 @@ public class TwitterClientInfo implements LocalClientInfo {
     /** {@inheritDoc} */
     @Override
     public String getRealname() {
-        return String.format("%s - http://%s/%s", myUser.getName(), getHostname(), getNickname());
+        return String.format("%s - http://%s/%s", myUser.getRealName(), getHostname(), getNickname());
     }
 
     /** {@inheritDoc} */

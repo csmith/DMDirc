@@ -66,4 +66,9 @@ public class EmailLocalClient extends EmailClientInfo implements LocalClientInfo
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    @Override
+    public int getChannelCount() {
+        return getParser().getChannels().size();
+    }
+
 }

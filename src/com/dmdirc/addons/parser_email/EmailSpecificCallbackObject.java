@@ -22,9 +22,14 @@
 
 package com.dmdirc.addons.parser_email;
 
+import com.dmdirc.parser.common.CallbackManager;
+import com.dmdirc.parser.common.CallbackObjectSpecific;
 import com.dmdirc.parser.interfaces.ChannelClientInfo;
 import com.dmdirc.parser.interfaces.ChannelInfo;
 import com.dmdirc.parser.interfaces.ClientInfo;
+import com.dmdirc.parser.interfaces.LocalClientInfo;
+import com.dmdirc.parser.interfaces.Parser;
+import com.dmdirc.parser.interfaces.callbacks.CallbackInterface;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,61 +37,31 @@ import java.util.Map;
  *
  * @author chris
  */
-public class EmailChannelClientInfo implements ChannelClientInfo {
+public class EmailSpecificCallbackObject extends CallbackObjectSpecific {
 
-    private Map<Object, Object> map = new HashMap<Object, Object>();
-    
-    private final ClientInfo client;
-    private final ChannelInfo channel;
+    /** A map of interfaces to the classes which should be instansiated for them. */
+    protected static Map<Class<?>, Class<?>> IMPL_MAP = new HashMap<Class<?>, Class<?>>();
 
-    public EmailChannelClientInfo(ClientInfo client, ChannelInfo channel) {
-        this.client = client;
-        this.channel = channel;
+    static {
+        IMPL_MAP.put(ChannelClientInfo.class, EmailChannelClientInfo.class);
+        IMPL_MAP.put(ChannelInfo.class, EmailChannelInfo.class);
+        IMPL_MAP.put(ClientInfo.class, EmailClientInfo.class);
+        IMPL_MAP.put(LocalClientInfo.class, EmailClientInfo.class);
+    }
+
+    public EmailSpecificCallbackObject(Parser parser, CallbackManager<?> manager,
+            Class<? extends CallbackInterface> type) {
+        super(parser, manager, type);
     }
 
     @Override
-    public ClientInfo getClient() {
-        return client;
+    protected String translateHostname(String hostname) {
+        return hostname;
     }
 
     @Override
-    public ChannelInfo getChannel() {
-        return channel;
-    }
-
-    @Override
-    public String getImportantModePrefix() {
-        return "";
-    }
-
-    @Override
-    public String getImportantMode() {
-        return "";
-    }
-
-    @Override
-    public String getAllModes() {
-        return "";
-    }
-
-    @Override
-    public Map<Object, Object> getMap() {
-        return map;
-    }
-
-    @Override
-    public void kick(String message) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public int compareTo(ChannelClientInfo o) {
-        return 0;
-    }
-
-    @Override
-    public String toString() {
-        return getClient().getNickname();
+    protected Class<?> getImplementation(Class<?> type) {
+        return IMPL_MAP.containsKey(type) ? IMPL_MAP.get(type) : type;
     }
 
 }

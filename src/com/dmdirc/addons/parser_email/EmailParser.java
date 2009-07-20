@@ -31,11 +31,25 @@ import com.dmdirc.parser.interfaces.ClientInfo;
 import com.dmdirc.parser.interfaces.LocalClientInfo;
 import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.parser.interfaces.StringConverter;
+import com.dmdirc.parser.interfaces.callbacks.NetworkDetectedListener;
+import com.dmdirc.parser.interfaces.callbacks.Post005Listener;
+import com.dmdirc.parser.interfaces.callbacks.ServerReadyListener;
+import com.dmdirc.parser.interfaces.callbacks.SocketCloseListener;
 import com.dmdirc.util.IrcAddress;
 
 import java.io.UnsupportedEncodingException;
 import java.util.Collection;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import javax.mail.Folder;
+import javax.mail.MessagingException;
+import javax.mail.NoSuchProviderException;
+import javax.mail.Session;
+import javax.mail.Store;
+import javax.mail.event.ConnectionEvent;
+import javax.mail.event.ConnectionListener;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 
@@ -46,8 +60,16 @@ import javax.mail.internet.InternetAddress;
 public class EmailParser implements Parser {
 
     private final StringConverter converter = new DefaultStringConverter();
+    private Session session;
+    private CallbackManager<EmailParser> manager = new EmailCallbackManager(this);
+    private IgnoreList ignoreList = new IgnoreList();
+
+    private Store store;
+    
     private final IrcAddress address;
     private final EmailLocalClient local;
+    private final Map<String, EmailChannelInfo> channels
+            = new HashMap<String, EmailChannelInfo>();
 
     public EmailParser(MyInfo myInfo, IrcAddress address) {
         InternetAddress addr = null;
@@ -72,25 +94,46 @@ public class EmailParser implements Parser {
     /** {@inheritDoc} */
     @Override
     public void joinChannel(String channel) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        getChannel(channel);
     }
 
     /** {@inheritDoc} */
     @Override
     public void joinChannel(String channel, String key) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        getChannel(channel);
     }
 
     /** {@inheritDoc} */
     @Override
     public ChannelInfo getChannel(String channel) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        if (!channels.containsKey(channel)) {
+            try {
+                EmailChannelInfo cinfo;
+
+                if (channel.startsWith("#")) {
+                    cinfo = new EmailChannelInfo(this,
+                            store.getFolder(channel.substring(1)));
+                } else {
+                    final int lof = channel.lastIndexOf('/');
+                    cinfo = new EmailChannelInfo(this,
+                            store.getFolder(channel.substring(1, lof)),
+                            Integer.parseInt(channel.substring(1 + lof)));
+                }
+
+                channels.put(channel, cinfo);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                return null;
+            }
+        }
+
+        return channels.get(channel);
     }
 
     /** {@inheritDoc} */
     @Override
     public Collection<? extends ChannelInfo> getChannels() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return channels.values();
     }
 
     /** {@inheritDoc} */
@@ -102,13 +145,13 @@ public class EmailParser implements Parser {
     /** {@inheritDoc} */
     @Override
     public int getMaxLength(String type, String target) {
-        return -1;
+        return Integer.MAX_VALUE;
     }
 
     /** {@inheritDoc} */
     @Override
     public int getMaxLength() {
-        return -1;
+        return Integer.MAX_VALUE;
     }
 
     /** {@inheritDoc} */
@@ -142,7 +185,7 @@ public class EmailParser implements Parser {
     /** {@inheritDoc} */
     @Override
     public boolean isValidChannelName(String name) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return name.matches("^[#^]\\S+$");
     }
 
     /** {@inheritDoc} */
@@ -160,13 +203,13 @@ public class EmailParser implements Parser {
     /** {@inheritDoc} */
     @Override
     public String getServerSoftware() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return "TODO";
     }
 
     /** {@inheritDoc} */
     @Override
     public String getServerSoftwareType() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return "TODO";
     }
 
     /** {@inheritDoc} */
@@ -226,7 +269,7 @@ public class EmailParser implements Parser {
     /** {@inheritDoc} */
     @Override
     public CallbackManager<? extends Parser> getCallbackManager() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return manager;
     }
 
     /** {@inheritDoc} */
@@ -268,19 +311,19 @@ public class EmailParser implements Parser {
     /** {@inheritDoc} */
     @Override
     public String getLastLine() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return "";
     }
 
     /** {@inheritDoc} */
     @Override
     public void setIgnoreList(IgnoreList ignoreList) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        this.ignoreList = ignoreList;
     }
 
     /** {@inheritDoc} */
     @Override
     public IgnoreList getIgnoreList() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return ignoreList;
     }
 
     /** {@inheritDoc} */
@@ -307,31 +350,77 @@ public class EmailParser implements Parser {
     /** {@inheritDoc} */
     @Override
     public void setPingTimerInterval(long newValue) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // TODO?
     }
 
     /** {@inheritDoc} */
     @Override
     public long getPingTimerInterval() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return 1;
     }
 
     /** {@inheritDoc} */
     @Override
     public void setPingTimerFraction(int newValue) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // TODO?
     }
 
     /** {@inheritDoc} */
     @Override
     public int getPingTimerFraction() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return 1;
     }
 
     /** {@inheritDoc} */
     @Override
     public void run() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Properties props = new Properties();
+        props.setProperty("mail.store.protocol", address.getProtocol()
+                + (address.isSSL() ? "s" : ""));
+        props.setProperty("mail.transport.protocol", "smtp");
+        props.setProperty("mail.host", address.getServer());
+        props.setProperty("mail.user", address.getPassword().split(":")[0]);
+
+        try {
+            session = Session.getInstance(props);
+            store = session.getStore();
+            store.addConnectionListener(new ConnectionListener() {
+
+                @Override
+                public void opened(ConnectionEvent arg0) {
+                    try {
+                        for (Folder def : store.getDefaultFolder().listSubscribed()) {
+                            manager.getCallbackType(ServerReadyListener.class).call();
+                            manager.getCallbackType(NetworkDetectedListener.class)
+                                    .call(getNetworkName(), getServerSoftware(),
+                                    getServerSoftwareType());
+                            manager.getCallbackType(Post005Listener.class).call();
+                            channels.put("#" + def.getFullName(),
+                                    new EmailChannelInfo(EmailParser.this, def));
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void disconnected(ConnectionEvent arg0) {
+                    manager.getCallbackType(SocketCloseListener.class).call();
+                }
+
+                @Override
+                public void closed(ConnectionEvent arg0) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
+            });
+
+            store.connect(address.getPassword().split(":")[0],
+                    address.getPassword().split(":")[1]);
+        } catch (NoSuchProviderException ex) {
+            ex.printStackTrace();
+        } catch (MessagingException ex) {
+            ex.printStackTrace();
+        }
     }
 
 }

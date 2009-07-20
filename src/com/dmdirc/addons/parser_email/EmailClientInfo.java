@@ -47,7 +47,7 @@ public class EmailClientInfo implements ClientInfo {
 
     @Override
     public String getNickname() {
-        return address.getPersonal();
+        return address.getPersonal() == null ? getUsername() : address.getPersonal();
     }
 
     @Override
@@ -62,12 +62,12 @@ public class EmailClientInfo implements ClientInfo {
 
     @Override
     public String getRealname() {
-        return address.getPersonal();
+        return getNickname();
     }
 
     @Override
     public int getChannelCount() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return 0;
     }
 
     @Override

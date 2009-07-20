@@ -25,6 +25,7 @@ package com.dmdirc.addons.parser_email;
 import com.dmdirc.parser.common.CallbackManager;
 import com.dmdirc.parser.common.CallbackObject;
 import com.dmdirc.parser.common.CallbackObjectSpecific;
+import com.dmdirc.parser.interfaces.callbacks.CallbackInterface;
 
 /**
  *
@@ -39,13 +40,14 @@ public class EmailCallbackManager extends CallbackManager<EmailParser> {
     @Override
     protected CallbackObject getCallbackObject(final EmailParser parser,
             final Class<?> type) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return new EmailCallbackObject(parser, this, type.asSubclass(CallbackInterface.class));
     }
 
     @Override
     protected CallbackObjectSpecific getSpecificCallbackObject(final EmailParser parser,
             final Class<?> type) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return new EmailSpecificCallbackObject(parser, this,
+                type.asSubclass(CallbackInterface.class));
     }
 
 }

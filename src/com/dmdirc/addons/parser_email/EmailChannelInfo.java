@@ -22,10 +22,253 @@
 
 package com.dmdirc.addons.parser_email;
 
+import com.dmdirc.parser.common.ChannelListModeItem;
+import com.dmdirc.parser.interfaces.ChannelClientInfo;
+import com.dmdirc.parser.interfaces.ChannelInfo;
+import com.dmdirc.parser.interfaces.ClientInfo;
+import com.dmdirc.parser.interfaces.Parser;
+import com.dmdirc.parser.interfaces.callbacks.ChannelMessageListener;
+import com.dmdirc.parser.interfaces.callbacks.ChannelNamesListener;
+import com.dmdirc.parser.interfaces.callbacks.ChannelSelfJoinListener;
+
+import com.dmdirc.parser.interfaces.callbacks.ChannelTopicListener;
+import com.dmdirc.ui.messages.Styliser;
+import java.util.ArrayList;
+import java.util.Collection;
+import javax.mail.Flags.Flag;
+import javax.mail.Folder;
+import javax.mail.Message;
+import javax.mail.event.ConnectionAdapter;
+import javax.mail.event.ConnectionEvent;
+import javax.mail.internet.InternetAddress;
+
 /**
  *
  * @author chris
  */
-public class EmailChannelInfo {
+public class EmailChannelInfo implements ChannelInfo, Runnable {
+
+    private final int message;
+    private final ChannelClientInfo localinfo;
+    private final EmailParser parser;
+    private Message msg = null;
+    private final Folder folder;
+
+    public EmailChannelInfo(final EmailParser parser, Folder folder) {
+        this.parser = parser;
+        this.folder = folder;
+        this.message = -1;
+        this.localinfo = new EmailChannelClientInfo(parser.getLocalClient(), this);
+
+        parser.getCallbackManager().getCallbackType(ChannelSelfJoinListener.class).call(this);
+        parser.getCallbackManager().getCallbackType(ChannelNamesListener.class).call(this);
+
+        try {
+            if (folder.getType() == Folder.HOLDS_FOLDERS) {
+                // Meh?
+            } else {
+                folder.addConnectionListener(new ConnectionAdapter() {
+
+                    @Override
+                    public void opened(ConnectionEvent e) {
+                        new Thread(EmailChannelInfo.this,
+                                "Message announce thread - " + getName()).start();
+                    }
+                });
+                
+                folder.open(Folder.READ_ONLY);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    public EmailChannelInfo(final EmailParser parser, final Folder folder, final int message) {
+        this.parser = parser;
+        this.folder = folder;
+        this.message = message;
+        this.localinfo = new EmailChannelClientInfo(parser.getLocalClient(), this);
+
+        parser.getCallbackManager().getCallbackType(ChannelSelfJoinListener.class).call(this);
+        parser.getCallbackManager().getCallbackType(ChannelNamesListener.class).call(this);
+
+        try {
+            if (folder.getType() == Folder.HOLDS_FOLDERS) {
+                // Meh?
+            } else {
+                folder.addConnectionListener(new ConnectionAdapter() {
+
+                    @Override
+                    public void opened(ConnectionEvent e) {
+                        try {
+                            msg = folder.getMessage(message);
+                            parser.getCallbackManager()
+                                    .getCallbackType(ChannelTopicListener.class)
+                                    .call(EmailChannelInfo.this, true);
+
+                            final EmailChannelClientInfo cci
+                                    = new EmailChannelClientInfo(
+                                        new EmailClientInfo(parser,
+                                        (InternetAddress) msg.getFrom()[0]),
+                                        EmailChannelInfo.this);
+                            
+                            for (String line : String.valueOf(msg.getContent()).split("\n")) {
+                                System.out.println(line);
+                                parser.getCallbackManager()
+                                        .getCallbackType(ChannelMessageListener.class)
+                                        .call(EmailChannelInfo.this, cci, line,
+                                        msg.getFrom().toString());
+                            }
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                });
+
+                folder.open(Folder.READ_ONLY);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    @Override
+    public String getName() {
+        return (message == -1 ? "#" : "&") + folder.getFullName()
+                + (message == -1 ? "" : "/" + message);
+    }
+
+    @Override
+    public void setTopic(String topic) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public String getTopic() {
+        try {
+            return msg == null ? getName() : (msg.getSubject() == null
+                    ? "(no subject)" : msg.getSubject());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return "?";
+        }
+    }
+
+    @Override
+    public long getTopicTime() {
+        try {
+            return msg == null ? System.currentTimeMillis() / 1000
+                    : msg.getSentDate().getTime() / 1000;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return System.currentTimeMillis() / 1000;
+        }
+    }
+
+    @Override
+    public String getTopicSetter() {
+        return "who!the@hell.knows";
+    }
+
+    @Override
+    public String getModes() {
+        return "";
+    }
+
+    @Override
+    public String getMode(char mode) {
+        return "";
+    }
+
+    @Override
+    public Collection<ChannelListModeItem> getListMode(char mode) {
+        return new ArrayList<ChannelListModeItem>();
+    }
+
+    @Override
+    public void sendMessage(String message) {
+        // TODO?
+    }
+
+    @Override
+    public void sendAction(String action) {
+        // TODO?
+    }
+
+    @Override
+    public void part(String reason) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void sendWho() {
+        // TODO?
+    }
+
+    @Override
+    public void alterMode(boolean add, Character mode, String parameter) {
+        // Do nothing
+    }
+
+    @Override
+    public void flushModes() {
+        // Do nothing
+    }
+
+    @Override
+    public ChannelClientInfo getChannelClient(ClientInfo client) {
+        if (client.equals(parser.getLocalClient())) {
+            return localinfo;
+        }
+
+        return null;
+    }
+
+    @Override
+    public ChannelClientInfo getChannelClient(String client) {
+        return getChannelClient(parser.getClient(client));
+    }
+
+    @Override
+    public ChannelClientInfo getChannelClient(String client, boolean create) {
+        return getChannelClient(parser.getClient(client));
+    }
+
+    @Override
+    public Collection<ChannelClientInfo> getChannelClients() {
+        final Collection<ChannelClientInfo> res = new ArrayList<ChannelClientInfo>();
+        res.add(localinfo);
+
+        return res;
+    }
+
+    @Override
+    public int getChannelClientCount() {
+        return 1;
+    }
+
+    @Override
+    public Parser getParser() {
+        return parser;
+    }
+
+    @Override
+    public void run() {
+        try {
+            for (Message message : folder.getMessages(Math.max(folder.getMessageCount() - 20, 1),
+                    folder.getMessageCount())) {
+                parser.getCallbackManager().getCallbackType(ChannelMessageListener.class)
+                        .call(this, new EmailChannelClientInfo(
+                        new EmailClientInfo(parser, (InternetAddress) message.getFrom()[0]),
+                        this),
+                        (message.getFlags().contains(Flag.SEEN) ? "" : Styliser.CODE_BOLD)
+                        + message.getSubject() + Styliser.CODE_STOP + Styliser.CODE_COLOUR
+                        + "15 &" + folder.getName() + "/" + message.getMessageNumber(),
+                        message.getFrom()[0].toString());
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
 
 }

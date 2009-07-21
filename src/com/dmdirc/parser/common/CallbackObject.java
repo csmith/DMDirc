@@ -217,6 +217,7 @@ public abstract class CallbackObject {
 
         final Class<?> actualTarget = getImplementation(target);
 
+
         for (Constructor<?> ctor : actualTarget.getConstructors()) {
             Object[] params = new Object[ctor.getParameterTypes().length];
 
@@ -226,6 +227,7 @@ public abstract class CallbackObject {
 
             for (Class<?> needed : ctor.getParameterTypes()) {
                 boolean found = false;
+
 
                 for (Class<?> source : sources.keySet()) {
                     if (source.isAssignableFrom(needed)) {

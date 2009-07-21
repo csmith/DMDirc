@@ -15,10 +15,10 @@
             <zipfileset src="${file.reference.jxlayer.jar}" includes="org/jdesktop/jxlayer/**"/>
         </jar>
 
-        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+        <jar destfile="plugins/parser_twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
             <zipfileset src="${file.reference.commons.codec.jar}" includes="org/apache/**"/>
         </jar>
-        <jar destfile="plugins/twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
+        <jar destfile="plugins/parser_twitter.jar" compress="${jar.compress}" keepcompression="true" update="true">
             <zipfileset src="${file.reference.oauth.signpost.jar}" includes="com/google/** oauth/signpost/**"/>
         </jar>
     </target>

@@ -83,8 +83,6 @@ public final class ChannelEventHandler extends EventHandler implements
      * @return True if the client is ourself, false otherwise.
      */
     protected boolean isMyself(final ChannelClientInfo client) {
-        System.out.println("Client: "+client);
-        System.out.println("LocalClient: "+owner.getServer().getParser().getLocalClient());
         return client.getClient().equals(owner.getServer().getParser().getLocalClient());
     }
 

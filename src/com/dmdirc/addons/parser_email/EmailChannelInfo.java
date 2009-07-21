@@ -35,6 +35,8 @@ import com.dmdirc.parser.interfaces.callbacks.ChannelTopicListener;
 import com.dmdirc.ui.messages.Styliser;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import javax.mail.Address;
 import javax.mail.Flags.Flag;
 import javax.mail.Folder;
 import javax.mail.Message;
@@ -50,6 +52,7 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
 
     private final int message;
     private final ChannelClientInfo localinfo;
+    private final List<ChannelClientInfo> clients = new ArrayList<ChannelClientInfo>();
     private final EmailParser parser;
     private Message msg = null;
     private final Folder folder;
@@ -59,6 +62,7 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
         this.folder = folder;
         this.message = -1;
         this.localinfo = new EmailChannelClientInfo(parser.getLocalClient(), this);
+        clients.add(localinfo);
 
         parser.getCallbackManager().getCallbackType(ChannelSelfJoinListener.class).call(this);
         parser.getCallbackManager().getCallbackType(ChannelNamesListener.class).call(this);
@@ -90,7 +94,6 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
         this.localinfo = new EmailChannelClientInfo(parser.getLocalClient(), this);
 
         parser.getCallbackManager().getCallbackType(ChannelSelfJoinListener.class).call(this);
-        parser.getCallbackManager().getCallbackType(ChannelNamesListener.class).call(this);
 
         try {
             if (folder.getType() == Folder.HOLDS_FOLDERS) {
@@ -106,11 +109,25 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
                                     .getCallbackType(ChannelTopicListener.class)
                                     .call(EmailChannelInfo.this, true);
 
-                            final EmailChannelClientInfo cci
-                                    = new EmailChannelClientInfo(
-                                        new EmailClientInfo(parser,
-                                        (InternetAddress) msg.getFrom()[0]),
-                                        EmailChannelInfo.this);
+                            EmailChannelClientInfo cci = null;
+                            for (Address addr : msg.getFrom()) {
+                               cci = new EmailChannelClientInfo(
+                                    new EmailClientInfo(parser,
+                                    (InternetAddress) addr),
+                                    EmailChannelInfo.this);
+                               clients.add(cci);
+                            }
+
+                            for (Address addr : msg.getAllRecipients()) {
+                               clients.add(new EmailChannelClientInfo(
+                                    new EmailClientInfo(parser,
+                                    (InternetAddress) addr),
+                                    EmailChannelInfo.this));
+                            }
+
+                            parser.getCallbackManager()
+                                    .getCallbackType(ChannelNamesListener.class)
+                                    .call(EmailChannelInfo.this);
                             
                             for (String line : String.valueOf(msg.getContent()).split("\n")) {
                                 System.out.println(line);
@@ -236,15 +253,12 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
 
     @Override
     public Collection<ChannelClientInfo> getChannelClients() {
-        final Collection<ChannelClientInfo> res = new ArrayList<ChannelClientInfo>();
-        res.add(localinfo);
-
-        return res;
+        return clients;
     }
 
     @Override
     public int getChannelClientCount() {
-        return 1;
+        return clients.size();
     }
 
     @Override
@@ -255,16 +269,16 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
     @Override
     public void run() {
         try {
-            for (Message message : folder.getMessages(Math.max(folder.getMessageCount() - 20, 1),
+            for (Message cmessage : folder.getMessages(Math.max(folder.getMessageCount() - 20, 1),
                     folder.getMessageCount())) {
                 parser.getCallbackManager().getCallbackType(ChannelMessageListener.class)
                         .call(this, new EmailChannelClientInfo(
-                        new EmailClientInfo(parser, (InternetAddress) message.getFrom()[0]),
+                        new EmailClientInfo(parser, (InternetAddress) cmessage.getFrom()[0]),
                         this),
-                        (message.getFlags().contains(Flag.SEEN) ? "" : Styliser.CODE_BOLD)
-                        + message.getSubject() + Styliser.CODE_STOP + Styliser.CODE_COLOUR
-                        + "15 &" + folder.getName() + "/" + message.getMessageNumber(),
-                        message.getFrom()[0].toString());
+                        (cmessage.getFlags().contains(Flag.SEEN) ? "" : Styliser.CODE_BOLD)
+                        + cmessage.getSubject() + Styliser.CODE_STOP + Styliser.CODE_COLOUR
+                        + "15 &" + folder.getName() + "/" + cmessage.getMessageNumber(),
+                        cmessage.getFrom()[0].toString());
             }
         } catch (Exception ex) {
             ex.printStackTrace();

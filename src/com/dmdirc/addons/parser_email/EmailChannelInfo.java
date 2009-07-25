@@ -33,6 +33,7 @@ import com.dmdirc.parser.interfaces.callbacks.ChannelSelfJoinListener;
 
 import com.dmdirc.parser.interfaces.callbacks.ChannelTopicListener;
 import com.dmdirc.ui.messages.Styliser;
+import com.sun.mail.imap.IMAPFolder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -40,8 +41,11 @@ import javax.mail.Address;
 import javax.mail.Flags.Flag;
 import javax.mail.Folder;
 import javax.mail.Message;
+import javax.mail.MessagingException;
 import javax.mail.event.ConnectionAdapter;
 import javax.mail.event.ConnectionEvent;
+import javax.mail.event.MessageCountAdapter;
+import javax.mail.event.MessageCountEvent;
 import javax.mail.internet.InternetAddress;
 
 /**
@@ -271,18 +275,42 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
         try {
             for (Message cmessage : folder.getMessages(Math.max(folder.getMessageCount() - 20, 1),
                     folder.getMessageCount())) {
-                parser.getCallbackManager().getCallbackType(ChannelMessageListener.class)
-                        .call(this, new EmailChannelClientInfo(
-                        new EmailClientInfo(parser, (InternetAddress) cmessage.getFrom()[0]),
-                        this),
-                        (cmessage.getFlags().contains(Flag.SEEN) ? "" : Styliser.CODE_BOLD)
-                        + cmessage.getSubject() + Styliser.CODE_STOP + Styliser.CODE_COLOUR
-                        + "15 &" + folder.getName() + "/" + cmessage.getMessageNumber(),
-                        cmessage.getFrom()[0].toString());
+                showMessage(cmessage);
+            }
+
+            folder.addMessageCountListener(new MessageCountAdapter() {
+
+                @Override
+                public void messagesAdded(MessageCountEvent e) {
+                    try {
+                        for (Message cmessage : e.getMessages()) {
+                            showMessage(cmessage);
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+            if (folder instanceof IMAPFolder) {
+                while (true) {
+                    ((IMAPFolder) folder).idle();
+                }
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
+    }
+
+    protected void showMessage(final Message message) throws MessagingException {
+        parser.getCallbackManager().getCallbackType(ChannelMessageListener.class)
+                .call(this, new EmailChannelClientInfo(
+                new EmailClientInfo(parser, (InternetAddress) message.getFrom()[0]),
+                this),
+                (message.getFlags().contains(Flag.SEEN) ? "" : Styliser.CODE_BOLD)
+                + message.getSubject() + Styliser.CODE_STOP + Styliser.CODE_COLOUR
+                + "15 &" + folder.getName() + "/" + message.getMessageNumber(),
+                message.getFrom()[0].toString());
     }
 
 }

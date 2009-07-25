@@ -389,12 +389,13 @@ public class EmailParser implements Parser {
                 @Override
                 public void opened(ConnectionEvent arg0) {
                     try {
+                        manager.getCallbackType(ServerReadyListener.class).call();
+                        manager.getCallbackType(NetworkDetectedListener.class)
+                                .call(getNetworkName(), getServerSoftware(),
+                                getServerSoftwareType());
+                        manager.getCallbackType(Post005Listener.class).call();
+                        
                         for (Folder def : store.getDefaultFolder().listSubscribed()) {
-                            manager.getCallbackType(ServerReadyListener.class).call();
-                            manager.getCallbackType(NetworkDetectedListener.class)
-                                    .call(getNetworkName(), getServerSoftware(),
-                                    getServerSoftwareType());
-                            manager.getCallbackType(Post005Listener.class).call();
                             channels.put("#" + def.getFullName(),
                                     new EmailChannelInfo(EmailParser.this, def));
                         }

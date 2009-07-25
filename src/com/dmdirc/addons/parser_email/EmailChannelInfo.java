@@ -29,6 +29,7 @@ import com.dmdirc.parser.interfaces.ClientInfo;
 import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.parser.interfaces.callbacks.ChannelMessageListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelNamesListener;
+import com.dmdirc.parser.interfaces.callbacks.ChannelPartListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelSelfJoinListener;
 
 import com.dmdirc.parser.interfaces.callbacks.ChannelTopicListener;
@@ -59,6 +60,8 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
     private final List<ChannelClientInfo> clients = new ArrayList<ChannelClientInfo>();
     private final EmailParser parser;
     private Message msg = null;
+    private volatile boolean running = true;
+    private Thread announceThread = null;
     private final Folder folder;
 
     public EmailChannelInfo(final EmailParser parser, Folder folder) {
@@ -79,8 +82,9 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
 
                     @Override
                     public void opened(ConnectionEvent e) {
-                        new Thread(EmailChannelInfo.this,
-                                "Message announce thread - " + getName()).start();
+                        announceThread = new Thread(EmailChannelInfo.this,
+                                "Message announce thread - " + getName());
+                        announceThread.start();
                     }
                 });
                 
@@ -218,7 +222,14 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
 
     @Override
     public void part(String reason) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        running = false;
+        
+        if (announceThread != null) {
+            announceThread.interrupt();
+        }
+
+        parser.getCallbackManager().getCallbackType(ChannelPartListener.class)
+                .call(this, localinfo, reason);
     }
 
     @Override
@@ -293,7 +304,7 @@ public class EmailChannelInfo implements ChannelInfo, Runnable {
             });
 
             if (folder instanceof IMAPFolder) {
-                while (true) {
+                while (running) {
                     ((IMAPFolder) folder).idle();
                 }
             }

@@ -362,13 +362,13 @@ public class Twitter implements Parser {
     /** {@inheritDoc} */
 		@Override
 		public void sendCTCP(final String target, final String type, final String message) {
-				getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("This parser does not support CTCPs.", "root");
+				getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("This parser does not support CTCPs.", "twitter.com");
 		}
 
     /** {@inheritDoc} */
 		@Override
 		public void sendCTCPReply(final String target, final String type, final String message) {
-				getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("This parser does not support CTCP replies.", "root");
+				getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("This parser does not support CTCP replies.", "twitter.com");
 		}
 
     /** {@inheritDoc} */
@@ -380,44 +380,44 @@ public class Twitter implements Parser {
                 final String[] bits = message.split(" ");
                 api.setAccessPin(bits[0]);
                 if (api.isAllowed(true)) {
-                    getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Thank you for authorising DMDirc.", "root");
+                    getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Thank you for authorising DMDirc.", "twitter.com");
                     updateTwitterChannel();
                 } else {
-                    getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Authorising DMDirc failed, please try again: "+api.getOAuthURL(), "root");
+                    getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Authorising DMDirc failed, please try again: "+api.getOAuthURL(), "twitter.com");
                 }
             } else {
                 if (setStatus(message)) {
-                    getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Setting status ok.", "root");
+                    getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Setting status ok.", "twitter.com");
                 } else {
-                    getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Setting status failed.", "root");
+                    getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Setting status failed.", "twitter.com");
                 }
             }
         } else if (target.matches("^&[0-9]+$")) {
             try {
                 long id = Long.parseLong(target.substring(1));
                 if (setStatus(message, id)) {
-                    getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Setting status ok.", "root");
+                    getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Setting status ok.", "twitter.com");
                 } else {
-                    getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Setting status failed.", "root");
+                    getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Setting status failed.", "twitter.com");
                 }
             } catch (NumberFormatException nfe) { }
         } else if (!target.matches("^#.+$")) {
             api.newDirectMessage(target, message);
         } else {
-            getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Messages to '"+target+"' are not currently supported.", "root");
+            getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Messages to '"+target+"' are not currently supported.", "twitter.com");
         }
 		}
 
     /** {@inheritDoc} */
 		@Override
 		public void sendNotice(final String target, final String message) {
-				getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("This parser does not support notices.", "root");
+				getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("This parser does not support notices.", "twitter.com");
 		}
 
     /** {@inheritDoc} */
 		@Override
 		public void sendAction(final String target, final String message) {
-        getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("This parser does not support CTCPs.", "root");
+        getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("This parser does not support CTCPs.", "twitter.com");
 		}
 
     /** {@inheritDoc} */
@@ -506,7 +506,7 @@ public class Twitter implements Parser {
         this.doJoinChannel(channel);
 
         if (!api.isAllowed()) {
-            final String hostname = "root";
+            final String hostname = "twitter.com";
             final List<String> welcomeMessage = new ArrayList<String>();
             
             welcomeMessage.add("DMDirc has not been authorised to use the account "+api.getUsername());
@@ -520,7 +520,7 @@ public class Twitter implements Parser {
                 getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, line, hostname);
             }
         } else {
-            getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "DMDirc has been authorised to use the account "+api.getUsername(), "root");
+            getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "DMDirc has been authorised to use the account "+api.getUsername(), "twitter.com");
             updateTwitterChannel();
         }
 

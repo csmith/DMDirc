@@ -115,7 +115,7 @@ public class TwitterMessage {
      * @return Screen name of the user who sent this message.
      */
     public String getSenderScreenName() {
-        return (sender == null) ? sender : "";
+        return sender;
     }
     
     /**

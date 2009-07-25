@@ -43,6 +43,9 @@ public class TwitterClientInfo implements LocalClientInfo {
     /** My Parser */
     private Twitter myParser;
 
+    /** Is this a fake client created just for a callback? */
+    private boolean isFake = false;
+
     /** Map of random objects. */
     final Map<Object, Object> myMap = new HashMap<Object, Object>();
 
@@ -106,6 +109,32 @@ public class TwitterClientInfo implements LocalClientInfo {
      */
     public TwitterUser getUser() {
         return myParser.getApi().getCachedUser(myUser);
+    }
+
+    /**
+    * Check if this is a fake client.
+    *
+    * @return True if this is a fake client, else false
+    */
+    public boolean isFake() { return isFake; }
+    
+    /**
+    * Check if this client is actually a server.
+    *
+    * @return True if this client is actually a server.
+    */
+    public boolean isServer() { return !(myUser.indexOf(':') == -1); }
+    
+    /**
+    * Set if this is a fake client.
+    * This returns "this" and thus can be used in the construction line.
+    *
+    * @param newValue new value for isFake - True if this is a fake client, else false
+    * @return this Object
+    */
+    public TwitterClientInfo setFake(final boolean newValue) {
+        isFake = newValue;
+        return this;
     }
 
     /**

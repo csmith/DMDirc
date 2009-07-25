@@ -64,6 +64,8 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
         this.user = user;
         this.message = message;
         this.time = time;
+
+        api.updateStatus(this);
     }
 
     /**
@@ -94,7 +96,7 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
         if (user == null) {
             final NodeList nodes = element.getElementsByTagName("user");
             if (nodes != null && nodes.getLength() > 0) {
-                userUser = new TwitterUser(api, nodes.item(0), null);
+                userUser = new TwitterUser(api, nodes.item(0), this);
                 this.user = userUser.getScreenName();
                 myAPI.updateUser(userUser);
             } else {
@@ -114,6 +116,8 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
             parsedTime = new SimpleDateFormat("EEE MMM dd HH:mm:ss zzzz yyyy").parse(timeString).getTime();
         } catch (ParseException ex) { }
         this.time = parsedTime;
+
+        api.updateStatus(this);
     }
 
 
@@ -132,7 +136,7 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
      * @return owner of this message. (null if not known)
      */
     public TwitterUser getUser() {
-        return myAPI.getCachedUser(this.user);
+        return myAPI.getUser(this.user);
     }
 
     /**

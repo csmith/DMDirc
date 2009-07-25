@@ -10,6 +10,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +29,7 @@ import oauth.signpost.signature.SignatureMethod;
 
 import java.io.ByteArrayInputStream;
 
+import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -60,6 +62,9 @@ public class TwitterAPI {
 
     /** Cache of users. */
     final static Map<String, TwitterUser> userCache = new HashMap<String, TwitterUser>();
+
+    /** Cache of statuses. */
+    final static Map<Long, TwitterStatus> statusCache = new HashMap<Long, TwitterStatus>();
 
     /** API Allowed status */
     private APIAllowed allowed = APIAllowed.UNKNOWN;
@@ -118,7 +123,7 @@ public class TwitterAPI {
     private void signURL(final HttpURLConnection connection) {
         if (!hasSigned) {
             if (getToken().isEmpty() || getTokenSecret().isEmpty()) {
-                throw new TwitterException("Unable to sign URLs, no tokens known.");
+                throw new TwitterException("Unable to sign URLs, no tokens known ("+myUsername+").");
             }
             consumer.setTokenWithSecret(getToken(), getTokenSecret());
             hasSigned = true;
@@ -161,13 +166,13 @@ public class TwitterAPI {
 
     /**
      * Get the XML for the given address.
-     * 
+     *
      * @param address Address to get XML for.
      * @return Document object for this xml.
      */
     private Document getXML(final String address) {
+        System.out.println("getXML: "+address);
         try {
-            System.out.println("getXML: " + address);
             final URL url = new URL(address);
             return getXML((HttpURLConnection) url.openConnection());
         } catch (MalformedURLException ex) {
@@ -179,6 +184,52 @@ public class TwitterAPI {
         return null;
     }
 
+    /**
+     * Get the XML for the given address, using a POST request.
+     *
+     * @param address Address to get XML for.
+     * @param params Params to post.
+     * @return Document object for this xml.
+     */
+    private Document postXML(final String address, final String params) {
+        try {
+            final URL url = new URL(address);
+            return postXML((HttpURLConnection) url.openConnection(), params);
+        } catch (MalformedURLException ex) {
+            ex.printStackTrace();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the XML for the given UNSIGNED HttpURLConnection object, using a
+     * POST request.
+     *
+     * @param request HttpURLConnection to get XML for.
+     * @param params Params to post.
+     * @return Document object for this xml.
+     */
+    private Document postXML(final HttpURLConnection request, final String params) {
+        try {
+            request.setRequestMethod("POST");
+
+            request.setRequestProperty("Content-Type",  "application/x-www-form-urlencoded");
+
+            request.setRequestProperty("Content-Length", "" +  Integer.toString(params.getBytes().length));
+            request.setRequestProperty("Content-Language", "en-US");
+
+            request.setUseCaches(false);
+            request.setDoInput(true);
+            request.setDoOutput(true);
+        } catch (ProtocolException ex) {
+            ex.printStackTrace();
+        }
+        return getXML(request, params);
+    }
+
 
     /**
      * Get the XML for the given UNSIGNED HttpURLConnection object.
@@ -187,21 +238,57 @@ public class TwitterAPI {
      * @return Document object for this xml.
      */
     private Document getXML(final HttpURLConnection request) {
+        return getXML(request, null);
+    }
+
+    /**
+     * Get the XML for the given UNSIGNED HttpURLConnection object.
+     *
+     * @param request HttpURLConnection to get XML for.
+     * @param params Any params for the data type if needed, else null.
+     * @return Document object for this xml.
+     */
+    private Document getXML(final HttpURLConnection request, final String params) {
+        BufferedReader in = null;
+        boolean dumpOutput = false;
         try {
             signURL(request);
+
+            if (params != null) {
+                try {
+                    final DataOutputStream out = new DataOutputStream(request.getOutputStream());
+                    out.writeBytes(params);
+                    out.flush();
+                    out.close();
+                } catch (IOException ex) { ex.printStackTrace(); }
+            }
+            
             request.connect();
+            in = new BufferedReader(new InputStreamReader(request.getInputStream()));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            dumpOutput = true;
+            in = new BufferedReader(new InputStreamReader(request.getErrorStream()));
+        }
 
-            final BufferedReader in = new BufferedReader(new InputStreamReader(request.getInputStream()));
-            final StringBuilder xml = new StringBuilder();
-            String line;
+        final StringBuilder xml = new StringBuilder();
+        String line;
 
+        try {
             do {
                 line = in.readLine();
                 if (line != null) { xml.append(line); }
+                if (dumpOutput) { System.out.println(line); }
             } while (line != null);
-            in.close();
+        } catch (IOException ex) {
+        } finally {
+            try { in.close(); } catch (IOException ex) { }
+        }
+        
 
+        try {
             final DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            
             return db.parse(new ByteArrayInputStream(xml.toString().getBytes()));
         } catch (SAXException ex) {
             ex.printStackTrace();
@@ -236,11 +323,14 @@ public class TwitterAPI {
      * @param user
      */
     protected void updateUser(final String username, final TwitterUser user) {
-        if (!username.equalsIgnoreCase(user.getScreenName())) {
-            userCache.remove(username.toLowerCase());
-        }
+        if (user == null) { return; }
+        synchronized (userCache) {
+            if (!username.equalsIgnoreCase(user.getScreenName())) {
+                userCache.remove(username.toLowerCase());
+            }
 
-        userCache.put(user.getScreenName().toLowerCase(), user);
+            userCache.put(user.getScreenName().toLowerCase(), user);
+        }
 
         // TODO: TwitterStatus and TwitterMessage objects should be informed
         // about updates.
@@ -263,10 +353,12 @@ public class TwitterAPI {
      * @return User object for the requested user.
      */
     public TwitterUser getCachedUser(final String username) {
-        if (userCache.containsKey(username.toLowerCase())) {
-            return userCache.get(username.toLowerCase());
-        } else {
-            return null;
+        synchronized (userCache) {
+            if (userCache.containsKey(username.toLowerCase())) {
+                return userCache.get(username.toLowerCase());
+            } else {
+                return null;
+            }
         }
     }
 
@@ -292,17 +384,91 @@ public class TwitterAPI {
                 }
             }
 
-            userCache.put(username.toLowerCase(), user);
+            updateUser(user);
         }
 
         return user;
     }
 
     /**
-     * End the twitter session.
+     * Update the status object for the given status, if the status isn't known
+     * already this will add them to the cache.
+     *
+     * @param status
      */
-    public void endSession() {
-        throw new UnsupportedOperationException("Not yet implemented");
+    protected void updateStatus(final TwitterStatus status) {
+        if (status == null) { return; }
+        synchronized (statusCache) {
+            statusCache.put(status.getID(), status);
+        }
+    }
+
+    /**
+     * Get a status object for the given id.
+     *
+     * @param id
+     * @return Status object for the requested id.
+     */
+    public TwitterStatus getStatus(final long id) {
+        return getStatus(id, false);
+    }
+
+    /**
+     * Get a cached status object for the given id.
+     *
+     * @param id
+     * @return status object for the requested id.
+     */
+    public TwitterStatus getCachedStatus(final long id) {
+        synchronized (statusCache) {
+            if (statusCache.containsKey(id)) {
+                return statusCache.get(id);
+            } else {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Get a status object for the given id.
+     *
+     * @param id
+     * @param force Force an update of the cache?
+     * @return status object for the requested id.
+     */
+    public TwitterStatus getStatus(final long id, final boolean force) {
+        TwitterStatus status = getCachedStatus(id);
+        if (status == null || force) {
+            final Document doc = getXML("http://twitter.com/statuses/show/"+id+".xml");
+
+            if (doc != null) {
+                status = new TwitterStatus(this, doc.getDocumentElement());
+            } else {
+                status = null;
+            }
+
+            updateStatus(status);
+        }
+
+        return status;
+    }
+
+    /**
+     * Prune the status cache of statuses older than the given time.
+     * This should be done periodically depending on how many statuses you see.
+     *
+     * @param time
+     */
+    public void pruneStatusCache(final long time) {
+        synchronized (statusCache) {
+            final Map<Long, TwitterStatus> current = new HashMap<Long, TwitterStatus>(statusCache);
+
+            for (Long item : current.keySet()) {
+                if (current.get(item).getTime() < time) {
+                    statusCache.remove(item);
+                }
+            }
+        }
     }
 
     /**
@@ -312,7 +478,11 @@ public class TwitterAPI {
      * @param message Message to send.
      */
     public void newDirectMessage(final String target, final String message) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        try {
+            postXML("http://twitter.com/direct_messages/new.xml", "screen_name=" + target + "&text=" + URLEncoder.encode(message, "utf-8"));
+        } catch (UnsupportedEncodingException ex) {
+            ex.printStackTrace();
+        }
     }
 
     /**
@@ -436,19 +606,20 @@ public class TwitterAPI {
      */
     public boolean setStatus(final String status, final Long id) {
         try {
-            final StringBuilder address = new StringBuilder("http://twitter.com/statuses/update.xml?status=");
+            final StringBuilder address = new StringBuilder("status=");
             address.append(URLEncoder.encode(status, "utf-8"));
             if (id >= 0) {
                 address.append("&in_reply_to_status_id="+Long.toString(id));
             }
 
-            final URL url = new URL(address.toString());
+            final URL url = new URL("http://twitter.com/statuses/update.xml");
             final HttpURLConnection request = (HttpURLConnection) url.openConnection();
-            request.setRequestMethod("POST");
-            final Document doc = getXML(request);
+            final Document doc = postXML(request, address.toString());
             if (request.getResponseCode() == 200) {
                 new TwitterStatus(this, doc.getDocumentElement());
                 return true;
+            } else {
+                System.out.println("Error from twitter: ("+request.getResponseCode()+") "+request.getResponseMessage());
             }
         } catch (UnsupportedEncodingException ex) {
             ex.printStackTrace();
@@ -548,7 +719,7 @@ public class TwitterAPI {
      * @return true if we have been authorised, else false.
      */
     public boolean isAllowed(final boolean forceRecheck) {
-        if (getToken().isEmpty() || getTokenSecret().isEmpty()) {
+        if (myUsername.isEmpty() || getToken().isEmpty() || getTokenSecret().isEmpty()) {
             return false;
         }
         if (allowed == allowed.UNKNOWN || forceRecheck) {

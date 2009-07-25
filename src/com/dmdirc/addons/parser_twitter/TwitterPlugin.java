@@ -9,6 +9,7 @@ import com.dmdirc.parser.common.MyInfo;
 import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.plugins.Plugin;
 import com.dmdirc.util.IrcAddress;
+import java.util.ArrayList;
 
 /**
  *
@@ -30,7 +31,7 @@ public class TwitterPlugin extends Plugin  {
     @Override
     public void onUnload() {
         unloading = true;
-        for (Twitter parser : Twitter.currentParsers) {
+        for (Twitter parser : new ArrayList<Twitter>(Twitter.currentParsers)) {
             parser.disconnect("");
         }
     }

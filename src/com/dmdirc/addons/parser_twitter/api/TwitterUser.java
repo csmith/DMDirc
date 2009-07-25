@@ -88,10 +88,11 @@ public class TwitterUser {
         this.userID = TwitterAPI.parseLong(element.getElementsByTagName("id").item(0).getTextContent(), -1);
         this.following = TwitterAPI.parseBoolean(element.getElementsByTagName("id").item(0).getTextContent());
 
+        // Check to see if a cached user object for us exists that we can
+        // take the status from.
+        final TwitterUser oldUser = api.getCachedUser(this.screenName);
+
         if (status == null) {
-            // Check to see if a cached user object for us exists that we can
-            // take the status from.
-            final TwitterUser oldUser = api.getCachedUser(this.screenName);
             if (oldUser != null) {
                 this.lastStatus = oldUser.getStatus();
             } else {
@@ -103,7 +104,14 @@ public class TwitterUser {
                 }
             }
         } else {
-            this.lastStatus = status;
+            // Keep the status from the old version of this user if it has a
+            // higher ID, regardless of the fact we were given a specific
+            // status to use.
+            if (oldUser != null && oldUser.getStatus() != null && oldUser.getStatus().getID() > status.getID()) {
+                this.lastStatus = oldUser.getStatus();
+            } else {
+                this.lastStatus = status;
+            }
         }
     }
 

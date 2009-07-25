@@ -70,15 +70,27 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     /** {@inheritDoc} */
     @Override
     public String getImportantModePrefix() {
-        final String ourNickname = ((Twitter) myClient.getParser()).getApi().getUsername();
-        return myClient.getNickname().equalsIgnoreCase(ourNickname) ? "%" : myClient.getUser().isFollowing() ? "+" : "";
+        switch (getImportantModeValue()) {
+            case 1:
+                return "+";
+            case 2:
+                return "%";
+            default:
+                return "";
+        }
     }
 
     /** {@inheritDoc} */
     @Override
     public String getImportantMode() {
-        final String ourNickname = ((Twitter) myClient.getParser()).getApi().getUsername();
-        return myClient.getNickname().equalsIgnoreCase(ourNickname) ? "h" : myClient.getUser().isFollowing() ? "v" : "";
+        switch (getImportantModeValue()) {
+            case 1:
+                return "v";
+            case 2:
+                return "h";
+            default:
+                return "";
+        }
     }
 
     /**
@@ -88,6 +100,10 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
      * @return Value for this clients modes.
      */
     public int getImportantModeValue() {
+        if (myClient == null || myClient.isFake()) { return 0; }
+        System.out.println("((Twitter) myClient.getParser()): "+((Twitter) myClient.getParser()));
+        System.out.println("((Twitter) myClient.getParser()).getApi(): "+((Twitter) myClient.getParser()).getApi());
+        System.out.println("((Twitter) myClient.getParser()).getApi().getUsername(): "+((Twitter) myClient.getParser()).getApi().getUsername());
         final String ourNickname = ((Twitter) myClient.getParser()).getApi().getUsername();
         return myClient.getNickname().equalsIgnoreCase(ourNickname) ? 2 : myClient.getUser().isFollowing() ? 1 : 0;
     }

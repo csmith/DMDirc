@@ -174,6 +174,11 @@ public class TwitterChannelInfo implements ChannelInfo {
     }
 
     /** {@inheritDoc} */
+    protected void clearChannelClients() {
+        channelClients.clear();
+    }
+
+    /** {@inheritDoc} */
     @Override
     public int getChannelClientCount() {
         return channelClients.size();

@@ -52,6 +52,7 @@ import com.dmdirc.parser.interfaces.callbacks.PrivateMessageListener;
 import com.dmdirc.parser.interfaces.callbacks.PrivateNoticeListener;
 import com.dmdirc.parser.interfaces.callbacks.ServerReadyListener;
 import com.dmdirc.parser.interfaces.callbacks.UserModeDiscoveryListener;
+import com.dmdirc.parser.interfaces.callbacks.SocketCloseListener;
 import com.dmdirc.ui.messages.Styliser;
 import com.dmdirc.util.IrcAddress;
 import java.util.ArrayList;
@@ -134,6 +135,8 @@ public class Twitter implements Parser {
         connected = false;
         currentParsers.remove(this);
         api = new TwitterAPI("");
+
+        getCallbackManager().getCallbackType(SocketCloseListener.class).call();
 		}
 
     /** {@inheritDoc} */
@@ -572,6 +575,7 @@ public class Twitter implements Parser {
             }
 
             final Long[] apiCalls = api.getRemainingApiCalls();
+            System.out.println("Twitter calls Remaining: "+apiCalls[0]);
             final Long timeLeft = apiCalls[2] - System.currentTimeMillis();
             final long sleepTime;
             if (wantAuth) {
@@ -587,10 +591,19 @@ public class Twitter implements Parser {
                 sleepTime = timeLeft;
             } else {
                 // Else work out how many calls we have left.
-                final long callsLeft = apiLimit - api.getUsedCalls();
+                // Whichever is less between the number of calls we want to make
+                // and the number of calls twitter is going to allow us to make.
+                final long callsLeft = Math.min(apiLimit - api.getUsedCalls(), apiCalls[0]);
+
+                System.out.println("\tCalls Remaining: "+callsLeft);
+                System.out.println("\tCalls per time: "+(api.getUsedCalls() - startCalls));
+
                 // And divide this by the number of calls we make each time to
                 // see how many times we have to sleep this hour.
                 final long sleepsRequired = callsLeft / (api.getUsedCalls() - startCalls);
+
+                System.out.println("\tSleeps Required: "+sleepsRequired);
+                System.out.println("\tTime Left: "+timeLeft);
 
                 // Then finally discover how long we need to sleep for.
                 sleepTime = timeLeft / sleepsRequired;

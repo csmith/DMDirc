@@ -38,6 +38,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
@@ -68,6 +69,12 @@ public class TwitterAPI {
 
     /** API Allowed status */
     private APIAllowed allowed = APIAllowed.UNKNOWN;
+    
+    /** How many API calls have we made since the last reset? */
+    private int usedCalls = 0;
+    
+    /** API reset time. */
+    private long resetTime = 0;
 
     /**
      * Create a new Twitter API for the given user.
@@ -249,6 +256,12 @@ public class TwitterAPI {
      * @return Document object for this xml.
      */
     private Document getXML(final HttpURLConnection request, final String params) {
+        if (resetTime > 0 && resetTime <= System.currentTimeMillis()) {
+            usedCalls = 0;
+            resetTime = System.currentTimeMillis() + 3600000;
+        }
+        usedCalls++;
+        
         BufferedReader in = null;
         boolean dumpOutput = false;
         try {
@@ -635,10 +648,33 @@ public class TwitterAPI {
     /**
      * Get the number of api calls remaining.
      *
-     * @return Number of api calls remaining.
+     * @return Long[4] containting API calls limit information.
+     *          - 0 is remaning calls
+     *          - 1 is total calls per hour
+     *          - 2 is the time (in milliseconds) untill reset.
+     *          - 3 is the estimated number of api calls we have made since
+     *            the last reset.
      */
-    public long getRemainingApiCalls() {
-        throw new UnsupportedOperationException("Not yet implemented");
+    public Long[] getRemainingApiCalls() {
+        final Document doc = getXML("http://twitter.com/account/rate_limit_status.xml");
+        // The call we just made doesn't count, so remove it from the count.
+        usedCalls--;
+        final Element element = doc.getDocumentElement();
+        
+        final long remaining = parseLong(element.getElementsByTagName("remaining-hit").item(0).getTextContent(), -1);
+        final long total = parseLong(element.getElementsByTagName("hourly-limit").item(0).getTextContent(), -1);
+        resetTime = 1000 * parseLong(element.getElementsByTagName("reset-time-in-seconds").item(0).getTextContent(), -1);
+
+        return new Long[]{remaining, total, resetTime, (long)usedCalls};
+    }
+
+    /**
+     * How many calls have we used since reset?
+     *
+     * @return calls used since reset.
+     */
+    public int getUsedCalls() {
+        return usedCalls;
     }
 
     /**
@@ -732,6 +768,7 @@ public class TwitterAPI {
                 if (doc != null && allowed.getBooleanValue()) {
                     final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
                     updateUser(user);
+                    getRemainingApiCalls();
                 }
             } catch (IOException ex) {
                 allowed = allowed.FALSE;

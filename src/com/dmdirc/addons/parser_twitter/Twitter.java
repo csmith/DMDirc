@@ -52,6 +52,7 @@ import com.dmdirc.parser.interfaces.callbacks.PrivateMessageListener;
 import com.dmdirc.parser.interfaces.callbacks.PrivateNoticeListener;
 import com.dmdirc.parser.interfaces.callbacks.ServerReadyListener;
 import com.dmdirc.parser.interfaces.callbacks.UserModeDiscoveryListener;
+import com.dmdirc.ui.messages.Styliser;
 import com.dmdirc.util.IrcAddress;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -80,15 +81,11 @@ public class Twitter implements Parser {
     private final Map<String, TwitterClientInfo> clients = new HashMap<String, TwitterClientInfo>();
 
     /**
-     * How long between querying the API?
-     * Every time we query we use 3 API calls. (Direct Message, friends_timeline,
-     * direct_replies)
-     * Defaults to every 180 seconds (same as tircd) which results in using 60
-     * API Calls an hour (Current limit is 150).
-     * TODO: Different time per request type.
-     * TODO: Setting for "API Requests per hour" and dynamically alter this to try and stick as close as possible
+     * How many API calls should we make in an hour?
+     *
+     * Default 60
      */
-    private long apiInterval = 180 * 1000;
+    private long apiLimit = 60;
 
 // TODO: Not yet supported by library.
 //    /** How many statuses to request at a time? (Max 200, Default 20)*/
@@ -451,22 +448,17 @@ public class Twitter implements Parser {
     /** {@inheritDoc} */
 		@Override
 		public long getPingTimerInterval() {
-				return apiInterval;
+				return -1;
 		}
 
     /** {@inheritDoc} */
 		@Override
-		public void setPingTimerFraction(final int newValue) {
-				// throw new UnsupportedOperationException("Not supported by this parser.");
-        //TODO: Do someting.
-		}
+		public void setPingTimerFraction(final int newValue) { /* Do Nothing. */ }
 
     /** {@inheritDoc} */
 		@Override
 		public int getPingTimerFraction() {
-				// throw new UnsupportedOperationException("Not supported by this parser.");
-        //TODO: Do this better.
-        return 1;
+        return -1;
 		}
 
     /**
@@ -531,6 +523,7 @@ public class Twitter implements Parser {
         final long pruneCount = 20; // Every 20 loops, clear the status cache of
         final long pruneTime = 3600 * 1000 ; // anything older than 1 hour.
 				while (connected) {
+            final int startCalls = api.getUsedCalls();
             if (api.isAllowed()) {
                 lastQueryTime = System.currentTimeMillis();
 
@@ -553,9 +546,9 @@ public class Twitter implements Parser {
                     final ChannelClientInfo cci = channel.getChannelClient(status.getUser().getScreenName());
                     final String message;
                     if (status.getReplyTo() > 0) {
-                        message = String.format("(&%d) %s [Reply to: &%d]", status.getID(), status.getText(), status.getReplyTo());
+                        message = String.format("%s %c15&%d in reply to &%d", status.getText(), Styliser.CODE_COLOUR, status.getID(), status.getReplyTo());
                     } else {
-                        message = String.format("(&%d) %s", status.getID(), status.getText());
+                        message = String.format("%s %c15&%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
                     }
                     final String hostname = status.getUser().getScreenName();
                     System.out.println("<"+hostname+"> "+message);
@@ -573,7 +566,23 @@ public class Twitter implements Parser {
                 checkTopic(channel);
             }
 
-            try { Thread.sleep(getPingTimerInterval()); } catch (InterruptedException ex) { }
+            final Long[] apiCalls = api.getRemainingApiCalls();
+            final Long timeLeft = apiCalls[2] - System.currentTimeMillis();
+            final long sleepTime;
+            if (!api.isAllowed()) {
+                // If we aren't authenticated, then sleep for 1 minute.
+                sleepTime = 60 * 1000;
+            } else if (apiCalls[3] > apiLimit) {
+                // Sleep for the rest of the hour, we have done too much!
+                sleepTime = timeLeft;
+            } else {
+                // Else divide the time left by the number of calls we make each
+                // time.
+                sleepTime = timeLeft / (api.getUsedCalls() - startCalls);
+            }
+
+            try { Thread.sleep(sleepTime); } catch (InterruptedException ex) { }
+            
             if (++count > pruneCount) {
                 api.pruneStatusCache(System.currentTimeMillis() - pruneTime);
             }

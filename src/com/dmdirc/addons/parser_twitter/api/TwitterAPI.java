@@ -178,7 +178,6 @@ public class TwitterAPI {
      * @return Document object for this xml.
      */
     private Document getXML(final String address) {
-        System.out.println("getXML: "+address);
         try {
             final URL url = new URL(address);
             return getXML((HttpURLConnection) url.openConnection());

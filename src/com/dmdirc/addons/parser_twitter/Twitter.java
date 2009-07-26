@@ -559,7 +559,6 @@ public class Twitter implements Parser {
                         message = String.format("%s     %c15&%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
                     }
                     final String hostname = status.getUser().getScreenName();
-                    System.out.println("<"+hostname+"> "+message);
                     getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, cci, message, hostname);
                 }
 
@@ -574,6 +573,7 @@ public class Twitter implements Parser {
                 checkTopic(channel);
             }
 
+            final int endCalls = (wantAuth) ? 0 : api.getUsedCalls();
             final Long[] apiCalls = api.getRemainingApiCalls();
             System.out.println("Twitter calls Remaining: "+apiCalls[0]);
             final Long timeLeft = apiCalls[2] - System.currentTimeMillis();
@@ -594,13 +594,17 @@ public class Twitter implements Parser {
                 // Whichever is less between the number of calls we want to make
                 // and the number of calls twitter is going to allow us to make.
                 final long callsLeft = Math.min(apiLimit - api.getUsedCalls(), apiCalls[0]);
+                // How many calls do we make each time?
+                // If this is less than 0 (If there was a time reset between
+                // calculating the start and end calls used) then assume 3.
+                final long callsPerTime = (endCalls - startCalls) > 0 ? (endCalls - startCalls) : 3;
 
                 System.out.println("\tCalls Remaining: "+callsLeft);
-                System.out.println("\tCalls per time: "+(api.getUsedCalls() - startCalls));
+                System.out.println("\tCalls per time: "+callsPerTime);
 
                 // And divide this by the number of calls we make each time to
                 // see how many times we have to sleep this hour.
-                final long sleepsRequired = callsLeft / (api.getUsedCalls() - startCalls);
+                final long sleepsRequired = callsLeft / callsPerTime;
 
                 System.out.println("\tSleeps Required: "+sleepsRequired);
                 System.out.println("\tTime Left: "+timeLeft);
@@ -748,9 +752,6 @@ public class Twitter implements Parser {
         final String oldStatus = channel.getTopic();
         if (myself.getUser().getStatus() == null) { return; }
         final String newStatus = myself.getUser().getStatus().getText();
-
-        System.out.println("Old Status: "+oldStatus);
-        System.out.println("New Status: "+newStatus);
 
         if (!newStatus.equalsIgnoreCase(oldStatus)) {
             channel.setTopicSetter(myUsername);

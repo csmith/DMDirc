@@ -97,9 +97,6 @@ public class Twitter implements Parser {
     /** Username for twitter. */
     private String myUsername;
 
-    /** Password for twitter. */
-    private String myPassword;
-
     /** Callback Manager for Twitter. */
     private CallbackManager<Twitter> myCallbackManager = new TwitterCallbackManager(this);
 
@@ -115,6 +112,9 @@ public class Twitter implements Parser {
     /** List of currently active twitter parsers. */
     protected static List<Twitter> currentParsers = new ArrayList<Twitter>();
 
+    /** Are we waiting for authentication? */
+    private boolean wantAuth = false;
+
     /**
      * Create a new Twitter Parser!
      *
@@ -122,10 +122,10 @@ public class Twitter implements Parser {
      * @param address The address of the server to connect to
      */
     protected Twitter(final MyInfo myInfo, final IrcAddress address) {
-        // TODO: irc address should allow usernames shortly.
-        final String[] bits = address.getPassword().split(":");
-        this.myUsername = bits[0];
-        this.myPassword = (bits.length > 1) ? bits[1] : "";
+        // final String[] bits = address.getPassword().split(":");
+        // this.myUsername = bits[0];
+        // this.myPassword = (bits.length > 1) ? bits[1] : "";
+        this.myUsername = address.getPassword();
     }
 
     /** {@inheritDoc} */
@@ -373,12 +373,13 @@ public class Twitter implements Parser {
 		public void sendMessage(final String target, final String message) {
         final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(target);
         if (target.equalsIgnoreCase("&twitter")) {
-            if (!api.isAllowed()) {
+            if (wantAuth) {
                 final String[] bits = message.split(" ");
                 api.setAccessPin(bits[0]);
                 if (api.isAllowed(true)) {
                     getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Thank you for authorising DMDirc.", "twitter.com");
                     updateTwitterChannel();
+                    wantAuth = false;
                 } else {
                     getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Authorising DMDirc failed, please try again: "+api.getOAuthURL(), "twitter.com");
                 }
@@ -389,6 +390,8 @@ public class Twitter implements Parser {
                     getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Setting status failed.", "twitter.com");
                 }
             }
+        } else if (wantAuth) {
+            getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("DMDirc has not been authorised to use this account yet.", "twitter.com");
         } else if (target.matches("^&[0-9]+$")) {
             try {
                 long id = Long.parseLong(target.substring(1));
@@ -500,7 +503,8 @@ public class Twitter implements Parser {
         if (!api.isAllowed()) {
             final String hostname = "twitter.com";
             final List<String> welcomeMessage = new ArrayList<String>();
-            
+
+            wantAuth = true;
             welcomeMessage.add("DMDirc has not been authorised to use the account "+api.getUsername());
             welcomeMessage.add("");
             welcomeMessage.add("Before you can use DMDirc with twitter you need to authorise it.");
@@ -523,8 +527,9 @@ public class Twitter implements Parser {
         final long pruneCount = 20; // Every 20 loops, clear the status cache of
         final long pruneTime = 3600 * 1000 ; // anything older than 1 hour.
 				while (connected) {
-            final int startCalls = api.getUsedCalls();
-            if (api.isAllowed()) {
+            final int startCalls = (wantAuth) ? 0 : api.getUsedCalls();
+
+            if (!wantAuth && api.isAllowed()) {
                 lastQueryTime = System.currentTimeMillis();
 
                 final List<TwitterStatus> statuses = new ArrayList<TwitterStatus>();
@@ -546,9 +551,9 @@ public class Twitter implements Parser {
                     final ChannelClientInfo cci = channel.getChannelClient(status.getUser().getScreenName());
                     final String message;
                     if (status.getReplyTo() > 0) {
-                        message = String.format("%s %c15&%d in reply to &%d", status.getText(), Styliser.CODE_COLOUR, status.getID(), status.getReplyTo());
+                        message = String.format("%s    %c15&%d %cin reply to%4$c &%d", status.getText(), Styliser.CODE_COLOUR, status.getID(), Styliser.CODE_ITALIC, status.getReplyTo());
                     } else {
-                        message = String.format("%s %c15&%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
+                        message = String.format("%s     %c15&%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
                     }
                     final String hostname = status.getUser().getScreenName();
                     System.out.println("<"+hostname+"> "+message);
@@ -569,17 +574,29 @@ public class Twitter implements Parser {
             final Long[] apiCalls = api.getRemainingApiCalls();
             final Long timeLeft = apiCalls[2] - System.currentTimeMillis();
             final long sleepTime;
-            if (!api.isAllowed()) {
-                // If we aren't authenticated, then sleep for 1 minute.
+            if (wantAuth) {
+                // When waiting for auth, sleep for less time so that when the
+                // auth happens, we can quickly start twittering!
+                sleepTime = 5 * 1000;
+            } else if (!api.isAllowed()) {
+                // If we aren't allowed, but aren't waiting for auth, then
+                // sleep for 1 minute.
                 sleepTime = 60 * 1000;
-            } else if (apiCalls[3] > apiLimit) {
+            } else if (api.getUsedCalls() > apiLimit) {
                 // Sleep for the rest of the hour, we have done too much!
                 sleepTime = timeLeft;
             } else {
-                // Else divide the time left by the number of calls we make each
-                // time.
-                sleepTime = timeLeft / (api.getUsedCalls() - startCalls);
+                // Else work out how many calls we have left.
+                final long callsLeft = apiLimit - api.getUsedCalls();
+                // And divide this by the number of calls we make each time to
+                // see how many times we have to sleep this hour.
+                final long sleepsRequired = callsLeft / (api.getUsedCalls() - startCalls);
+
+                // Then finally discover how long we need to sleep for.
+                sleepTime = timeLeft / sleepsRequired;
             }
+
+            System.out.println("Sleeping for: "+sleepTime);
 
             try { Thread.sleep(sleepTime); } catch (InterruptedException ex) { }
             

@@ -130,7 +130,7 @@ public class TwitterAPI {
     private void signURL(final HttpURLConnection connection) {
         if (!hasSigned) {
             if (getToken().isEmpty() || getTokenSecret().isEmpty()) {
-                throw new TwitterException("Unable to sign URLs, no tokens known ("+myUsername+").");
+                return;
             }
             consumer.setTokenWithSecret(getToken(), getTokenSecret());
             hasSigned = true;
@@ -138,7 +138,7 @@ public class TwitterAPI {
         try {
             consumer.sign(connection);
         } catch (OAuthMessageSignerException ex) {
-
+            ex.printStackTrace();
         } catch (OAuthExpectationFailedException ex) {
             ex.printStackTrace();
         }
@@ -661,7 +661,7 @@ public class TwitterAPI {
         usedCalls--;
         final Element element = doc.getDocumentElement();
         
-        final long remaining = parseLong(element.getElementsByTagName("remaining-hit").item(0).getTextContent(), -1);
+        final long remaining = parseLong(element.getElementsByTagName("remaining-hits").item(0).getTextContent(), -1);
         final long total = parseLong(element.getElementsByTagName("hourly-limit").item(0).getTextContent(), -1);
         resetTime = 1000 * parseLong(element.getElementsByTagName("reset-time-in-seconds").item(0).getTextContent(), -1);
 

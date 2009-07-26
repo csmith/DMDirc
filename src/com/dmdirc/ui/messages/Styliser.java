@@ -81,16 +81,19 @@ public final class Styliser {
             + CODE_UNDERLINE + CODE_CHANNEL + CODE_NICKNAME + CODE_NEGATE + "\"]";
     
     /** Defines all characters treated as trailing punctuation that are illegal in URLs. */
-    private static final String URL_PUNCT_ILLEGAL = "\"";
+    private static final String URL_PUNCT_ILLEGAL
+            = IdentityManager.getGlobalConfig().getOption("links", "illegaltrailing");
     
     /** Defines all characters treated as trailing punctuation that're legal in URLs. */
-    private static final String URL_PUNCT_LEGAL = "';:!,\\.\\?";
+    private static final String URL_PUNCT_LEGAL
+            = IdentityManager.getGlobalConfig().getOption("links", "legaltrailing");
     
     /** Defines all trailing punctuation. */
     private static final String URL_PUNCT = URL_PUNCT_ILLEGAL + URL_PUNCT_LEGAL;
 
     /** Defines all characters allowed in URLs that aren't treated as trailing punct. */
-    private static final String URL_NOPUNCT = "a-z0-9$\\-_@&\\+\\*\\(\\)=/#%~";
+    private static final String URL_NOPUNCT
+            = IdentityManager.getGlobalConfig().getOption("links", "nontrailing");
 
     /** Defines all characters allowed in URLs per W3C specs. */
     private static final String URL_CHARS = "[" + URL_PUNCT_LEGAL + URL_NOPUNCT

@@ -24,6 +24,7 @@ keysections:
   temp
   dialogstate
   browser
+  links
 
 identity:
   name=DMDirc default settings
@@ -291,3 +292,8 @@ dialogstate:
 browser:
   uselaunchdelay=true
   launchdelay=500
+
+links:
+  illegaltrailing='"
+  legaltrailing=;:!,\.\?
+  nontrailing=a-z0-9$\-_@&\+\*\(\)=/#%~\|

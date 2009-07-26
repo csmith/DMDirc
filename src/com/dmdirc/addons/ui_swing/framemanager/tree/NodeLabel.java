@@ -31,14 +31,13 @@ import com.dmdirc.ui.interfaces.Window;
 import java.awt.Color;
 import java.awt.Dimension;
 import javax.swing.BorderFactory;
-import javax.swing.JLabel;
 
 import net.miginfocom.layout.PlatformDefaults;
 
 /**
  * Node label.
  */
-public class NodeLabel extends JLabel implements SelectionListener,
+public class NodeLabel extends FormattedLabel implements SelectionListener,
         NotificationListener, FrameInfoListener {
 
     /**
@@ -62,7 +61,8 @@ public class NodeLabel extends JLabel implements SelectionListener,
      * @param window Window for this node
      */
     public NodeLabel(final Window window) {
-        super();
+        super(IconManager.getIconManager().getIcon(window.getContainer().
+                getIcon()), window.getContainer().toString());
 
         this.window = window;
         
@@ -77,11 +77,8 @@ public class NodeLabel extends JLabel implements SelectionListener,
             return;
         }
 
-        setText(window.getContainer().toString());
-
         setOpaque(true);
         setToolTipText(null);
-        setIcon(IconManager.getIconManager().getIcon(window.getContainer().getIcon()));
         setBorder(BorderFactory.createEmptyBorder(1, 0, 2, 0));
 
         setPreferredSize(new Dimension(100000, getFont().getSize() +

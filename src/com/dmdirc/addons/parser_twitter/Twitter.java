@@ -29,6 +29,7 @@ import com.dmdirc.parser.common.CallbackManager;
 import com.dmdirc.parser.common.DefaultStringConverter;
 import com.dmdirc.parser.common.IgnoreList;
 import com.dmdirc.parser.common.MyInfo;
+import com.dmdirc.parser.common.QueuePriority;
 import com.dmdirc.parser.interfaces.ChannelClientInfo;
 import com.dmdirc.parser.interfaces.ChannelInfo;
 import com.dmdirc.parser.interfaces.ClientInfo;
@@ -248,6 +249,12 @@ public class Twitter implements Parser {
     /** {@inheritDoc} */
 		@Override
 		public void sendRawMessage(final String message) {
+        sendRawMessage(message, QueuePriority.NORMAL);
+    }
+
+    /** {@inheritDoc} */
+		@Override
+    public void sendRawMessage(final String message, final QueuePriority priority) {
         // TODO: Parse some lines in order to fake IRC.
         final String[] bits = tokeniseLine(message);
 

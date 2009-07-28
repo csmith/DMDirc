@@ -70,8 +70,8 @@ public abstract class CallbackManager<T extends Parser> {
     };
     
     /** Hashtable used to store the different types of callback known. */
-    private final Map<Class<? extends CallbackInterface>, CallbackObject> callbackHash
-            = new Hashtable<Class<? extends CallbackInterface>, CallbackObject>();
+    private final Map<Class<? extends CallbackInterface>, CallbackObject<? extends CallbackInterface>> callbackHash
+            = new Hashtable<Class<? extends CallbackInterface>, CallbackObject<? extends CallbackInterface>>();
 
     /**
      * Constructor to create a CallbackManager.
@@ -121,7 +121,7 @@ public abstract class CallbackManager<T extends Parser> {
      * @param callback CallbackObject subclass for the callback.
      * @return if adding succeeded or not.
      */
-    public boolean addCallbackType(final CallbackObject callback) {
+    public boolean addCallbackType(final CallbackObject<? extends CallbackInterface> callback) {
         if (!callbackHash.containsKey(callback.getType())) {
             callbackHash.put(callback.getType(), callback);
             return true;
@@ -148,15 +148,28 @@ public abstract class CallbackManager<T extends Parser> {
     /**
      * Get reference to callback object.
      *
+     * @param <T> The type of callback being returned
      * @param callback Name of type of callback object.
      * @return CallbackObject returns the callback object for this type
      */
-    public CallbackObject getCallbackType(final Class<? extends CallbackInterface> callback) {
+    public <T extends CallbackInterface> T getCallbackType(final Class<T> callback) {
+        return getCallbackObject(callback).getProxy();
+    }
+
+    /**
+     * Get reference to callback object.
+     *
+     * @param <T> The type of callback being requested
+     * @param callback Name of type of callback object.
+     * @return CallbackObject returns the callback object for this type
+     */
+    @SuppressWarnings("unchecked")
+    public <T extends CallbackInterface> CallbackObject<T> getCallbackObject(final Class<T> callback) {
         if (!callbackHash.containsKey(callback)) {
             throw new CallbackNotFoundException("Callback not found: " + callback.getName());
         }
 
-        return callbackHash.get(callback);
+        return (CallbackObject<T>) callbackHash.get(callback);
     }
 
     /**
@@ -201,7 +214,7 @@ public abstract class CallbackManager<T extends Parser> {
             throw new NullPointerException("CallbackInterface is null");
         }
 
-        final CallbackObject cb = getCallbackType(callback);
+        final CallbackObject cb = getCallbackObject(callback);
 
         if (cb != null) {
             cb.add(o);
@@ -276,6 +289,6 @@ public abstract class CallbackManager<T extends Parser> {
      */
     public void delCallback(final Class<? extends CallbackInterface> callback,
             final CallbackInterface o) {
-        getCallbackType(callback).del(o);
+        getCallbackObject(callback).del(o);
     }
 }

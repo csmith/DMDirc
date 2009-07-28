@@ -30,8 +30,10 @@ import com.dmdirc.parser.interfaces.callbacks.ErrorInfoListener;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,9 +43,10 @@ import java.util.Map;
  * CallbackObject.
  * Superclass for all callback types.
  *
+ * @param <T> The type of interface this object handles callbacks for
  * @author            Shane Mc Cormack
  */
-public abstract class CallbackObject {
+public abstract class CallbackObject<T extends CallbackInterface> implements InvocationHandler {
 
     /** The type of callback that this object is operating with. */
     protected final Class<? extends CallbackInterface> type;
@@ -66,10 +69,31 @@ public abstract class CallbackObject {
      * @since 0.6.3m1
      */
     public CallbackObject(final Parser parser, final CallbackManager<?> manager,
-            final Class<? extends CallbackInterface> type) {
+            final Class<T> type) {
         this.myParser = parser;
         this.myManager = manager;
         this.type = type;
+    }
+
+    /**
+     * Retrieves a proxy which may be used to call this callback object's
+     * call method.
+     *
+     * @since 0.6.3m2
+     * @return A proxy for this object's interface
+     */
+    @SuppressWarnings("unchecked")
+    public T getProxy() {
+        return (T) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{type}, this);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public Object invoke(final Object proxy, final Method method, final Object[] args)
+            throws Throwable {
+        call(args);
+
+        return null;
     }
 
     /**
@@ -96,10 +120,9 @@ public abstract class CallbackObject {
      * Call the OnErrorInfo callback.
      *
      * @param errorInfo ParserError object to pass as error.
-     * @return true if error call succeeded, false otherwise
      */
-    protected final boolean callErrorInfo(final ParserError errorInfo) {
-        return myManager.getCallbackType(ErrorInfoListener.class).call(errorInfo);
+    protected final void callErrorInfo(final ParserError errorInfo) {
+        myManager.getCallbackType(ErrorInfoListener.class).onErrorInfo(myParser, errorInfo);
     }
 
     /**
@@ -137,18 +160,14 @@ public abstract class CallbackObject {
      * @param args The arguments to pass to the callback implementation
      * @return True if a method was called, false otherwise
      */
-    public boolean call(final Object... args) {
+    protected boolean call(final Object... args) {
         boolean bResult = false;
 
-        final Object[] newArgs = new Object[args.length + 1];
-        System.arraycopy(args, 0, newArgs, 1, args.length);
-        newArgs[0] = myParser;
-
-        createFakeArgs(newArgs);
+        createFakeArgs(args);
 
         for (CallbackInterface iface : new ArrayList<CallbackInterface>(callbackInfo)) {
             try {
-                type.getMethods()[0].invoke(iface, newArgs);
+                type.getMethods()[0].invoke(iface, args);
             } catch (Exception e) {
                 final ParserError ei = new ParserError(ParserError.ERROR_ERROR,
                         "Exception in callback (" + e.getMessage() + ")",

@@ -28,10 +28,10 @@ import java.awt.Font;
 import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JTextField;
+import javax.swing.JTextPane;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultStyledDocument;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -48,9 +48,7 @@ public class FormattedLabel extends JComponent {
     /** Icon label. */
     private JLabel icon;
     /** Text field. */
-    private JTextField text;
-    /** Attribute set. */
-    private SimpleAttributeSet sas;
+    private JTextPane text;
 
     /**
      * Instantiates a new formatted label.
@@ -62,8 +60,7 @@ public class FormattedLabel extends JComponent {
         super();
 
         this.icon = new JLabel();
-        this.text = new JTextField(new DefaultStyledDocument(), "", 0);
-        sas = new SimpleAttributeSet();
+        this.text = new JTextPane(new DefaultStyledDocument());
 
         this.icon.setBorder(null);
         this.text.setBorder(null);
@@ -91,24 +88,22 @@ public class FormattedLabel extends JComponent {
      * @param text New text
      */
     public void setText(final String text) {
-        this.text.setDocument(Styliser.getStyledString(new String[]{text,}));
-        ((DefaultStyledDocument) this.text.getDocument()).setParagraphAttributes(
-                0, this.text.getDocument().getLength(), sas, true);
-        repaint();
+        try {
+            ((DefaultStyledDocument) getDocument()).remove(0, getDocument().getLength());
+        } catch (BadLocationException ex) {
+            //Ignore
+        }
+        Styliser.addStyledString(getDocument(), new String[]{text,});
     }
 
     public void setFont(final Font font) {
-        if (font.isBold()) {
-            StyleConstants.setBold(sas, true);
-        } else {
-            StyleConstants.setBold(sas, false);
-        }
-        ((DefaultStyledDocument) this.text.getDocument()).setParagraphAttributes(
-                0, this.text.getDocument().getLength(), sas, true);
-        repaint();
     }
 
     public Font getFont() {
         return new Font("Arial", 0, 12);
+    }
+
+    public StyledDocument getDocument() {
+        return (StyledDocument) this.text.getDocument();
     }
 }

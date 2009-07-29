@@ -52,8 +52,6 @@ public class TreeViewTreeCellRenderer implements TreeCellRenderer,
     private final ConfigManager config;
     /** Rollover colours. */
     private Color rolloverColour;
-    /** Active bold. */
-    private boolean activeBold;
     /** Active background. */
     private Color activeBackground;
     /** Active foreground. */
@@ -114,15 +112,8 @@ public class TreeViewTreeCellRenderer implements TreeCellRenderer,
         }
 
         if (label.isSelected()) {
-            if (activeBold) {
-                label.setFont(label.getFont().deriveFont(Font.BOLD));
-            } else {
-                label.setFont(label.getFont().deriveFont(Font.PLAIN));
-            }
             label.setBackground(activeBackground);
             label.setForeground(activeForeground);
-        } else {
-            label.setFont(label.getFont().deriveFont(Font.PLAIN));
         }
 
         return label;
@@ -142,7 +133,6 @@ public class TreeViewTreeCellRenderer implements TreeCellRenderer,
                 "ui", "treeviewActiveForeground",
                 "treeview", "foregroundcolour",
                 "ui", "foregroundcolour");
-        activeBold = config.getOptionBool("ui", "treeviewActiveBold");
 
         manager.getTree().repaint();
     }

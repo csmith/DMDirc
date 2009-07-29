@@ -22,6 +22,8 @@
 
 package com.dmdirc.addons.ui_swing.framemanager.tree;
 
+import com.dmdirc.config.IdentityManager;
+import com.dmdirc.interfaces.ConfigChangeListener;
 import com.dmdirc.interfaces.FrameInfoListener;
 import com.dmdirc.interfaces.NotificationListener;
 import com.dmdirc.interfaces.SelectionListener;
@@ -32,13 +34,15 @@ import java.awt.Color;
 import java.awt.Dimension;
 import javax.swing.BorderFactory;
 
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
 import net.miginfocom.layout.PlatformDefaults;
 
 /**
  * Node label.
  */
 public class NodeLabel extends FormattedLabel implements SelectionListener,
-        NotificationListener, FrameInfoListener {
+        NotificationListener, FrameInfoListener, ConfigChangeListener {
 
     /**
      * A version number for this class. It should be changed whenever the class
@@ -54,6 +58,8 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
     private Color notificationColour;
     /** Selected. */
     private boolean selected;
+    /** Bold on active? */
+    private boolean activeBold;
 
     /** 
      * Instantiates a new node label.
@@ -86,14 +92,26 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
                 getValue()));
         notificationColour = null;
         selected = false;
+        activeBold = IdentityManager.getGlobalConfig().getOptionBool("ui", "treeviewActiveBold");
+        IdentityManager.getGlobalConfig().addChangeListener("ui", "treeviewActiveBold", this);
     }
 
     /** {@inheritDoc} */
     @Override
     public void selectionChanged(final Window window) {
         if (equals(window)) {
+            if (activeBold) {
+            final SimpleAttributeSet as = new SimpleAttributeSet();
+            StyleConstants.setBold(as, true);
+            getDocument().setCharacterAttributes(0, getDocument().getLength(), as, false);
+            }
             selected = true;
         } else {
+            if (activeBold) {
+            final SimpleAttributeSet as = new SimpleAttributeSet();
+            StyleConstants.setBold(as, false);
+            getDocument().setCharacterAttributes(0, getDocument().getLength(), as, false);
+            }
             selected = false;
         }
     }
@@ -184,6 +202,12 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
         }
         
         return window.hashCode();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void configChanged(String domain, String key) {
+        activeBold = IdentityManager.getGlobalConfig().getOptionBool("ui", "treeviewActiveBold");
     }
 
 }

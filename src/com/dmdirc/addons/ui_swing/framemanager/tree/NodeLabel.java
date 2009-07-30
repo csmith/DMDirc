@@ -237,9 +237,11 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
         if (isRollover() && rolloverColour != null) {
             StyleConstants.setForeground(as, rolloverColour);
         }
+        if (getNotificationColour() != null) {
+            StyleConstants.setForeground(as, getNotificationColour());
+        }
         if (isSelected()) {
             if (activeBold) {
-                System.out.println("bold!");
                 StyleConstants.setBold(as, true);
             }
             StyleConstants.setBackground(as, activeBackground);

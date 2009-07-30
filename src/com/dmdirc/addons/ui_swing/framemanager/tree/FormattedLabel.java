@@ -69,7 +69,7 @@ public class FormattedLabel extends JComponent {
         setText(text);
 
         setLayout(new MigLayout("fill, ins 0, gap 0"));
-        add(this.icon, "pad 0, gapright 5");
+        add(this.icon, "pad 0, gapright rel");
         add(this.text, "growx, pushx, pad 0");
     }
 
@@ -96,14 +96,23 @@ public class FormattedLabel extends JComponent {
         Styliser.addStyledString(getDocument(), new String[]{text,});
     }
 
+    /** {@inheritDoc} */
+    @Override
     public void setFont(final Font font) {
         this.text.setFont(font);
     }
 
+    /** {@inheritDoc} */
+    @Override
     public Font getFont() {
         return this.text.getFont();
     }
 
+    /**
+     * Returns the styled document for this label.
+     *
+     * @return Styled document
+     */
     public StyledDocument getDocument() {
         return (StyledDocument) this.text.getDocument();
     }

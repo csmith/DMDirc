@@ -10,13 +10,13 @@ package com.dmdirc.addons.parser_twitter.api;
  *
  * @author shane
  */
-public class TwitterException extends Exception {
+public class TwitterRuntimeException extends RuntimeException {
     /**
      * Create a new Twitter Exception!
      *
      * @param reason Reason for this exception.
      */
-    public TwitterException(final String reason) {
+    public TwitterRuntimeException(final String reason) {
         super(reason);
     }
 
@@ -26,7 +26,7 @@ public class TwitterException extends Exception {
      * @param reason Reason for this exception.
      * @param cause Cause of this exception
      */
-    public TwitterException(final String reason, final Throwable cause) {
+    public TwitterRuntimeException(final String reason, final Throwable cause) {
         super(reason, cause);
     }
 

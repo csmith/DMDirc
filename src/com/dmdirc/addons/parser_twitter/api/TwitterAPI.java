@@ -280,7 +280,11 @@ public class TwitterAPI {
         } catch (IOException ex) {
             ex.printStackTrace();
             dumpOutput = true;
-            in = new BufferedReader(new InputStreamReader(request.getErrorStream()));
+            if (request.getErrorStream() != null) {
+                in = new BufferedReader(new InputStreamReader(request.getErrorStream()));
+            } else {
+                return null;
+            }
         }
 
         final StringBuilder xml = new StringBuilder();
@@ -628,7 +632,9 @@ public class TwitterAPI {
             final HttpURLConnection request = (HttpURLConnection) url.openConnection();
             final Document doc = postXML(request, address.toString());
             if (request.getResponseCode() == 200) {
-                new TwitterStatus(this, doc.getDocumentElement());
+                if (doc != null) {
+                    new TwitterStatus(this, doc.getDocumentElement());
+                }
                 return true;
             } else {
                 System.out.println("Error from twitter: ("+request.getResponseCode()+") "+request.getResponseMessage());
@@ -658,13 +664,17 @@ public class TwitterAPI {
         final Document doc = getXML("http://twitter.com/account/rate_limit_status.xml");
         // The call we just made doesn't count, so remove it from the count.
         usedCalls--;
-        final Element element = doc.getDocumentElement();
-        
-        final long remaining = parseLong(element.getElementsByTagName("remaining-hits").item(0).getTextContent(), -1);
-        final long total = parseLong(element.getElementsByTagName("hourly-limit").item(0).getTextContent(), -1);
-        resetTime = 1000 * parseLong(element.getElementsByTagName("reset-time-in-seconds").item(0).getTextContent(), -1);
+        if (doc != null) {
+            final Element element = doc.getDocumentElement();
 
-        return new Long[]{remaining, total, resetTime, (long)usedCalls};
+            final long remaining = parseLong(element.getElementsByTagName("remaining-hits").item(0).getTextContent(), -1);
+            final long total = parseLong(element.getElementsByTagName("hourly-limit").item(0).getTextContent(), -1);
+            resetTime = 1000 * parseLong(element.getElementsByTagName("reset-time-in-seconds").item(0).getTextContent(), -1);
+
+            return new Long[]{remaining, total, resetTime, (long)usedCalls};
+        } else {
+            return new Long[]{0L, 0L, System.currentTimeMillis(), (long)usedCalls};
+        }
     }
 
     /**
@@ -689,19 +699,19 @@ public class TwitterAPI {
      * Get the URL the user must visit in order to authorize DMDirc.
      * 
      * @return the URL the user must visit in order to authorize DMDirc.
-     * @throws TwitterException  if there is a problem with OAuth.*
+     * @throws TwitterRuntimeException  if there is a problem with OAuth.*
      */
-    public String getOAuthURL() throws TwitterException {
+    public String getOAuthURL() throws TwitterRuntimeException {
         try {
             return provider.retrieveRequestToken(OAuth.OUT_OF_BAND);
         } catch (OAuthMessageSignerException ex) {
-            throw new TwitterException(ex.getMessage(), ex);
+            throw new TwitterRuntimeException(ex.getMessage(), ex);
         } catch (OAuthNotAuthorizedException ex) {
-            throw new TwitterException(ex.getMessage(), ex);
+            throw new TwitterRuntimeException(ex.getMessage(), ex);
         } catch (OAuthExpectationFailedException ex) {
-            throw new TwitterException(ex.getMessage(), ex);
+            throw new TwitterRuntimeException(ex.getMessage(), ex);
         } catch (OAuthCommunicationException ex) {
-            throw new TwitterException(ex.getMessage(), ex);
+            throw new TwitterRuntimeException(ex.getMessage(), ex);
         }
     }
 

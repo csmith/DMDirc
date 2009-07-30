@@ -77,7 +77,7 @@ public class TwitterMessage {
      * @param user User who this status belongs to.
      */
     protected TwitterMessage(final TwitterAPI api, final Node node, final String user) {
-        if (!(node instanceof Element)) { throw new TwitterException("Can only use Element type nodes for message creation."); }
+        if (!(node instanceof Element)) { throw new TwitterRuntimeException("Can only use Element type nodes for message creation."); }
         this.myAPI = api;
         final Element element = (Element) node;
 

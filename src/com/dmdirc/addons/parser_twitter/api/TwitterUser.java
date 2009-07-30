@@ -78,7 +78,7 @@ public class TwitterUser {
      * @param status Status to use
      */
     protected TwitterUser(final TwitterAPI api, final Node node, final TwitterStatus status) {
-        if (!(node instanceof Element)) { throw new TwitterException("Can only use Element type nodes for user creation."); }
+        if (!(node instanceof Element)) { throw new TwitterRuntimeException("Can only use Element type nodes for user creation."); }
 
         final Element element = (Element) node;
         this.myAPI = api;

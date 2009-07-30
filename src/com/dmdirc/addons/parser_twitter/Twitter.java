@@ -64,6 +64,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.dmdirc.addons.parser_twitter.api.TwitterException;
+
 /**
  * Twitter Parser for DMDirc.
  *
@@ -274,13 +276,13 @@ public class Twitter implements Parser {
     /** {@inheritDoc} */
 		@Override
 		public String getServerName() {
-				return "twitter.com";
+				return "twitter.com/"+myself.getNickname();
 		}
 
     /** {@inheritDoc} */
 		@Override
 		public String getNetworkName() {
-				return "twitter-"+myself.getNickname();
+				return "twitter.com/"+myself.getNickname();
 		}
 
     /** {@inheritDoc} */
@@ -385,13 +387,18 @@ public class Twitter implements Parser {
         if (target.equalsIgnoreCase("&twitter")) {
             if (wantAuth) {
                 final String[] bits = message.split(" ");
-                api.setAccessPin(bits[0]);
-                if (api.isAllowed(true)) {
-                    getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Thank you for authorising DMDirc.", "twitter.com");
-                    updateTwitterChannel();
-                    wantAuth = false;
-                } else {
-                    getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Authorising DMDirc failed, please try again: "+api.getOAuthURL(), "twitter.com");
+                try {
+                    api.setAccessPin(bits[0]);
+                    if (api.isAllowed(true)) {
+                        getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Thank you for authorising DMDirc.", "twitter.com");
+                        updateTwitterChannel();
+                        wantAuth = false;
+                    } else {
+                        getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Authorising DMDirc failed, please try again: "+api.getOAuthURL(), "twitter.com");
+                    }
+                } catch (TwitterException te) {
+                    getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "There was a problem authorising DMDirc ("+te.getCause().getMessage()+").", "twitter.com");
+                    getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Please try again: "+api.getOAuthURL(), "twitter.com");
                 }
             } else {
                 if (setStatus(message)) {

@@ -9,7 +9,7 @@ package com.dmdirc.addons.parser_twitter.api;
  *
  * @author shane
  */
-enum APIAllowed {
+public enum APIAllowed {
     /** It is not known if we are allowed or not. */
     UNKNOWN(false),
     /** We are not allowed. */

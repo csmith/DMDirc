@@ -22,6 +22,7 @@
 
 package com.dmdirc.addons.ui_swing.framemanager.tree;
 
+import com.dmdirc.config.ConfigManager;
 import com.dmdirc.config.IdentityManager;
 import com.dmdirc.interfaces.ConfigChangeListener;
 import com.dmdirc.interfaces.FrameInfoListener;
@@ -60,6 +61,18 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
     private boolean selected;
     /** Bold on active? */
     private boolean activeBold;
+    /** Active background. */
+    private Color activeBackground;
+    /** Active foreground. */
+    private Color activeForeground;
+    /** Background. */
+    private Color background;
+    /** Foreground. */
+    private Color foreground;
+    /** Rollover colours. */
+    private Color rolloverColour;
+    /** Config. */
+    private ConfigManager config;
 
     /** 
      * Instantiates a new node label.
@@ -69,9 +82,10 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
     public NodeLabel(final Window window) {
         super(IconManager.getIconManager().getIcon(window.getContainer().
                 getIcon()), window.getContainer().toString());
+        config = IdentityManager.getGlobalConfig();
 
         this.window = window;
-        
+
         init();
     }
 
@@ -92,28 +106,16 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
                 getValue()));
         notificationColour = null;
         selected = false;
-        activeBold = IdentityManager.getGlobalConfig().getOptionBool("ui", "treeviewActiveBold");
-        IdentityManager.getGlobalConfig().addChangeListener("ui", "treeviewActiveBold", this);
+        setConfigColours();
+        config.addChangeListener("ui", this);
+        config.addChangeListener("treeview", this);
     }
 
     /** {@inheritDoc} */
     @Override
     public void selectionChanged(final Window window) {
-        if (equals(window)) {
-            if (activeBold) {
-            final SimpleAttributeSet as = new SimpleAttributeSet();
-            StyleConstants.setBold(as, true);
-            getDocument().setCharacterAttributes(0, getDocument().getLength(), as, false);
-            }
-            selected = true;
-        } else {
-            if (activeBold) {
-            final SimpleAttributeSet as = new SimpleAttributeSet();
-            StyleConstants.setBold(as, false);
-            getDocument().setCharacterAttributes(0, getDocument().getLength(), as, false);
-            }
-            selected = false;
-        }
+        selected = equals(window);
+        setColours();
     }
 
     /** {@inheritDoc} */
@@ -121,6 +123,7 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
     public void notificationSet(final Window window, final Color colour) {
         if (equals(window)) {
             notificationColour = colour;
+            setColours();
         }
     }
 
@@ -129,6 +132,7 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
     public void notificationCleared(final Window window) {
         if (equals(window)) {
             notificationColour = null;
+            setColours();
         }
     }
 
@@ -155,8 +159,9 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
      */
     public void setRollover(final boolean rollover) {
         this.rollover = rollover;
+        setColours();
     }
-    
+
     /**
      * Is this node a rollover node?
      * 
@@ -165,7 +170,7 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
     public boolean isRollover() {
         return rollover;
     }
-    
+
     /**
      * Is this node a selected node?
      * 
@@ -174,7 +179,7 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
     public boolean isSelected() {
         return selected;
     }
-    
+
     /**
      * Returns the notification colour for this node.
      * 
@@ -183,14 +188,14 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
     public Color getNotificationColour() {
         return notificationColour;
     }
-    
+
     /** {@inheritDoc} */
     @Override
     public boolean equals(final Object obj) {
         if (window == null) {
             return false;
         }
-        
+
         return window.equals(obj);
     }
 
@@ -200,14 +205,63 @@ public class NodeLabel extends FormattedLabel implements SelectionListener,
         if (window == null) {
             return super.hashCode();
         }
-        
+
         return window.hashCode();
+    }
+
+    private void setConfigColours() {
+        activeBold = config.getOptionBool("ui", "treeviewActiveBold");
+        activeBackground = config.getOptionColour(
+                "ui", "treeviewActiveBackground",
+                "treeview", "backgroundcolour",
+                "ui", "backgroundcolour");
+        activeForeground = config.getOptionColour(
+                "ui", "treeviewActiveForeground",
+                "treeview", "foregroundcolour",
+                "ui", "foregroundcolour");
+        background = config.getOptionColour(
+                "treeview", "backgroundcolour",
+                "ui", "backgroundcolour");
+        foreground = config.getOptionColour(
+                "treeview", "foregroundcolour",
+                "ui", "foregroundcolour");
+        rolloverColour = config.getOptionColour(
+                "ui", "treeviewRolloverColour");
+        setColours();
+    }
+
+    private void setColours() {
+        final SimpleAttributeSet as = new SimpleAttributeSet();
+        StyleConstants.setBackground(as, background);
+        StyleConstants.setForeground(as, foreground);
+        if (isRollover() && rolloverColour != null) {
+            StyleConstants.setForeground(as, rolloverColour);
+        }
+        if (isSelected()) {
+            if (activeBold) {
+                System.out.println("bold!");
+                StyleConstants.setBold(as, true);
+            }
+            StyleConstants.setBackground(as, activeBackground);
+            StyleConstants.setForeground(as, activeForeground);
+        } else {
+            StyleConstants.setBold(as, false);
+        }
+        getDocument().setCharacterAttributes(0, getDocument().getLength(), as,
+                true);
     }
 
     /** {@inheritDoc} */
     @Override
     public void configChanged(String domain, String key) {
-        activeBold = IdentityManager.getGlobalConfig().getOptionBool("ui", "treeviewActiveBold");
+        if (("ui".equals(domain) || "treeview".equals(domain)) &&
+                ("treeviewRolloverColour".equals(key) ||
+                "treeviewActiveBackground".equals(key) ||
+                "treeviewActiveForeground".equals(key) ||
+                "treeviewActiveBold".equals(key) ||
+                "backgroundcolour".equals(key) ||
+                "foregroundcolour".equals(key))) {
+            setConfigColours();
+        }
     }
-
 }

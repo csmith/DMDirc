@@ -22,14 +22,9 @@
 
 package com.dmdirc.addons.ui_swing.framemanager.tree;
 
-import com.dmdirc.interfaces.ConfigChangeListener;
-import com.dmdirc.config.ConfigManager;
-import com.dmdirc.config.IdentityManager;
-
-import java.awt.Color;
 import java.awt.Component;
-import java.awt.Font;
 
+import java.awt.Dimension;
 import javax.swing.JLabel;
 import javax.swing.JTree;
 import javax.swing.tree.TreeCellRenderer;
@@ -37,41 +32,14 @@ import javax.swing.tree.TreeCellRenderer;
 /**
  * Displays a node in a tree according to its type.
  */
-public class TreeViewTreeCellRenderer implements TreeCellRenderer,
-        ConfigChangeListener {
+public class TreeViewTreeCellRenderer implements TreeCellRenderer {
 
     /**
      * A version number for this class. It should be changed whenever the class
      * structure is changed (or anything else that would prevent serialized
      * objects being unserialized with the new class).
      */
-    private static final long serialVersionUID = 3;
-    /** Parent frame manager. */
-    private final TreeFrameManager manager;
-    /** Config manager. */
-    private final ConfigManager config;
-    /** Rollover colours. */
-    private Color rolloverColour;
-    /** Active background. */
-    private Color activeBackground;
-    /** Active foreground. */
-    private Color activeForeground;
-
-    /**
-     * Creates a new instance of TreeViewTreeCellRenderer.
-     *
-     * @param manager Parent TreeFrameManager
-     */
-    public TreeViewTreeCellRenderer(final TreeFrameManager manager) {
-        this.manager = manager;
-
-        config = IdentityManager.getGlobalConfig();
-
-        setColours();
-
-        config.addChangeListener("ui", this);
-        config.addChangeListener("treeview", this);
-    }
+    private static final long serialVersionUID = 4;
 
     /**
      * Configures the renderer based on the passed parameters.
@@ -99,55 +67,6 @@ public class TreeViewTreeCellRenderer implements TreeCellRenderer,
             return new JLabel("Label == null");
         }
 
-        label.setBackground(tree.getBackground());
-        label.setForeground(tree.getForeground());
-
-        if (label.isRollover()) {
-            label.setBackground(rolloverColour);
-        }
-
-        final Color colour = label.getNotificationColour();
-        if (colour != null) {
-            label.setForeground(colour);
-        }
-
-        if (label.isSelected()) {
-            label.setBackground(activeBackground);
-            label.setForeground(activeForeground);
-        }
-
         return label;
-    }
-
-    /** Sets the colours for the renderer. */
-    private void setColours() {
-        rolloverColour = config.getOptionColour(
-                "ui", "treeviewRolloverColour",
-                "treeview", "backgroundcolour",
-                "ui", "backgroundcolour");
-        activeBackground = config.getOptionColour(
-                "ui", "treeviewActiveBackground",
-                "treeview", "backgroundcolour",
-                "ui", "backgroundcolour");
-        activeForeground = config.getOptionColour(
-                "ui", "treeviewActiveForeground",
-                "treeview", "foregroundcolour",
-                "ui", "foregroundcolour");
-
-        manager.getTree().repaint();
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public void configChanged(final String domain, final String key) {
-        if (("ui".equals(domain) || "treeview".equals(domain)) &&
-                ("treeviewRolloverColour".equals(key) ||
-                "treeviewActiveBackground".equals(key) ||
-                "treeviewActiveForeground".equals(key) ||
-                "treeviewActiveBold".equals(key) ||
-                "backgroundcolour".equals(key) ||
-                "foregroundcolour".equals(key))) {
-            setColours();
-        }
     }
 }

@@ -97,10 +97,11 @@ public class FormattedLabel extends JComponent {
     }
 
     public void setFont(final Font font) {
+        this.text.setFont(font);
     }
 
     public Font getFont() {
-        return new Font("Arial", 0, 12);
+        return this.text.getFont();
     }
 
     public StyledDocument getDocument() {

@@ -23,10 +23,11 @@
 package com.dmdirc.addons.ui_swing.framemanager.tree;
 
 import com.dmdirc.FrameContainer;
+
 import javax.swing.tree.DefaultMutableTreeNode;
 
 /**
- *
+ * Tree view node. Encapsulates a frame container and a label in a node.
  */
 public class TreeViewNode extends DefaultMutableTreeNode {
     
@@ -41,6 +42,11 @@ public class TreeViewNode extends DefaultMutableTreeNode {
     /** Node's frame container. */
     private FrameContainer frameContainer;
     
+    /**
+     * Creates a new treeview node.
+     * @param label
+     * @param frameContainer
+     */
     public TreeViewNode(final NodeLabel label, final FrameContainer frameContainer) {
         super();
         
@@ -48,10 +54,20 @@ public class TreeViewNode extends DefaultMutableTreeNode {
         this.frameContainer = frameContainer;
     }
     
+    /**
+     * Returns the label for this node.
+     *
+     * @return NodeLabel for the node
+     */
     public NodeLabel getLabel() {
         return label;
     }
-    
+
+    /**
+     * Returns the frame container for this node.
+     *
+     * @return FrameContainer for this node
+     */
     public FrameContainer getFrameContainer() {
         return frameContainer;
     }

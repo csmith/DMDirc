@@ -5,7 +5,6 @@
 
 package com.dmdirc.addons.parser_twitter.api;
 
-import com.dmdirc.config.IdentityManager;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -64,6 +63,9 @@ public class TwitterAPI {
     /** Cache of users. */
     final static Map<String, TwitterUser> userCache = new HashMap<String, TwitterUser>();
 
+    /** Cache of user IDs to screen names. */
+    final static Map<Long, String> userIDMap = new HashMap<Long, String>();
+
     /** Cache of statuses. */
     final static Map<Long, TwitterStatus> statusCache = new HashMap<Long, TwitterStatus>();
 
@@ -75,6 +77,12 @@ public class TwitterAPI {
     
     /** API reset time. */
     private long resetTime = 0;
+
+    /** Twitter Token */
+    private String token = "";
+
+    /** Twitter Token Secret */
+    private String tokenSecret = "";
 
     /**
      * Create a new Twitter API for the given user.
@@ -96,30 +104,38 @@ public class TwitterAPI {
 
     /**
      * Gets the twitter access token if known.
-     * 
+     *
      * @return Access Token
      */
-    private String getToken() {
-        final String domain = "plugin-Twitter";
-        if (IdentityManager.getGlobalConfig().hasOptionString(domain, "token-"+myUsername)) {
-            return IdentityManager.getGlobalConfig().getOption(domain, "token-"+myUsername);
-        } else {
-            return "";
-        }
+    public String getToken() {
+        return token;
     }
-    
+
     /**
      * Gets the twitter access token secret if known.
-     * 
+     *
      * @return Access Token Secret
      */
-    private String getTokenSecret() {
-        final String domain = "plugin-Twitter";
-        if (IdentityManager.getGlobalConfig().hasOptionString(domain, "tokenSecret-"+myUsername)) {
-            return IdentityManager.getGlobalConfig().getOption(domain, "tokenSecret-"+myUsername);
-        } else {
-            return "";
-        }
+    public String getTokenSecret() {
+        return tokenSecret;
+    }
+
+    /**
+     * Set the twitter access token.
+     *
+     * @param token new Access Token
+     */
+    public void setToken(final String token) {
+        this.token = token;
+    }
+
+    /**
+     * Set the twitter access token secret.
+     *
+     * @param tokenSecret new Access Token Secret
+     */
+    public void setTokenSecret(final String tokenSecret) {
+        this.tokenSecret = tokenSecret;
     }
 
     /**
@@ -317,6 +333,21 @@ public class TwitterAPI {
         return null;
     }
 
+
+
+    /**
+     * Remove the cache of the user object for the given user.
+     *
+     * @param user
+     */
+    protected void uncacheUser(final TwitterUser user) {
+        if (user == null) { return; }
+        synchronized (userCache) {
+            userCache.remove(user.getScreenName().toLowerCase());
+            userIDMap.remove(user.getID());
+        }
+    }
+
     /**
      * Update the user object for the given user, if the user ins't know already
      * this will add them to the cache.
@@ -346,6 +377,7 @@ public class TwitterAPI {
             }
 
             userCache.put(user.getScreenName().toLowerCase(), user);
+            userIDMap.put(user.getID(), user.getScreenName().toLowerCase());
         }
 
         // TODO: TwitterStatus and TwitterMessage objects should be informed
@@ -553,15 +585,53 @@ public class TwitterAPI {
     }
 
     /**
+     * Get a list of IDs of people who are following us.
+     *
+     * @return A list of IDs of people who are following us.
+     */
+    public List<Long> getFollowers() {
+        final List<Long> result = new ArrayList<Long>();
+
+        // TODO: support more than 100 friends.
+        final Document doc = getXML("http://twitter.com/followers/ids.xml");
+        if (doc != null) {
+            final NodeList nodes = doc.getElementsByTagName("id");
+            for (int i = 0; i < nodes.getLength(); i++) {
+                final Element element = (Element)nodes.item(i);
+                final Long id = parseLong(element.getTextContent(), -1);
+                result.add(id);
+
+                if (userIDMap.containsKey(id)) {
+                    final TwitterUser user = getCachedUser(userIDMap.get(id));
+                    user.setFollowingUs(true);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Get the messages sent for us that are later than the given ID.
      *
      * @param lastReplyId Last reply we know of.
      * @return The messages sent for us that are later than the given ID.
      */
     public List<TwitterStatus> getReplies(final long lastReplyId) {
+        return getReplies(lastReplyId, 20);
+    }
+
+    /**
+     * Get the messages sent for us that are later than the given ID.
+     *
+     * @param lastReplyId Last reply we know of.
+     * @param count How many replies to get
+     * @return The messages sent for us that are later than the given ID.
+     */
+    public List<TwitterStatus> getReplies(final long lastReplyId, final int count) {
         final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
 
-        final Document doc = getXML("http://twitter.com/statuses/mentions.xml?since_id="+lastReplyId+"&count=20");
+        final Document doc = getXML("http://twitter.com/statuses/mentions.xml?since_id="+lastReplyId+"&count="+count);
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("status");
 
@@ -580,9 +650,20 @@ public class TwitterAPI {
      * @return The messages sent by friends that are later than the given ID.
      */
     public List<TwitterStatus> getFriendsTimeline(final long lastTimelineId) {
+        return getFriendsTimeline(lastTimelineId, 20);
+    }
+    
+    /**
+     * Get the messages sent by friends that are later than the given ID.
+     *
+     * @param lastTimelineId Last reply we know of.
+     * @param count How many statuses to get
+     * @return The messages sent by friends that are later than the given ID.
+     */
+    public List<TwitterStatus> getFriendsTimeline(final long lastTimelineId, final int count) {
         final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
 
-        final Document doc = getXML("http://twitter.com/statuses/friends_timeline.xml?since_id="+lastTimelineId+"&count=20");
+        final Document doc = getXML("http://twitter.com/statuses/friends_timeline.xml?since_id="+lastTimelineId+"&count="+count);
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("status");
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -600,9 +681,20 @@ public class TwitterAPI {
      * @return The direct messages sent to us that are later than the given ID.
      */
     public List<TwitterMessage> getDirectMessages(final long lastDirectMessageId) {
+        return getDirectMessages(lastDirectMessageId, 20);
+    }
+
+    /**
+     * Get the direct messages sent to us that are later than the given ID.
+     *
+     * @param lastDirectMessageId Last reply we know of.
+     * @param count How many messages to request at a time
+     * @return The direct messages sent to us that are later than the given ID.
+     */
+    public List<TwitterMessage> getDirectMessages(final long lastDirectMessageId, final int count) {
         final List<TwitterMessage> result = new ArrayList<TwitterMessage>();
 
-        final Document doc = getXML("http://twitter.com/direct_messages.xml?since_id="+lastDirectMessageId+"&count=20");
+        final Document doc = getXML("http://twitter.com/direct_messages.xml?since_id="+lastDirectMessageId+"&count="+count);
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("direct_message");
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -687,15 +779,6 @@ public class TwitterAPI {
     }
 
     /**
-     * Remove the friendship between you and the given user
-     *
-     * @param user To remove friendship from.
-     */
-    public void destroyFriendship(final String user) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    /**
      * Get the URL the user must visit in order to authorize DMDirc.
      * 
      * @return the URL the user must visit in order to authorize DMDirc.
@@ -722,11 +805,10 @@ public class TwitterAPI {
      * @throws TwitterException  if there is a problem with OAuth.
      */
     public void setAccessPin(final String pin) throws TwitterException {
-        final String domain = "plugin-Twitter";
         try {
             provider.retrieveAccessToken(pin);
-            IdentityManager.getConfigIdentity().setOption(domain, "token-"+myUsername, consumer.getToken());
-            IdentityManager.getConfigIdentity().setOption(domain, "tokenSecret-"+myUsername, consumer.getTokenSecret());
+            token = consumer.getToken();
+            tokenSecret = consumer.getTokenSecret();
         } catch (OAuthMessageSignerException ex) {
             throw new TwitterException(ex.getMessage(), ex);
         } catch (OAuthNotAuthorizedException ex) {
@@ -785,6 +867,43 @@ public class TwitterAPI {
         }
 
         return allowed.getBooleanValue();
+    }
+
+    /**
+     * Add the user with the given screen name as a friend.
+     *
+     * @param name name to add
+     */
+    public TwitterUser addFriend(final String name) {
+        try {
+            final Document doc = postXML("http://twitter.com/friendships/create.xml", "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            if (doc != null) {
+                final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
+                updateUser(user);
+                return user;
+            }
+        } catch (UnsupportedEncodingException ex) { }
+
+        return null;
+    }
+
+    /**
+     * Remove the user with the given screen name as a friend.
+     *
+     * @param name name to remove
+     */
+    public void delFriend(final String name) {
+        try {
+            final Document doc = postXML("http://twitter.com/friendships/destroy.xml", "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            if (doc != null) {
+                final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
+                uncacheUser(user);
+
+                return user;
+            }
+        } catch (UnsupportedEncodingException ex) { }
+
+        return null;
     }
 
 }

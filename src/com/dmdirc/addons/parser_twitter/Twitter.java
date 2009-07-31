@@ -65,6 +65,9 @@ import java.util.List;
 import java.util.Map;
 
 import com.dmdirc.addons.parser_twitter.api.TwitterException;
+import com.dmdirc.config.IdentityManager;
+import com.dmdirc.parser.interfaces.callbacks.ChannelJoinListener;
+import com.dmdirc.parser.interfaces.callbacks.ChannelKickListener;
 
 /**
  * Twitter Parser for DMDirc.
@@ -75,6 +78,9 @@ public class Twitter implements Parser {
     /** Are we connected? */
     private boolean connected = false;
 
+    /** Our owner plugin */
+    private TwitterPlugin myPlugin = null;
+
     /** Twitter API. */
     private TwitterAPI api = new TwitterAPI("");
 
@@ -83,17 +89,6 @@ public class Twitter implements Parser {
 
     /** Clients we know. */
     private final Map<String, TwitterClientInfo> clients = new HashMap<String, TwitterClientInfo>();
-
-    /**
-     * How many API calls should we make in an hour?
-     *
-     * Default 60
-     */
-    private long apiLimit = 60;
-
-// TODO: Not yet supported by library.
-//    /** How many statuses to request at a time? (Max 200, Default 20)*/
-//    private long statusRequests = 20;
 
     /** When did we last query the API? */
     private long lastQueryTime = 0;
@@ -124,12 +119,14 @@ public class Twitter implements Parser {
      *
      * @param myInfo The client information to use
      * @param address The address of the server to connect to
+     * @param myPlugin Plugin that created this parser
      */
-    protected Twitter(final MyInfo myInfo, final IrcAddress address) {
+    protected Twitter(final MyInfo myInfo, final IrcAddress address, final TwitterPlugin myPlugin) {
         // final String[] bits = address.getPassword().split(":");
         // this.myUsername = bits[0];
         // this.myPassword = (bits.length > 1) ? bits[1] : "";
         this.myUsername = address.getPassword();
+        this.myPlugin = myPlugin;
     }
 
     /** {@inheritDoc} */
@@ -262,6 +259,33 @@ public class Twitter implements Parser {
 
         if (bits[0].equalsIgnoreCase("JOIN") && bits.length > 1) {
             joinChannel(bits[1]);
+        } else if (bits[0].equalsIgnoreCase("INVITE") && bits.length > 2) {
+            if (bits[2].equalsIgnoreCase("&twitter")) {
+                final TwitterUser user = api.addFriend(bits[1]);
+                final TwitterChannelInfo channel = (TwitterChannelInfo) getChannel(bits[2]);
+                if (channel != null && user != null) {
+                    final TwitterClientInfo ci = new TwitterClientInfo(user.getScreenName(), this);
+                    clients.put(ci.getNickname().toLowerCase(), ci);
+                    final TwitterChannelClientInfo cci = new TwitterChannelClientInfo(channel, ci);
+
+                    channel.addChannelClient(cci);
+                    getCallbackManager().getCallbackType(ChannelJoinListener.class).call(channel, cci);
+                }
+            } else {
+                getCallbackManager().getCallbackType(NumericListener.class).call(474, new String[]{":twitter.com", "482", myself.getNickname(), bits[1], "You can't do that here."});
+            }
+        } else if (bits[0].equalsIgnoreCase("KICK") && bits.length > 2) {
+            if (bits[1].equalsIgnoreCase("&twitter")) {
+                final TwitterChannelInfo channel = (TwitterChannelInfo) getChannel(bits[1]);
+                if (channel != null) {
+                    final TwitterChannelClientInfo cci = (TwitterChannelClientInfo) channel.getChannelClient(bits[2]);
+                    if (cci != null) { cci.kick("Bye"); }
+                    final TwitterChannelClientInfo mycci = (TwitterChannelClientInfo) channel.getChannelClient(myUsername);
+                    getCallbackManager().getCallbackType(ChannelKickListener.class).call(channel, cci, mycci, "", myUsername);
+                }
+            } else {
+                getCallbackManager().getCallbackType(NumericListener.class).call(474, new String[]{":twitter.com", "482", myself.getNickname(), bits[1], "You can't do that here."});
+            }
         } else {
             getCallbackManager().getCallbackType(NumericListener.class).call(474, new String[]{":twitter.com", "421", myself.getNickname(), bits[0], "Unknown Command - "+message});
         }
@@ -390,6 +414,8 @@ public class Twitter implements Parser {
                 try {
                     api.setAccessPin(bits[0]);
                     if (api.isAllowed(true)) {
+                        IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "token-"+myUsername, api.getToken());
+                        IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "tokenSecret-"+myUsername, api.getTokenSecret());
                         getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Thank you for authorising DMDirc.", "twitter.com");
                         updateTwitterChannel();
                         wantAuth = false;
@@ -488,6 +514,12 @@ public class Twitter implements Parser {
 		public void run() {
         resetState();
         api = new TwitterAPI(myUsername);
+        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "token-"+myUsername)) {
+            api.setToken(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "token-"+myUsername));
+        }
+        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "tokenSecret-"+myUsername)) {
+            api.setTokenSecret(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "tokenSecret-"+myUsername));
+        }
         currentParsers.add(this);
         connected = true;
         
@@ -549,15 +581,26 @@ public class Twitter implements Parser {
             if (!wantAuth && api.isAllowed()) {
                 lastQueryTime = System.currentTimeMillis();
 
+                final int statusesPerAttempt = Math.min(200, IdentityManager.getConfigIdentity().getOptionInt(myPlugin.getDomain(), "statuscount"));
+
                 final List<TwitterStatus> statuses = new ArrayList<TwitterStatus>();
-                for (TwitterStatus status : api.getReplies(lastReplyId)) {
+                for (TwitterStatus status : api.getReplies(lastReplyId, statusesPerAttempt)) {
                     statuses.add(status);
                     if (status.getID() > lastReplyId) { lastReplyId = status.getID(); }
                 }
 
-                for (TwitterStatus status : api.getFriendsTimeline(lastTimelineId)) {
+                for (TwitterStatus status : api.getFriendsTimeline(lastTimelineId, statusesPerAttempt)) {
                     if (!statuses.contains(status)) {
                         statuses.add(status);
+                    }
+                    // Add new friends that may have been added elsewhere.
+                    if (channel.getChannelClient(status.getUser().getScreenName()) == null) {
+                        final TwitterClientInfo ci = new TwitterClientInfo(status.getUser().getScreenName(), this);
+                        clients.put(ci.getNickname().toLowerCase(), ci);
+                        final TwitterChannelClientInfo cci = new TwitterChannelClientInfo(channel, ci);
+
+                        channel.addChannelClient(cci);
+                        getCallbackManager().getCallbackType(ChannelJoinListener.class).call(channel, cci);
                     }
                     if (status.getID() > lastTimelineId) { lastTimelineId = status.getID(); }
                 }
@@ -587,6 +630,7 @@ public class Twitter implements Parser {
                 checkTopic(channel);
             }
 
+            final int apiLimit = IdentityManager.getConfigIdentity().getOptionInt(myPlugin.getDomain(), "apilimit");
             final int endCalls = (wantAuth) ? 0 : api.getUsedCalls();
             final Long[] apiCalls = api.getRemainingApiCalls();
             System.out.println("Twitter calls Remaining: "+apiCalls[0]);
@@ -753,6 +797,7 @@ public class Twitter implements Parser {
 
             channel.addChannelClient(cci);
         }
+        api.getFollowers();
         getCallbackManager().getCallbackType(ChannelNamesListener.class).call(channel);
     }
 

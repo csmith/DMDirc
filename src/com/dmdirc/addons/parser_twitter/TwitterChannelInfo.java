@@ -192,11 +192,24 @@ public class TwitterChannelInfo implements ChannelInfo {
 
     /**
      * Add a channel client to this channel.
-     * 
+     *
      * @param cci Channel Client to add.
      */
     public void addChannelClient(final TwitterChannelClientInfo cci) {
-        channelClients.put(cci.getClient().getNickname().toLowerCase(), cci);
+        synchronized (channelClients) {
+            channelClients.put(cci.getClient().getNickname().toLowerCase(), cci);
+        }
+    }
+
+    /**
+     * Remove a channel client from this channel.
+     *
+     * @param cci Channel Client to remove.
+     */
+    public void delChannelClient(final TwitterChannelClientInfo cci) {
+        synchronized (channelClients) {
+            channelClients.remove(cci.getClient().getNickname().toLowerCase());
+        }
     }
 
     /** {@inheritDoc} */

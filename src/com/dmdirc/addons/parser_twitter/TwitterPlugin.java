@@ -44,6 +44,6 @@ public class TwitterPlugin extends Plugin  {
      * @return An appropriately configured parser
      */
     public Parser getParser(final MyInfo myInfo, final IrcAddress address) {
-        return (unloading) ? null : new Twitter(myInfo, address);
+        return (unloading) ? null : new Twitter(myInfo, address, this);
     }
 }

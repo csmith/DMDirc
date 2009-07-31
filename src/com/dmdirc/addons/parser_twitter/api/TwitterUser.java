@@ -26,6 +26,9 @@ public class TwitterUser {
     /** Are we following the user? */
     private final boolean following;
 
+    /** Is the user following us? */
+    private boolean followingUs = false;
+
     /** What was the last status of this user? */
     private final TwitterStatus lastStatus;
 
@@ -86,7 +89,7 @@ public class TwitterUser {
         this.screenName = element.getElementsByTagName("screen_name").item(0).getTextContent();
         
         this.userID = TwitterAPI.parseLong(element.getElementsByTagName("id").item(0).getTextContent(), -1);
-        this.following = TwitterAPI.parseBoolean(element.getElementsByTagName("id").item(0).getTextContent());
+        this.following = TwitterAPI.parseBoolean(element.getElementsByTagName("following").item(0).getTextContent());
 
         // Check to see if a cached user object for us exists that we can
         // take the status from.
@@ -160,4 +163,24 @@ public class TwitterUser {
     public TwitterStatus getStatus() {
         return lastStatus;
     }
+
+    /**
+     * Are we being followed by this user?
+     *
+     * @return True if we are being followed by this user, else false.
+     */
+    public boolean isFollowingUs() {
+        return followingUs;
+    }
+
+    /**
+     * Change if this user is following us.
+     *
+     * @param followingUs The new value for this setting.
+     */
+    public void setFollowingUs(final boolean followingUs) {
+        this.followingUs = followingUs;
+    }
+
+
 }

@@ -102,7 +102,7 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     public int getImportantModeValue() {
         if (myClient == null || myClient.isFake()) { return 0; }
         final String ourNickname = ((Twitter) myClient.getParser()).getApi().getUsername();
-        return myClient.getNickname().equalsIgnoreCase(ourNickname) ? 2 : myClient.getUser().isFollowing() ? 1 : 0;
+        return myClient.getNickname().equalsIgnoreCase(ourNickname) ? 2 : myClient.getUser().isFollowingUs() ? 1 : 0;
     }
 
     /** {@inheritDoc} */
@@ -120,7 +120,8 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     /** {@inheritDoc} */
     @Override
     public void kick(final String message) {
-        ((Twitter)myClient.getParser()).getApi().destroyFriendship(myClient.getUser().getScreenName());
+        ((Twitter)myClient.getParser()).getApi().delFriend(myClient.getUser().getScreenName());
+        myChannel.delChannelClient(this);
         myClient.delChannel(myChannel);
     }
 

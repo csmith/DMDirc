@@ -873,6 +873,7 @@ public class TwitterAPI {
      * Add the user with the given screen name as a friend.
      *
      * @param name name to add
+     * @return The user just added
      */
     public TwitterUser addFriend(final String name) {
         try {
@@ -891,8 +892,9 @@ public class TwitterAPI {
      * Remove the user with the given screen name as a friend.
      *
      * @param name name to remove
+     * @return The user just deleted
      */
-    public void delFriend(final String name) {
+    public TwitterUser delFriend(final String name) {
         try {
             final Document doc = postXML("http://twitter.com/friendships/destroy.xml", "screen_name=" + URLEncoder.encode(name, "utf-8"));
             if (doc != null) {

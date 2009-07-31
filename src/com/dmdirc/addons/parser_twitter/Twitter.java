@@ -624,7 +624,7 @@ public class Twitter implements Parser {
                 System.out.println("\tTime Left: "+timeLeft);
 
                 // Then finally discover how long we need to sleep for.
-                sleepTime = timeLeft / sleepsRequired;
+                sleepTime = (sleepsRequired > 0) ? timeLeft / sleepsRequired : timeLeft;
             }
 
             System.out.println("Sleeping for: "+sleepTime);

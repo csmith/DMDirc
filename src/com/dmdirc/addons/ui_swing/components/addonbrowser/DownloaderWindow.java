@@ -10,17 +10,18 @@ import com.dmdirc.ui.CoreUIUtils;
 import com.dmdirc.util.DownloadListener;
 import com.dmdirc.util.Downloader;
 
+import java.awt.Window;
 import java.io.File;
 import java.io.IOException;
 
 import javax.swing.JDialog;
+import javax.swing.JLabel;
 import javax.swing.JProgressBar;
 
 import net.miginfocom.swing.MigLayout;
 
 /**
- *
- * @author chris
+ * Simple window to show download progress on addon feed.
  */
 public class DownloaderWindow extends JDialog implements Runnable, DownloadListener {
    
@@ -32,9 +33,17 @@ public class DownloaderWindow extends JDialog implements Runnable, DownloadListe
     private static final long serialVersionUID = 1;
     /** Downloader progress bar. */
     private final JProgressBar jpb = new JProgressBar(0, 100);
+    /** Parent window. */
+    private Window parentWindow;
 
-    /** Instantiates a new downloader window. */
-    public DownloaderWindow() {
+    /**
+     * Instantiates a new downloader window.
+     *
+     * @param parentWindow Parent window
+     */
+    public DownloaderWindow(final Window parentWindow) {
+        super(parentWindow, "DMDirc Addon Browser", ModalityType.MODELESS);
+        this.parentWindow = parentWindow;
         setTitle("Downloading addon information...");
         setLayout(new MigLayout("fill"));
         add(jpb, "grow");
@@ -53,9 +62,10 @@ public class DownloaderWindow extends JDialog implements Runnable, DownloadListe
         try {
             Downloader.downloadPage("http://addons.dmdirc.com/feed", 
                     Main.getConfigDir() + File.separator + "addons.feed", this);
-            new BrowserWindow();
+            new BrowserWindow(parentWindow);
         } catch (IOException ex) {
-            // Do nothing
+            removeAll();
+            add(new JLabel("Unable to download feed."));
         }
         
         dispose();
@@ -64,7 +74,6 @@ public class DownloaderWindow extends JDialog implements Runnable, DownloadListe
     /** {@inheritDoc} */
     @Override
     public void downloadProgress(float percent) {
-        System.out.println("value: " + percent);
         jpb.setValue((int) percent);
     }
 

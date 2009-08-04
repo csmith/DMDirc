@@ -19,38 +19,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package com.dmdirc.addons.ui_swing.components.addonbrowser;
 
 import com.dmdirc.Main;
-import com.dmdirc.addons.ui_swing.components.addonbrowser.AddonInfo.AddonType;
-import com.dmdirc.addons.ui_swing.MainFrame;
-import com.dmdirc.addons.ui_swing.UIUtilities;
-import com.dmdirc.addons.ui_swing.components.LoggingSwingWorker;
+import com.dmdirc.ui.CoreUIUtils;
 import com.dmdirc.util.ConfigFile;
 import com.dmdirc.util.InvalidConfigFileException;
 
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
-import javax.swing.DefaultListModel;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
-import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
+import javax.swing.SwingUtilities;
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -58,8 +51,7 @@ import net.miginfocom.swing.MigLayout;
  * 
  * @author chris
  */
-public class BrowserWindow extends JDialog implements ActionListener,
-        Comparator<AddonInfo> {
+public class BrowserWindow extends JDialog implements ActionListener {
 
     /**
      * A version number for this class. It should be changed whenever the class
@@ -82,12 +74,14 @@ public class BrowserWindow extends JDialog implements ActionListener,
     /** The installed checkbox. */
     private final JCheckBox installedBox = new JCheckBox("Installed", true);
     /** The not installed checkbox. */
-    private final JCheckBox notinstalledBox = new JCheckBox("Not installed", true);
+    private final JCheckBox notinstalledBox = new JCheckBox("Not installed",
+            true);
     /** The panel used to list addons. */
-    private final JList list = new JList(new DefaultListModel());
+    private final AddonTable list = new AddonTable();
     /** The scrollpane for the list panel. */
     private final JScrollPane scrollPane = new JScrollPane(list,
-            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
     /** The sort by name button. */
     private final JRadioButton nameButton = new JRadioButton("Name", true);
     /** The sort by rating button. */
@@ -96,19 +90,22 @@ public class BrowserWindow extends JDialog implements ActionListener,
     private final JRadioButton dateButton = new JRadioButton("Date", false);
     /** The sort by status button. */
     private final JRadioButton statusButton = new JRadioButton("Status", false);
-    /** All known addon infos. */
-    private final List<AddonInfo> infos = new ArrayList<AddonInfo>();
+    /** Row sorter. */
+    private final AddonSorter sorter;
+    /** Addon filter. */
+    private final AddonFilter filter;
 
     /**
      * Creates and displays a new browser window.
+     *
+     * @param parentWindow Parent window
      */
-    public BrowserWindow() {
-        super((MainFrame) Main.getUI().getMainWindow(), "DMDirc Addon Browser", false);
-        setIconImage(((MainFrame) Main.getUI().getMainWindow()).getIcon().getImage());
+    public BrowserWindow(final Window parentWindow) {
+        super(parentWindow, "DMDirc Addon Browser", ModalityType.MODELESS);
+        setIconImages(parentWindow.getIconImages());
         setResizable(false);
         setLayout(new MigLayout("fill, wmin 650, hmin 600"));
         scrollPane.getVerticalScrollBar().setUnitIncrement(15);
-        list.setCellRenderer(new AddonInfoListCellRenderer());
 
         JPanel panel = new JPanel(new MigLayout("fill"));
         panel.setBorder(BorderFactory.createTitledBorder("Search"));
@@ -145,6 +142,16 @@ public class BrowserWindow extends JDialog implements ActionListener,
 
         initListeners();
 
+        filter = new AddonFilter(verifiedBox.getModel(),
+                unverifiedBox.getModel(), installedBox.getModel(),
+                notinstalledBox.getModel(), pluginsBox.getModel(), themesBox.
+                getModel(), actionsBox.getModel(),
+                searchBox);
+        sorter = new AddonSorter(list.getModel(), dateButton.getModel(), 
+                nameButton.getModel(), ratingButton.getModel(),
+                statusButton.getModel(), filter);
+        list.setRowSorter(sorter);
+
         try {
             loadData();
         } catch (IOException ex) {
@@ -152,9 +159,9 @@ public class BrowserWindow extends JDialog implements ActionListener,
         }
 
         pack();
-        setLocationRelativeTo((MainFrame) Main.getUI().getMainWindow());
+        setLocationRelativeTo(parentWindow);
         setVisible(true);
-        setLocationRelativeTo((MainFrame) Main.getUI().getMainWindow());
+        setLocationRelativeTo(parentWindow);
     }
 
     /**
@@ -171,17 +178,17 @@ public class BrowserWindow extends JDialog implements ActionListener,
         themesBox.addActionListener(this);
         actionsBox.addActionListener(this);
 
-        nameButton.addActionListener(this);
-        ratingButton.addActionListener(this);
-        dateButton.addActionListener(this);
-        statusButton.addActionListener(this);
-
         verifiedBox.addActionListener(this);
         unverifiedBox.addActionListener(this);
         installedBox.addActionListener(this);
         notinstalledBox.addActionListener(this);
 
         searchBox.addActionListener(this);
+
+        nameButton.addActionListener(this);
+        ratingButton.addActionListener(this);
+        dateButton.addActionListener(this);
+        statusButton.addActionListener(this);
     }
 
     /**
@@ -191,92 +198,30 @@ public class BrowserWindow extends JDialog implements ActionListener,
      * @throws InvalidConfigFileException If the file is corrupt somehow
      */
     private void loadData() throws IOException, InvalidConfigFileException {
-        ConfigFile data = new ConfigFile(Main.getConfigDir() + File.separator + "addons.feed");
+        ConfigFile data = new ConfigFile(Main.getConfigDir() + File.separator +
+                "addons.feed");
         data.read();
-        int i = 0;
 
         for (Map<String, String> entry : data.getKeyDomains().values()) {
             final AddonInfo info = new AddonInfo(entry);
-            infos.add(info);
+            list.getModel().addRow(new Object[]{new AddonInfoLabel(info),});
         }
-
-        sortAndFilter();
     }
 
     /**
-     * Sorts and filters the list of addons according to the currently selected
-     * options.
-     */
-    private void sortAndFilter() {
-        ((DefaultListModel) list.getModel()).clear();
-        list.add(new JLabel("Sorting list.", JLabel.CENTER), "grow, pushy");
-
-        new LoggingSwingWorker() {
-
-            final List<AddonInfo> newInfos = new ArrayList<AddonInfo>();
-
-            /* {@inheritDoc} */
-            @Override
-            protected Object doInBackground() {
-                for (AddonInfo info : infos) {
-                    if ((!verifiedBox.isSelected() && info.isVerified()) ||
-                            (!unverifiedBox.isSelected() && !info.isVerified()) ||
-                            (!installedBox.isSelected() && info.isInstalled()) ||
-                            (!notinstalledBox.isSelected() &&
-                            !info.isInstalled()) || (!pluginsBox.isSelected() &&
-                            info.getType() == AddonType.TYPE_PLUGIN) ||
-                            (!themesBox.isSelected() && info.getType() ==
-                            AddonType.TYPE_THEME) ||
-                            (!actionsBox.isSelected() && info.getType() ==
-                            AddonType.TYPE_ACTION_PACK) || (!searchBox.getText().
-                            isEmpty() && !info.matches(searchBox.getText()))) {
-                        continue;
-                    }
-
-                    newInfos.add(info);
-                }
-
-                Collections.sort(newInfos, BrowserWindow.this);
-                return newInfos;
-            }
-
-            /* {@inheritDoc} */
-            @Override
-            protected void done() {
-                super.done();
-
-                ((DefaultListModel) list.getModel()).clear();
-                for (AddonInfo info : newInfos) {
-                    ((DefaultListModel) list.getModel()).addElement(info);
-                }
-                UIUtilities.resetScrollPane(scrollPane);
-            }
-        }.execute();
-    }
-
-    /** 
      * {@inheritDoc}
-     * 
+     *
      * @param e Action event
      */
     @Override
     public void actionPerformed(final ActionEvent e) {
-        sortAndFilter();
-    }
+        SwingUtilities.invokeLater(new Runnable() {
 
-    /** {@inheritDoc} */
-    @Override
-    public int compare(final AddonInfo o1, final AddonInfo o2) {
-        if (dateButton.isSelected()) {
-            return o1.getId() - o2.getId();
-        } else if (nameButton.isSelected()) {
-            return o1.getTitle().compareTo(o2.getTitle());
-        } else if (ratingButton.isSelected()) {
-            return o1.getRating() - o2.getRating();
-        } else if (statusButton.isSelected()) {
-            return (o1.isVerified() ? 1 : 0) - (o2.isVerified() ? 1 : 0);
-        } else {
-            return 0;
-        }
+            /** {@inheritDoc} */
+            @Override
+            public void run() {
+                sorter.sort();
+            }
+        });
     }
 }

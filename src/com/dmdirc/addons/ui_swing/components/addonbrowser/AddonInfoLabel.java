@@ -28,12 +28,16 @@ import com.dmdirc.addons.ui_swing.components.text.TextLabel;
 import java.awt.Color;
 import java.awt.Font;
 
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import javax.swing.JSeparator;
+import javax.swing.SwingUtilities;
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -47,15 +51,22 @@ public class AddonInfoLabel extends JPanel {
      * objects being unserialized with the new class).
      */
     private static final long serialVersionUID = 1;
+    /** Addon info. */
     private final AddonInfo addonInfo;
+    /** Install button. */
+    private JButton button;
+    /** Parent table. */
+    private AddonTable table;
 
     /**
      * Creates a new addon info label to describe the specified addon info.
      *
      * @param addonInfo Addon to describe
+     * @param table Parent table
      */
-    public AddonInfoLabel(final AddonInfo addonInfo) {
+    public AddonInfoLabel(final AddonInfo addonInfo, final AddonTable table) {
         this.addonInfo = addonInfo;
+        this.table = table;
 
         init();
     }
@@ -79,7 +90,7 @@ public class AddonInfoLabel extends JPanel {
         TextLabel label = new TextLabel(addonInfo.getDescription());
         add(label, "wmax 100%-170, hmax 150, growy, wrap, pushy, gapleft 5");
 
-        final JButton button = new JButton("Install");
+        button = new JButton("Install");
         button.addActionListener(new InstallListener(addonInfo));
         final boolean installed = addonInfo.isInstalled();
         add(button, "split, gapleft 5");
@@ -102,5 +113,19 @@ public class AddonInfoLabel extends JPanel {
      */
     public AddonInfo getAddonInfo() {
         return addonInfo;
+    }
+    
+    /**
+     * Dispatches the mouse event to the button if required.
+     *
+     * @param e Mouse event to dispatch
+     * @param point Click point
+     */
+    public final void dispatchEvent(final MouseEvent e, final Point point) {
+        final Rectangle buttonBounds = new Rectangle(button.getBounds());
+        SwingUtilities.convertRectangle(this, buttonBounds, table);
+        System.out.println(buttonBounds);
+        System.out.println(point);
+        System.out.println(buttonBounds.contains(point));
     }
 }

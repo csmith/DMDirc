@@ -60,6 +60,7 @@ public class InstallListener implements ActionListener {
      */
     @Override
     public void actionPerformed(final ActionEvent e) {
+        System.out.println("stuff!");
         try {
             final File file = File.createTempFile("dmdirc-addon", ".tmp");
             file.deleteOnExit();

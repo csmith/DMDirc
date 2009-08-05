@@ -23,7 +23,6 @@
 package com.dmdirc.addons.ui_swing.components.addonbrowser;
 
 import com.dmdirc.Main;
-import com.dmdirc.ui.CoreUIUtils;
 import com.dmdirc.util.ConfigFile;
 import com.dmdirc.util.InvalidConfigFileException;
 
@@ -204,7 +203,7 @@ public class BrowserWindow extends JDialog implements ActionListener {
 
         for (Map<String, String> entry : data.getKeyDomains().values()) {
             final AddonInfo info = new AddonInfo(entry);
-            list.getModel().addRow(new Object[]{new AddonInfoLabel(info),});
+            list.getModel().addRow(new Object[]{new AddonInfoLabel(info, list),});
         }
     }
 

@@ -49,16 +49,19 @@ import org.xml.sax.SAXException;
  */
 public class TwitterAPI {
     /** OAuth Consumer */
-    private OAuthConsumer consumer = new DefaultOAuthConsumer("qftK3mAbLfbWWHf8shiyjw", "flPr2TJGp4795DeTu4VkUlNLX8g25SpXWXZ7SKW0Bg", SignatureMethod.HMAC_SHA1);
+    private OAuthConsumer consumer;
 
     /** OAuth Provider */
-    private OAuthProvider provider = new DefaultOAuthProvider(consumer, "http://twitter.com/oauth/request_token", "http://twitter.com/oauth/access_token", "http://twitter.com/oauth/authorize");
+    private OAuthProvider provider;
 
     /** Have we signed anything yet? */
     private boolean hasSigned = false;
 
     /** Username for this twitter API. */
     private final String myUsername;
+
+    /** Password for this twitter API if oauth isn't available. */
+    private String myPassword;
 
     /** Cache of users. */
     final static Map<String, TwitterUser> userCache = new HashMap<String, TwitterUser>();
@@ -93,13 +96,36 @@ public class TwitterAPI {
     /** List of TwitterErrorHandlers */
     private List<TwitterErrorHandler> errorHandlers = new LinkedList<TwitterErrorHandler>();
 
+    /** What server name should we connect to?. */
+    private final String serverName;
+
+    /** Should we use OAuth? */
+    private boolean useOAuth = true;
+
     /**
      * Create a new Twitter API for the given user.
      *
      * @param myUsername
+     * @param myPassword
+     * @param serverName
+     * @param consumerKey
+     * @param consumerSecret
      */
-    public TwitterAPI(final String myUsername) {
+    public TwitterAPI(final String myUsername, final String myPassword, final String serverName, final String consumerKey, final String consumerSecret) {
         this.myUsername = myUsername;
+        this.serverName = serverName;
+        this.myPassword = myPassword;
+
+        System.out.println("servername: "+serverName);
+
+        consumer = new DefaultOAuthConsumer(consumerKey, consumerSecret, SignatureMethod.HMAC_SHA1);
+        provider = new DefaultOAuthProvider(consumer, "http://"+serverName+"/oauth/request_token", "http://"+serverName+"/oauth/access_token", "http://"+serverName+"/oauth/authorize");
+
+        try {
+            useOAuth = !(getOAuthURL().isEmpty());
+        } catch (TwitterRuntimeException tre) {
+            useOAuth = false;
+        }
 
         // if we are allowed, isAllowed will automatically call getUser() to
         // update the cache with our own user object.
@@ -109,6 +135,18 @@ public class TwitterAPI {
             // true by isAlowed().
             updateUser(new TwitterUser(this, myUsername));
         }
+    }
+
+
+    /**
+     * Get the address to send API Calls to.
+     *
+     * @param apiCall call we want to make
+     * @return URL To use!
+     */
+    private String getURL(final String apiCall) {
+        final String special = (useOAuth) ? "" : myUsername + ((myPassword.isEmpty()) ? "" : ":" + myPassword) + "@";
+        return "http://" + special + serverName + "/" + apiCall + ".xml";
     }
 
     /**
@@ -171,6 +209,33 @@ public class TwitterAPI {
         }
     }
 
+    /** 
+     * Are we using oauth?
+     * 
+     * @return are we usin oauth?
+     */
+    public boolean useOAuth() {
+        return useOAuth;
+    }
+
+    /**
+     * Set if we should use oauth or not.
+     *
+     * @param useOAuth Should we use oauth?
+     */
+    public void setUseOAuth(final boolean useOAuth) {
+        this.useOAuth = useOAuth;
+    }
+
+    /**
+     * Set the account password.
+     *
+     * @param password new account password
+     */
+    public void setPassword(final String password) {
+        this.myPassword = password;
+    }
+
     /**
      * Gets the twitter access token if known.
      *
@@ -213,6 +278,7 @@ public class TwitterAPI {
      * @param connection Connection to sign.
      */
     private void signURL(final HttpURLConnection connection) {
+        if (!useOAuth) { return; }
         if (!hasSigned) {
             if (getToken().isEmpty() || getTokenSecret().isEmpty()) {
                 return;
@@ -500,7 +566,7 @@ public class TwitterAPI {
             if (username.equalsIgnoreCase(myUsername) && !isAllowed()) {
                  user = new TwitterUser(this, myUsername, -1, "", true);
             } else {
-                final Document doc = getXML("http://twitter.com/users/show.xml?screen_name="+username);
+                final Document doc = getXML(getURL("users/show")+"?screen_name="+username);
 
                 if (doc != null) {
                     user = new TwitterUser(this, doc.getDocumentElement());
@@ -564,7 +630,7 @@ public class TwitterAPI {
     public TwitterStatus getStatus(final long id, final boolean force) {
         TwitterStatus status = getCachedStatus(id);
         if (status == null || force) {
-            final Document doc = getXML("http://twitter.com/statuses/show/"+id+".xml");
+            final Document doc = getXML(getURL("statuses/show/"+id));
 
             if (doc != null) {
                 status = new TwitterStatus(this, doc.getDocumentElement());
@@ -604,7 +670,7 @@ public class TwitterAPI {
      */
     public void newDirectMessage(final String target, final String message) {
         try {
-            postXML("http://twitter.com/direct_messages/new.xml", "screen_name=" + target + "&text=" + URLEncoder.encode(message, "utf-8"));
+            postXML(getURL("direct_messages/new"), "screen_name=" + target + "&text=" + URLEncoder.encode(message, "utf-8"));
         } catch (UnsupportedEncodingException ex) {
             handleError(ex, "newDirectMessage: "+target+" | "+message, apiInput, apiOutput);
             ex.printStackTrace();
@@ -629,7 +695,7 @@ public class TwitterAPI {
     public List<TwitterStatus> getUserTimeline(final long lastUserTimelineId) {
         final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
 
-        final Document doc = getXML("http://twitter.com/statuses/user_timeline.xml?since_id="+lastUserTimelineId+"&count=20");
+        final Document doc = getXML(getURL("statuses/user_timeline")+"?since_id="+lastUserTimelineId+"&count=20");
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("status");
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -649,7 +715,7 @@ public class TwitterAPI {
         final List<TwitterUser> result = new ArrayList<TwitterUser>();
 
         // TODO: support more than 100 friends.
-        final Document doc = getXML("http://twitter.com/statuses/friends.xml");
+        final Document doc = getXML(getURL("statuses/friends"));
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("user");
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -671,7 +737,7 @@ public class TwitterAPI {
         final List<Long> result = new ArrayList<Long>();
 
         // TODO: support more than 100 friends.
-        final Document doc = getXML("http://twitter.com/followers/ids.xml");
+        final Document doc = getXML(getURL("followers/ids"));
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("id");
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -709,7 +775,7 @@ public class TwitterAPI {
     public List<TwitterStatus> getReplies(final long lastReplyId, final int count) {
         final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
 
-        final Document doc = getXML("http://twitter.com/statuses/mentions.xml?since_id="+lastReplyId+"&count="+count);
+        final Document doc = getXML(getURL("statuses/mentions")+"?since_id="+lastReplyId+"&count="+count);
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("status");
 
@@ -741,7 +807,7 @@ public class TwitterAPI {
     public List<TwitterStatus> getFriendsTimeline(final long lastTimelineId, final int count) {
         final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
 
-        final Document doc = getXML("http://twitter.com/statuses/friends_timeline.xml?since_id="+lastTimelineId+"&count="+count);
+        final Document doc = getXML(getURL("statuses/friends_timeline")+"?since_id="+lastTimelineId+"&count="+count);
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("status");
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -772,7 +838,7 @@ public class TwitterAPI {
     public List<TwitterMessage> getDirectMessages(final long lastDirectMessageId, final int count) {
         final List<TwitterMessage> result = new ArrayList<TwitterMessage>();
 
-        final Document doc = getXML("http://twitter.com/direct_messages.xml?since_id="+lastDirectMessageId+"&count="+count);
+        final Document doc = getXML(getURL("direct_messages")+"?since_id="+lastDirectMessageId+"&count="+count);
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("direct_message");
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -798,7 +864,7 @@ public class TwitterAPI {
                 params.append("&in_reply_to_status_id="+Long.toString(id));
             }
 
-            final URL url = new URL("http://twitter.com/statuses/update.xml?" + params.toString());
+            final URL url = new URL(getURL("statuses/update")+"?" + params.toString());
             final HttpURLConnection request = (HttpURLConnection) url.openConnection();
             final Document doc = postXML(request);
             if (request.getResponseCode() == 200) {
@@ -832,7 +898,7 @@ public class TwitterAPI {
      *            the last reset.
      */
     public Long[] getRemainingApiCalls() {
-        final Document doc = getXML("http://twitter.com/account/rate_limit_status.xml");
+        final Document doc = getXML(getURL("account/rate_limit_status"));
         // The call we just made doesn't count, so remove it from the count.
         usedCalls--;
         if (doc != null) {
@@ -867,18 +933,29 @@ public class TwitterAPI {
         try {
             return provider.retrieveRequestToken(OAuth.OUT_OF_BAND);
         } catch (OAuthMessageSignerException ex) {
-            handleError(ex, "getOAuthURL", apiInput, apiOutput);
-            throw new TwitterRuntimeException(ex.getMessage(), ex);
+            if (myPassword.isEmpty()) {
+                handleError(ex, "getOAuthURL", apiInput, apiOutput);
+                throw new TwitterRuntimeException(ex.getMessage(), ex);
+            }
         } catch (OAuthNotAuthorizedException ex) {
-            handleError(ex, "getOAuthURL", apiInput, apiOutput);
-            throw new TwitterRuntimeException(ex.getMessage(), ex);
+            if (myPassword.isEmpty()) {
+                handleError(ex, "getOAuthURL", apiInput, apiOutput);
+                throw new TwitterRuntimeException(ex.getMessage(), ex);
+            }
         } catch (OAuthExpectationFailedException ex) {
-            handleError(ex, "getOAuthURL", apiInput, apiOutput);
-            throw new TwitterRuntimeException(ex.getMessage(), ex);
+            if (myPassword.isEmpty()) {
+                handleError(ex, "getOAuthURL", apiInput, apiOutput);
+                throw new TwitterRuntimeException(ex.getMessage(), ex);
+            }
         } catch (OAuthCommunicationException ex) {
-            handleError(ex, "getOAuthURL", apiInput, apiOutput);
-            throw new TwitterRuntimeException(ex.getMessage(), ex);
+            if (myPassword.isEmpty()) {
+                handleError(ex, "getOAuthURL", apiInput, apiOutput);
+                throw new TwitterRuntimeException(ex.getMessage(), ex);
+            }
         }
+
+        useOAuth = false;
+        return "";
     }
 
     /**
@@ -888,6 +965,7 @@ public class TwitterAPI {
      * @throws TwitterException  if there is a problem with OAuth.
      */
     public void setAccessPin(final String pin) throws TwitterException {
+        if (!useOAuth) { return; }
         try {
             provider.retrieveAccessToken(pin);
             token = consumer.getToken();
@@ -938,7 +1016,7 @@ public class TwitterAPI {
         }
         if (allowed == allowed.UNKNOWN || forceRecheck) {
             try {
-                final URL url = new URL("http://twitter.com/account/verify_credentials.xml");
+                final URL url = new URL(getURL("account/verify_credentials"));
                 final HttpURLConnection request = (HttpURLConnection) url.openConnection();
                 final Document doc = getXML(request);
                 allowed = (request.getResponseCode() == 200) ? allowed.TRUE : allowed.FALSE;
@@ -965,7 +1043,7 @@ public class TwitterAPI {
      */
     public TwitterUser addFriend(final String name) {
         try {
-            final Document doc = postXML("http://twitter.com/friendships/create.xml", "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            final Document doc = postXML(getURL("friendships/create"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
             if (doc != null) {
                 final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
                 updateUser(user);
@@ -986,7 +1064,7 @@ public class TwitterAPI {
      */
     public TwitterUser delFriend(final String name) {
         try {
-            final Document doc = postXML("http://twitter.com/friendships/destroy.xml", "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            final Document doc = postXML(getURL("friendships/destroy"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
             if (doc != null) {
                 final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
                 uncacheUser(user);

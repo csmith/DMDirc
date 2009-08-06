@@ -636,7 +636,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 checkTopic(channel);
             }
 
-            final int apiLimit = IdentityManager.getGlobalConfig().getOptionInt(myPlugin.getDomain(), "apilimit");
+            final int apiLimit = IdentityManager.getGlobalConfig().getOptionInt(myPlugin.getDomain(), "apicalls");
             final int endCalls = (wantAuth) ? 0 : api.getUsedCalls();
             final Long[] apiCalls = api.getRemainingApiCalls();
             System.out.println("Twitter calls Remaining: "+apiCalls[0]);

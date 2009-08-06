@@ -22,6 +22,7 @@
 package com.dmdirc.addons.parser_twitter;
 
 import com.dmdirc.addons.parser_twitter.api.TwitterAPI;
+import com.dmdirc.addons.parser_twitter.api.TwitterErrorHandler;
 import com.dmdirc.addons.parser_twitter.api.TwitterMessage;
 import com.dmdirc.addons.parser_twitter.api.TwitterStatus;
 import com.dmdirc.addons.parser_twitter.api.TwitterUser;
@@ -56,6 +57,7 @@ import com.dmdirc.parser.interfaces.callbacks.UserModeDiscoveryListener;
 import com.dmdirc.parser.interfaces.callbacks.SocketCloseListener;
 import com.dmdirc.ui.messages.Styliser;
 import com.dmdirc.util.IrcAddress;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -66,15 +68,17 @@ import java.util.Map;
 
 import com.dmdirc.addons.parser_twitter.api.TwitterException;
 import com.dmdirc.config.IdentityManager;
+import com.dmdirc.logger.ErrorManager;
 import com.dmdirc.parser.interfaces.callbacks.ChannelJoinListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelKickListener;
+import java.lang.reflect.Method;
 
 /**
  * Twitter Parser for DMDirc.
  *
  * @author shane
  */
-public class Twitter implements Parser {
+public class Twitter implements Parser, TwitterErrorHandler {
     /** Are we connected? */
     private boolean connected = false;
 
@@ -549,12 +553,14 @@ public class Twitter implements Parser {
         channel.setLocalTopic("No status known.");
         this.doJoinChannel(channel);
 
+        getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "Checking to see if we have been authorised to use the account \""+api.getUsername()+"\"...", "twitter.com");
+
         if (!api.isAllowed()) {
             final String hostname = "twitter.com";
             final List<String> welcomeMessage = new ArrayList<String>();
 
             wantAuth = true;
-            welcomeMessage.add("DMDirc has not been authorised to use the account "+api.getUsername());
+            welcomeMessage.add("Sorry, DMDirc has not been authorised to use the account \""+api.getUsername()+"\"");
             welcomeMessage.add("");
             welcomeMessage.add("Before you can use DMDirc with twitter you need to authorise it.");
             welcomeMessage.add("");
@@ -565,7 +571,7 @@ public class Twitter implements Parser {
                 getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, line, hostname);
             }
         } else {
-            getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "DMDirc has been authorised to use the account "+api.getUsername(), "twitter.com");
+            getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, "DMDirc has been authorised to use the account \""+api.getUsername()+"\"", "twitter.com");
             updateTwitterChannel();
         }
 
@@ -581,7 +587,7 @@ public class Twitter implements Parser {
             if (!wantAuth && api.isAllowed()) {
                 lastQueryTime = System.currentTimeMillis();
 
-                final int statusesPerAttempt = Math.min(200, IdentityManager.getConfigIdentity().getOptionInt(myPlugin.getDomain(), "statuscount"));
+                final int statusesPerAttempt = Math.min(200, IdentityManager.getGlobalConfig().getOptionInt(myPlugin.getDomain(), "statuscount"));
 
                 final List<TwitterStatus> statuses = new ArrayList<TwitterStatus>();
                 for (TwitterStatus status : api.getReplies(lastReplyId, statusesPerAttempt)) {
@@ -630,7 +636,7 @@ public class Twitter implements Parser {
                 checkTopic(channel);
             }
 
-            final int apiLimit = IdentityManager.getConfigIdentity().getOptionInt(myPlugin.getDomain(), "apilimit");
+            final int apiLimit = IdentityManager.getGlobalConfig().getOptionInt(myPlugin.getDomain(), "apilimit");
             final int endCalls = (wantAuth) ? 0 : api.getUsedCalls();
             final Long[] apiCalls = api.getRemainingApiCalls();
             System.out.println("Twitter calls Remaining: "+apiCalls[0]);
@@ -644,6 +650,13 @@ public class Twitter implements Parser {
                 // If we aren't allowed, but aren't waiting for auth, then
                 // sleep for 1 minute.
                 sleepTime = 60 * 1000;
+            } else if (apiCalls[1] == 0L) {
+                // Twitter has said we have no API Calls in total, so sleep for
+                // 10 minutes and try again.
+                // (This will also happen if twitter didn't respond for some reason)
+                sleepTime = 10 * 60 * 1000;
+                // Also alert the user.
+                getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Unable to communicate with twitter, or no API calls allowed at all, retrying in 10 minutes.", "twitter.com");
             } else if (api.getUsedCalls() > apiLimit) {
                 // Sleep for the rest of the hour, we have done too much!
                 sleepTime = timeLeft;
@@ -817,6 +830,58 @@ public class Twitter implements Parser {
             channel.setTopicTime(System.currentTimeMillis());
             channel.setLocalTopic(newStatus);
             getCallbackManager().getCallbackType(ChannelTopicListener.class).call(channel, false);
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void handleTwitterError(final TwitterAPI api, final Throwable t, final String source, final String twitterInput, final String twitterOutput, final String message) {
+        if (!message.isEmpty()) {
+            getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Twitter Error: "+message, "twitter.com");
+        }
+        getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Twitter "+t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage(), "twitter.com");
+        
+        // If debugging is enabled, also let the user know tihs in PM.
+        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "debugEnabled")) {
+            if (IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "debugEnabled")) {
+                if (!message.isEmpty()) {
+                    getCallbackManager().getCallbackType(PrivateMessageListener.class).call("Twitter Error: "+message, "twitter.com");
+                }
+                getCallbackManager().getCallbackType(PrivateMessageListener.class).call("Twitter "+t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage(), "twitter.com");
+
+                // And give more information:
+                getCallbackManager().getCallbackType(PrivateMessageListener.class).call("Source: "+source, "twitter.com");
+                getCallbackManager().getCallbackType(PrivateMessageListener.class).call("Input: "+twitterInput, "twitter.com");
+                getCallbackManager().getCallbackType(PrivateMessageListener.class).call("Output: ", "twitter.com");
+                for (String out : twitterOutput.split("\n")) {
+                    getCallbackManager().getCallbackType(PrivateMessageListener.class).call("                "+out, "twitter.com");
+                }
+                getCallbackManager().getCallbackType(PrivateMessageListener.class).call("", "twitter.com");
+                getCallbackManager().getCallbackType(PrivateMessageListener.class).call("Exception:", "twitter.com");
+
+                // Hax the error manager to get a nice String[] representing the stack trace and output it.
+                try {
+                    final Method gt = ErrorManager.class.getDeclaredMethod("getTrace");
+                    gt.setAccessible(true);
+                    final String[] trace = (String[]) gt.invoke(ErrorManager.getErrorManager(), t);
+
+                    for (String out : trace) {
+                        getCallbackManager().getCallbackType(PrivateMessageListener.class).call("                "+out, "twitter.com");
+                    }
+                } catch (NoSuchMethodException ex) {
+                    getCallbackManager().getCallbackType(PrivateMessageListener.class).call("    ... Unable to get StackTrace (nsme)", "twitter.com");
+                } catch (SecurityException ex) {
+                    getCallbackManager().getCallbackType(PrivateMessageListener.class).call("    ... Unable to get StackTrace (se)",  "twitter.com");
+                } catch (IllegalAccessException ex) {
+                    getCallbackManager().getCallbackType(PrivateMessageListener.class).call("    ... Unable to get StackTrace (iae)", "twitter.com");
+                } catch (IllegalArgumentException ex) {
+                    getCallbackManager().getCallbackType(PrivateMessageListener.class).call("    ... Unable to get StackTrace (iae2)", "twitter.com");
+                } catch (InvocationTargetException ex) {
+                    getCallbackManager().getCallbackType(PrivateMessageListener.class).call("    ... Unable to get StackTrace (ite)", "twitter.com");
+                }
+
+                getCallbackManager().getCallbackType(PrivateMessageListener.class).call("==================================");
+            }
         }
     }
 }

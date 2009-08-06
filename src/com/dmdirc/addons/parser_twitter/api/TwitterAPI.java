@@ -28,11 +28,11 @@ import oauth.signpost.signature.SignatureMethod;
 
 import java.io.ByteArrayInputStream;
 
-import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -84,6 +84,15 @@ public class TwitterAPI {
     /** Twitter Token Secret */
     private String tokenSecret = "";
 
+    /** Last input to the API. */
+    private String apiInput = "";
+
+    /** Last output from the API. */
+    private String apiOutput = "";
+
+    /** List of TwitterErrorHandlers */
+    private List<TwitterErrorHandler> errorHandlers = new LinkedList<TwitterErrorHandler>();
+
     /**
      * Create a new Twitter API for the given user.
      *
@@ -99,6 +108,66 @@ public class TwitterAPI {
             // It will be replaced as soon as the allowed status is changed to
             // true by isAlowed().
             updateUser(new TwitterUser(this, myUsername));
+        }
+    }
+
+    /**
+     * Add a new error handler.
+     *
+     * @param handler handler to add.
+     */
+    public void addErrorHandler(final TwitterErrorHandler handler) {
+        synchronized (errorHandlers) {
+            errorHandlers.add(handler);
+        }
+    }
+    
+    /**
+     * Remove an error handler.
+     *
+     * @param handler handler to remove.
+     */
+    public void delErrorHandler(final TwitterErrorHandler handler) {
+        synchronized (errorHandlers) {
+            errorHandlers.remove(handler);
+        }
+    }
+    
+    /**
+     * Clear error handlers.
+     */
+    public void clearErrorHandlers() {
+        synchronized (errorHandlers) {
+            errorHandlers.clear();
+        }
+    }
+
+    /**
+     * Handle an error from twitter.
+     *
+     * @param t The throwable that caused the error.
+     * @param source Source of exception.
+     * @param twitterInput The input to the API that caused this error.
+     * @param twitterOutput The output from the API that caused this error.
+     */
+    private void handleError(final Throwable t, final String source, final String twitterInput, final String twitterOutput) {
+        handleError(t, source, twitterInput, twitterOutput, "");
+    }
+
+    /**
+     * Handle an error from twitter.
+     *
+     * @param t The throwable that caused the error.
+     * @param source Source of exception.
+     * @param twitterInput The input to the API that caused this error.
+     * @param twitterOutput The output from the API that caused this error.
+     * @param message If more information should be relayed to the user, it comes here
+     */
+    private void handleError(final Throwable t, final String source, final String twitterInput, final String twitterOutput, final String message) {
+        synchronized (errorHandlers) {
+            for (TwitterErrorHandler eh : errorHandlers) {
+                eh.handleTwitterError(this, t, source, twitterInput, twitterOutput, message);
+            }
         }
     }
 
@@ -154,8 +223,10 @@ public class TwitterAPI {
         try {
             consumer.sign(connection);
         } catch (OAuthMessageSignerException ex) {
+            handleError(ex, "signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
             ex.printStackTrace();
         } catch (OAuthExpectationFailedException ex) {
+            handleError(ex, "signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
             ex.printStackTrace();
         }
     }
@@ -198,8 +269,10 @@ public class TwitterAPI {
             final URL url = new URL(address);
             return getXML((HttpURLConnection) url.openConnection());
         } catch (MalformedURLException ex) {
+            handleError(ex, "getXML: "+address, apiInput, apiOutput);
             ex.printStackTrace();
         } catch (IOException ex) {
+            handleError(ex, "getXML: "+address, apiInput, apiOutput);
             ex.printStackTrace();
         }
 
@@ -218,8 +291,10 @@ public class TwitterAPI {
             final URL url = new URL(address + "?" + params);
             return postXML((HttpURLConnection) url.openConnection());
         } catch (MalformedURLException ex) {
+            handleError(ex, "postXML: "+address+" | "+params, apiInput, apiOutput);
             ex.printStackTrace();
         } catch (IOException ex) {
+            handleError(ex, "postXML: "+address+" | "+params, apiInput, apiOutput);
             ex.printStackTrace();
         }
 
@@ -240,6 +315,7 @@ public class TwitterAPI {
             request.setRequestProperty("Content-Length", "0");
             request.setUseCaches(false);
         } catch (ProtocolException ex) {
+            handleError(ex, "postXML: "+request.getURL(), apiInput, apiOutput);
             ex.printStackTrace();
         }
         return getXML(request);
@@ -260,6 +336,8 @@ public class TwitterAPI {
         }
         usedCalls++;
         
+        apiInput = request.getURL().toString();
+
         BufferedReader in = null;
         boolean dumpOutput = false;
         try {
@@ -268,6 +346,7 @@ public class TwitterAPI {
             request.connect();
             in = new BufferedReader(new InputStreamReader(request.getInputStream()));
         } catch (IOException ex) {
+            handleError(ex, "getXML: "+request.getURL(), apiInput, apiOutput);
             ex.printStackTrace();
             dumpOutput = true;
             if (request.getErrorStream() != null) {
@@ -280,26 +359,51 @@ public class TwitterAPI {
         final StringBuilder xml = new StringBuilder();
         String line;
 
-        try {
-            do {
-                line = in.readLine();
-                if (line != null) { xml.append(line); }
-                if (dumpOutput) { System.out.println(line); }
-            } while (line != null);
-        } catch (IOException ex) {
-        } finally {
-            try { in.close(); } catch (IOException ex) { }
+        synchronized (this) {
+            try {
+                do {
+                    line = in.readLine();
+                    if (line != null) { xml.append(line); }
+                    if (dumpOutput) { System.out.println(line); }
+                } while (line != null);
+
+                apiOutput = xml.toString();
+            } catch (IOException ex) {
+                apiOutput = xml.toString() + "\n ... Incomplete!";
+
+                handleError(ex, "getXML", apiInput, apiOutput);
+            } finally {
+                try { in.close(); } catch (IOException ex) { }
+            }
         }
-        
+
+        try {
+            if (request.getResponseCode() != 200) {
+                handleError(null, "getXML", apiInput, apiOutput, "("+request.getResponseCode()+") "+request.getResponseMessage());
+            }
+        } catch (IOException ioe) {
+            handleError(ioe, "getXML", apiInput, apiOutput, "Unable to get response code.");
+        }
+
         try {
             final DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             
-            return db.parse(new ByteArrayInputStream(xml.toString().getBytes()));
+            final Document doc = db.parse(new ByteArrayInputStream(apiOutput.getBytes()));
+
+            final NodeList nl = doc.getElementsByTagName("error");
+            if (nl.getLength() > 0) {
+                handleError(null, "getXML", apiInput, apiOutput, nl.item(0).getTextContent());
+            }
+
+            return doc;
         } catch (SAXException ex) {
+            handleError(ex, "getXML", apiInput, apiOutput);
             ex.printStackTrace();
         } catch (ParserConfigurationException ex) {
+            handleError(ex, "getXML", apiInput, apiOutput);
             ex.printStackTrace();
         } catch (IOException ex) {
+            handleError(ex, "getXML", apiInput, apiOutput);
             ex.printStackTrace();
         }
 
@@ -502,6 +606,7 @@ public class TwitterAPI {
         try {
             postXML("http://twitter.com/direct_messages/new.xml", "screen_name=" + target + "&text=" + URLEncoder.encode(message, "utf-8"));
         } catch (UnsupportedEncodingException ex) {
+            handleError(ex, "newDirectMessage: "+target+" | "+message, apiInput, apiOutput);
             ex.printStackTrace();
         }
     }
@@ -701,14 +806,15 @@ public class TwitterAPI {
                     new TwitterStatus(this, doc.getDocumentElement());
                 }
                 return true;
-            } else {
-                System.out.println("Error from twitter: ("+request.getResponseCode()+") "+request.getResponseMessage());
             }
         } catch (UnsupportedEncodingException ex) {
+            handleError(ex, "setStatus: "+status+" | "+id, apiInput, apiOutput);
             ex.printStackTrace();
         } catch (MalformedURLException ex) {
+            handleError(ex, "setStatus: "+status+" | "+id, apiInput, apiOutput);
             ex.printStackTrace();
         } catch (IOException ex) {
+            handleError(ex, "setStatus: "+status+" | "+id, apiInput, apiOutput);
             ex.printStackTrace();
         }
 
@@ -761,12 +867,16 @@ public class TwitterAPI {
         try {
             return provider.retrieveRequestToken(OAuth.OUT_OF_BAND);
         } catch (OAuthMessageSignerException ex) {
+            handleError(ex, "getOAuthURL", apiInput, apiOutput);
             throw new TwitterRuntimeException(ex.getMessage(), ex);
         } catch (OAuthNotAuthorizedException ex) {
+            handleError(ex, "getOAuthURL", apiInput, apiOutput);
             throw new TwitterRuntimeException(ex.getMessage(), ex);
         } catch (OAuthExpectationFailedException ex) {
+            handleError(ex, "getOAuthURL", apiInput, apiOutput);
             throw new TwitterRuntimeException(ex.getMessage(), ex);
         } catch (OAuthCommunicationException ex) {
+            handleError(ex, "getOAuthURL", apiInput, apiOutput);
             throw new TwitterRuntimeException(ex.getMessage(), ex);
         }
     }
@@ -783,12 +893,16 @@ public class TwitterAPI {
             token = consumer.getToken();
             tokenSecret = consumer.getTokenSecret();
         } catch (OAuthMessageSignerException ex) {
+            handleError(ex, "setAccessPin: "+pin, apiInput, apiOutput);
             throw new TwitterException(ex.getMessage(), ex);
         } catch (OAuthNotAuthorizedException ex) {
+            handleError(ex, "setAccessPin: "+pin, apiInput, apiOutput);
             throw new TwitterException(ex.getMessage(), ex);
         } catch (OAuthExpectationFailedException ex) {
+            handleError(ex, "setAccessPin: "+pin, apiInput, apiOutput);
             throw new TwitterException(ex.getMessage(), ex);
         } catch (OAuthCommunicationException ex) {
+            handleError(ex, "setAccessPin: "+pin, apiInput, apiOutput);
             throw new TwitterException(ex.getMessage(), ex);
         }
     }
@@ -835,6 +949,7 @@ public class TwitterAPI {
                     getRemainingApiCalls();
                 }
             } catch (IOException ex) {
+                handleError(ex, "isAllowed", apiInput, apiOutput);
                 allowed = allowed.FALSE;
             }
         }
@@ -856,7 +971,9 @@ public class TwitterAPI {
                 updateUser(user);
                 return user;
             }
-        } catch (UnsupportedEncodingException ex) { }
+        } catch (UnsupportedEncodingException ex) {
+            handleError(ex, "addFriend: "+name, apiInput, apiOutput);
+        }
 
         return null;
     }
@@ -876,7 +993,9 @@ public class TwitterAPI {
 
                 return user;
             }
-        } catch (UnsupportedEncodingException ex) { }
+        } catch (UnsupportedEncodingException ex) {
+            handleError(ex, "delFriend: "+name, apiInput, apiOutput);
+        }
 
         return null;
     }

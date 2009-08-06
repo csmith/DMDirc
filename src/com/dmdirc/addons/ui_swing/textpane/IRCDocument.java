@@ -91,7 +91,7 @@ public final class IRCDocument implements Serializable, ConfigChangeListener {
 
     /**
      * Adds the stylised string to the canvas.
-     * 
+     *
      * @param text stylised string to add to the text
      */
     public void addText(final String[] text) {
@@ -103,7 +103,20 @@ public final class IRCDocument implements Serializable, ConfigChangeListener {
 
     /**
      * Adds the stylised string to the canvas.
-     * 
+     *
+     * @param text stylised string to add to the text
+     * @param lineHeight Line height for the new line of text
+     */
+    public void addText(final String[] text, final int lineHeight) {
+        synchronized (lines) {
+            lines.add(new Line(text, config, lineHeight));
+            fireLineAdded(lines.indexOf(text));
+        }
+    }
+
+    /**
+     * Adds the stylised string to the canvas.
+     *
      * @param text stylised string to add to the text
      */
     public void addText(final List<String[]> text) {
@@ -111,6 +124,24 @@ public final class IRCDocument implements Serializable, ConfigChangeListener {
             final int start = lines.size();
             for (String[] string : text) {
                 lines.add(new Line(string, config));
+            }
+            fireLinesAdded(start, text.size());
+        }
+    }
+
+    /**
+     * Adds the stylised string to the canvas.
+     *
+     * @param text stylised string to add to the text
+     * @param lineHeights line heights for the new lines
+     */
+    public void addText(final List<String[]> text, final List<Integer> lineHeights) {
+        synchronized (lines) {
+            final int start = lines.size();
+            for (int i = 0; i < text.size() ; i++) {
+                final String[] string = text.get(i);
+                final int lineHeight = lineHeights.get(i);
+                lines.add(new Line(string, config, lineHeight));
             }
             fireLinesAdded(start, text.size());
         }
@@ -230,6 +261,18 @@ public final class IRCDocument implements Serializable, ConfigChangeListener {
     }
 
     /**
+     * fires the clear wrap cache method on all listeners.
+     */
+    protected void fireClearWrapCache() {
+        final Object[] listenerList = listeners.getListenerList();
+        for (int i = 0; i < listenerList.length; i += 2) {
+            if (listenerList[i] == IRCDocumentListener.class) {
+                ((IRCDocumentListener) listenerList[i + 1]).clearWrapCache();
+            }
+        }
+    }
+
+    /**
      * Returns an attributed character iterator for a particular line,
      * utilising the document cache where possible.
      *
@@ -292,6 +335,7 @@ public final class IRCDocument implements Serializable, ConfigChangeListener {
     public void configChanged(final String domain, final String key) {
         cachedLines.clear();
         cachedStrings.clear();
+        fireClearWrapCache();
         fireRepaintNeeded();
     }
 }

@@ -215,8 +215,8 @@ public class TwitterAPI {
      */
     private Document postXML(final String address, final String params) {
         try {
-            final URL url = new URL(address);
-            return postXML((HttpURLConnection) url.openConnection(), params);
+            final URL url = new URL(address + "?" + params);
+            return postXML((HttpURLConnection) url.openConnection());
         } catch (MalformedURLException ex) {
             ex.printStackTrace();
         } catch (IOException ex) {
@@ -234,34 +234,17 @@ public class TwitterAPI {
      * @param params Params to post.
      * @return Document object for this xml.
      */
-    private Document postXML(final HttpURLConnection request, final String params) {
+    private Document postXML(final HttpURLConnection request) {
         try {
             request.setRequestMethod("POST");
-
-            request.setRequestProperty("Content-Type",  "application/x-www-form-urlencoded");
-
-            request.setRequestProperty("Content-Length", "" +  Integer.toString(params.getBytes().length));
-            request.setRequestProperty("Content-Language", "en-US");
-
+            request.setRequestProperty("Content-Length", "0");
             request.setUseCaches(false);
-            request.setDoInput(true);
-            request.setDoOutput(true);
         } catch (ProtocolException ex) {
             ex.printStackTrace();
         }
-        return getXML(request, params);
+        return getXML(request);
     }
 
-
-    /**
-     * Get the XML for the given UNSIGNED HttpURLConnection object.
-     *
-     * @param request HttpURLConnection to get XML for.
-     * @return Document object for this xml.
-     */
-    private Document getXML(final HttpURLConnection request) {
-        return getXML(request, null);
-    }
 
     /**
      * Get the XML for the given UNSIGNED HttpURLConnection object.
@@ -270,7 +253,7 @@ public class TwitterAPI {
      * @param params Any params for the data type if needed, else null.
      * @return Document object for this xml.
      */
-    private Document getXML(final HttpURLConnection request, final String params) {
+    private Document getXML(final HttpURLConnection request) {
         if (resetTime > 0 && resetTime <= System.currentTimeMillis()) {
             usedCalls = 0;
             resetTime = System.currentTimeMillis() + 3600000;
@@ -281,15 +264,6 @@ public class TwitterAPI {
         boolean dumpOutput = false;
         try {
             signURL(request);
-
-            if (params != null) {
-                try {
-                    final DataOutputStream out = new DataOutputStream(request.getOutputStream());
-                    out.writeBytes(params);
-                    out.flush();
-                    out.close();
-                } catch (IOException ex) { ex.printStackTrace(); }
-            }
             
             request.connect();
             in = new BufferedReader(new InputStreamReader(request.getInputStream()));
@@ -317,7 +291,6 @@ public class TwitterAPI {
             try { in.close(); } catch (IOException ex) { }
         }
         
-
         try {
             final DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             
@@ -714,15 +687,15 @@ public class TwitterAPI {
      */
     public boolean setStatus(final String status, final Long id) {
         try {
-            final StringBuilder address = new StringBuilder("status=");
-            address.append(URLEncoder.encode(status, "utf-8"));
+            final StringBuilder params = new StringBuilder("status=");
+            params.append(URLEncoder.encode(status, "utf-8"));
             if (id >= 0) {
-                address.append("&in_reply_to_status_id="+Long.toString(id));
+                params.append("&in_reply_to_status_id="+Long.toString(id));
             }
 
-            final URL url = new URL("http://twitter.com/statuses/update.xml");
+            final URL url = new URL("http://twitter.com/statuses/update.xml?" + params.toString());
             final HttpURLConnection request = (HttpURLConnection) url.openConnection();
-            final Document doc = postXML(request, address.toString());
+            final Document doc = postXML(request);
             if (request.getResponseCode() == 200) {
                 if (doc != null) {
                     new TwitterStatus(this, doc.getDocumentElement());

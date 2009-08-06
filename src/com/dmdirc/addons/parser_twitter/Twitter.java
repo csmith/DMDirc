@@ -630,7 +630,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
                     final String hostname = directMessage.getSenderScreenName();
 
                     getCallbackManager().getCallbackType(PrivateMessageListener.class).call(message, hostname);
-                    lastDirectMessageId = directMessage.getID();
+                    if (directMessage.getID() > lastDirectMessageId) { lastDirectMessageId = directMessage.getID(); }
                 }
 
                 checkTopic(channel);
@@ -836,6 +836,8 @@ public class Twitter implements Parser, TwitterErrorHandler {
     /** {@inheritDoc} */
     @Override
     public void handleTwitterError(final TwitterAPI api, final Throwable t, final String source, final String twitterInput, final String twitterOutput, final String message) {
+        try {
+        System.out.println("TwitterError: "+t);
         if (!message.isEmpty()) {
             getCallbackManager().getCallbackType(PrivateNoticeListener.class).call("Twitter Error: "+message, "twitter.com");
         }
@@ -883,5 +885,10 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 getCallbackManager().getCallbackType(PrivateMessageListener.class).call("==================================");
             }
         }
+
+    } catch (Throwable t2) {
+        System.out.println("wtf? "+t2);
+        t2.printStackTrace();
+    }
     }
 }

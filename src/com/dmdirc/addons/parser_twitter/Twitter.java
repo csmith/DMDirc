@@ -746,7 +746,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
             final Long[] apiCalls = api.getRemainingApiCalls();
             if (debug) { System.out.println("Twitter calls Remaining: "+apiCalls[0]); }
             // laconica doesn't rate limit, so time to reset is always 0, in this case
-            // we will assume the time untill the next hour.
+            // we will assume the time of the next hour.
             final Calendar cal = Calendar.getInstance();
             cal.set(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DATE), cal.get(Calendar.HOUR_OF_DAY)+1, 0, 0) ;
 
@@ -800,7 +800,9 @@ public class Twitter implements Parser, TwitterErrorHandler {
 
             System.out.println("Sleeping for: "+sleepTime);
 
-            try { Thread.sleep(sleepTime); } catch (InterruptedException ex) { }
+            // Sleep for sleep time, 
+            // If we have a negative sleep time, use 5 minutes.
+            try { Thread.sleep((sleepTime > 0) ? sleepTime : 5 * 60 * 1000); } catch (InterruptedException ex) { }
             
             if (++count > pruneCount) {
                 api.pruneStatusCache(System.currentTimeMillis() - pruneTime);

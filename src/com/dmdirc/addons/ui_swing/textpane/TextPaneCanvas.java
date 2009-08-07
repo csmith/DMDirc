@@ -22,7 +22,10 @@
 
 package com.dmdirc.addons.ui_swing.textpane;
 
+import com.dmdirc.FrameContainer;
+import com.dmdirc.Server;
 import com.dmdirc.addons.ui_swing.UIUtilities;
+import com.dmdirc.ui.interfaces.Window;
 import com.dmdirc.ui.messages.IRCTextAttribute;
 
 import java.awt.Cursor;
@@ -41,7 +44,9 @@ import java.awt.font.TextHitInfo;
 import java.awt.font.TextLayout;
 import java.text.AttributedCharacterIterator;
 import java.text.AttributedString;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.swing.JPanel;
@@ -230,6 +235,89 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
             }
         }
         checkForLink();
+    }
+
+    public void bufferDraw(final Graphics2D graphics) {
+        final int totalWidth = getWidth();
+        final int totalHeight = getHeight();
+        final int drawWidth = totalWidth - DOUBLE_SIDE_PADDING;
+        final int drawHeight = totalHeight - DOUBLE_SIDE_PADDING;
+        int startLine = getScrollBarPosition();
+        float drawPosY = drawHeight;
+        int paragraphStart;
+        int paragraphEnd;
+        LineBreakMeasurer lineMeasurer;
+
+        //check theres something to draw and theres some space to draw in
+        if (document.getNumLines() == 0 || drawWidth < 1) {
+            setCursor(Cursor.getDefaultCursor());
+            return;
+        }
+
+        // Check the start line is in range
+        if (startLine >= document.getNumLines()) {
+            startLine = document.getNumLines() - 1;
+        }
+
+        if (startLine <= 0) {
+            startLine = 0;
+        }
+
+        //sets the last visible line
+        lastVisibleLine = startLine;
+        firstVisibleLine = startLine;
+
+        textLayouts.clear();
+        positions.clear();
+
+        for (int line = startLine; line >= 0; line--) {
+            final AttributedCharacterIterator iterator = document.getStyledLine(
+                    line);
+            int lineHeight = document.getLineHeight(line) + (int) (document.
+                    getLineHeight(line) * 0.2);
+            float drawPosX;
+
+            paragraphStart = iterator.getBeginIndex();
+            paragraphEnd = iterator.getEndIndex();
+            lineMeasurer = new LineBreakMeasurer(iterator, graphics.
+                    getFontRenderContext());
+            lineMeasurer.setPosition(paragraphStart);
+
+            while (lineMeasurer.getPosition() < paragraphEnd) {
+                final TextLayout layout = lineMeasurer.nextLayout(drawWidth);
+            }
+        }
+    }
+
+    private int countWraps(final int line, final LineBreakMeasurer lineMeasurer,
+            final int paragraphStart, final int paragraphEnd,
+            final float drawWidth) {
+        float linespaceLeft = drawWidth;
+        int wraps = 0;
+        final String text = document.getLine(line).getText();
+        lineMeasurer.setPosition(paragraphStart);
+        while (lineMeasurer.getPosition() < paragraphEnd) {
+            final int nextOffset = getNextOffset(text, line);
+            final TextLayout layout = lineMeasurer.nextLayout(linespaceLeft, nextOffset, false);
+            if (lineMeasurer.getPosition() == nextOffset) {
+                linespaceLeft -= (layout.getAdvance() + 10);
+            } else {
+                linespaceLeft = drawWidth;
+            }
+            wraps++;
+        }
+        lineMeasurer.setPosition(paragraphStart);
+        return wraps;
+    }
+
+    private int getNextOffset(final String text,
+            final int currentOffset) {
+        final int nextOffset = text.indexOf("\t", currentOffset);
+        if (nextOffset == -1) {
+            return text.length();
+        } else {
+            return nextOffset;
+        }
     }
 
     /**

@@ -72,6 +72,7 @@ import com.dmdirc.logger.ErrorManager;
 import com.dmdirc.parser.interfaces.callbacks.ChannelJoinListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelKickListener;
 import java.lang.reflect.Method;
+import java.util.Calendar;
 
 /**
  * Twitter Parser for DMDirc.
@@ -483,60 +484,60 @@ public class Twitter implements Parser, TwitterErrorHandler {
 		}
 
     /** {@inheritDoc} */
-		@Override
-		public void sendNotice(final String target, final String message) {
-				sendPrivateNotice("This parser does not support notices.");
-		}
+    @Override
+    public void sendNotice(final String target, final String message) {
+        sendPrivateNotice("This parser does not support notices.");
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public void sendAction(final String target, final String message) {
+    @Override
+    public void sendAction(final String target, final String message) {
         sendPrivateNotice("This parser does not support CTCPs.");
-		}
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getLastLine() {
+    @Override
+    public String getLastLine() {
         return "";
-		}
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String[] parseHostmask(final String hostmask) {
+    @Override
+    public String[] parseHostmask(final String hostmask) {
         return TwitterClientInfo.parseHostFull(hostmask);
     }
 
     /** {@inheritDoc} */
-		@Override
-		public int getLocalPort() {
-				return api.getPort();
-		}
+    @Override
+    public int getLocalPort() {
+        return api.getPort();
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public long getPingTime() {
-				return System.currentTimeMillis() - lastQueryTime;
-		}
+    @Override
+    public long getPingTime() {
+        return System.currentTimeMillis() - lastQueryTime;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public void setPingTimerInterval(final long newValue) { /* Do Nothing. */ }
+    @Override
+    public void setPingTimerInterval(final long newValue) { /* Do Nothing. */ }
 
     /** {@inheritDoc} */
-		@Override
-		public long getPingTimerInterval() {
-				return -1;
-		}
-
-    /** {@inheritDoc} */
-		@Override
-		public void setPingTimerFraction(final int newValue) { /* Do Nothing. */ }
-
-    /** {@inheritDoc} */
-		@Override
-		public int getPingTimerFraction() {
+    @Override
+    public long getPingTimerInterval() {
         return -1;
-		}
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void setPingTimerFraction(final int newValue) { /* Do Nothing. */ }
+
+    /** {@inheritDoc} */
+    @Override
+    public int getPingTimerFraction() {
+        return -1;
+    }
 
     /**
      * Send a notice to the client.
@@ -567,20 +568,32 @@ public class Twitter implements Parser, TwitterErrorHandler {
     }
 
     /**
-     * Send a PM to the given channel.
+     * Send a message to the given channel.
      *
      * @param channel Channel to send message to
      * @param message Message to send.
+     * @param hostname Hostname that the message is from.
      */
     private void sendChannelMessage(final ChannelInfo channel, final String message) {
-        getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, message, myServerName);
+        sendChannelMessage(channel, message, myServerName);
+    }
+
+    /**
+     * Send a message to the given channel.
+     *
+     * @param channel Channel to send message to
+     * @param message Message to send.
+     * @param hostname Hostname that the message is from.
+     */
+    private void sendChannelMessage(final ChannelInfo channel, final String message, final String hostname) {
+        getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, message, hostname);
     }
 
     /**
      * Run the twitter parser.
      */
     @Override
-		public void run() {
+    public void run() {
         resetState();
 
         // Get the consumerKey and consumerSecret for this server if known
@@ -712,7 +725,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
                         message = String.format("%s     %c15&%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
                     }
                     final String hostname = status.getUser().getScreenName();
-                    sendChannelMessage(channel, message);
+                    sendChannelMessage(channel, message, hostname);
                 }
 
                 for (TwitterMessage directMessage : api.getDirectMessages(lastDirectMessageId)) {
@@ -732,7 +745,12 @@ public class Twitter implements Parser, TwitterErrorHandler {
             final int endCalls = (wantAuth) ? 0 : api.getUsedCalls();
             final Long[] apiCalls = api.getRemainingApiCalls();
             if (debug) { System.out.println("Twitter calls Remaining: "+apiCalls[0]); }
-            final Long timeLeft = apiCalls[2] - System.currentTimeMillis();
+            // laconica doesn't rate limit, so time to reset is always 0, in this case
+            // we will assume the time untill the next hour.
+            final Calendar cal = Calendar.getInstance();
+            cal.set(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DATE), cal.get(Calendar.HOUR_OF_DAY)+1, 0, 0) ;
+
+            final Long timeLeft = ((apiCalls[2] > 0) ? apiCalls[2] : cal.getTimeInMillis()) - System.currentTimeMillis();
             final long sleepTime;
             if (wantAuth) {
                 // When waiting for auth, sleep for less time so that when the

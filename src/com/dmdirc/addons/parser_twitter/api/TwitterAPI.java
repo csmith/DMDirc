@@ -145,8 +145,7 @@ public class TwitterAPI {
      * @return URL To use!
      */
     private String getURL(final String apiCall) {
-        final String special = (useOAuth) ? "" : myUsername + ((myPassword.isEmpty()) ? "" : ":" + myPassword) + "@";
-        return "http://" + special + serverName + "/" + apiCall + ".xml";
+        return "http://" + serverName + "/" + apiCall + ".xml";
     }
 
     /**
@@ -274,26 +273,33 @@ public class TwitterAPI {
 
     /**
      * Attempt to sign the given connection.
+     * If not using OAuth, we just authenticate the connection instead.
      *
      * @param connection Connection to sign.
      */
     private void signURL(final HttpURLConnection connection) {
-        if (!useOAuth) { return; }
-        if (!hasSigned) {
-            if (getToken().isEmpty() || getTokenSecret().isEmpty()) {
-                return;
+        if (useOAuth) {
+            if (!hasSigned) {
+                if (getToken().isEmpty() || getTokenSecret().isEmpty()) {
+                    return;
+                }
+                consumer.setTokenWithSecret(getToken(), getTokenSecret());
+                hasSigned = true;
             }
-            consumer.setTokenWithSecret(getToken(), getTokenSecret());
-            hasSigned = true;
-        }
-        try {
-            consumer.sign(connection);
-        } catch (OAuthMessageSignerException ex) {
-            handleError(ex, "signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
-            ex.printStackTrace();
-        } catch (OAuthExpectationFailedException ex) {
-            handleError(ex, "signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
-            ex.printStackTrace();
+            try {
+                consumer.sign(connection);
+            } catch (OAuthMessageSignerException ex) {
+                handleError(ex, "signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
+                ex.printStackTrace();
+            } catch (OAuthExpectationFailedException ex) {
+                handleError(ex, "signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
+                ex.printStackTrace();
+            }
+        } else {
+          sun.misc.BASE64Encoder enc = new sun.misc.BASE64Encoder();
+          String userpassword = myUsername + ":" + myPassword;
+          String encodedAuthorization = enc.encode(userpassword.getBytes());
+          connection.setRequestProperty("Authorization", "Basic "+ encodedAuthorization);
         }
     }
 
@@ -405,7 +411,8 @@ public class TwitterAPI {
         apiInput = request.getURL().toString();
 
         BufferedReader in = null;
-        boolean dumpOutput = false;
+        // boolean dumpOutput = false;
+        boolean dumpOutput = true;
         try {
             signURL(request);
             
@@ -906,7 +913,12 @@ public class TwitterAPI {
 
             final long remaining = parseLong(element.getElementsByTagName("remaining-hits").item(0).getTextContent(), -1);
             final long total = parseLong(element.getElementsByTagName("hourly-limit").item(0).getTextContent(), -1);
-            resetTime = 1000 * parseLong(element.getElementsByTagName("reset-time-in-seconds").item(0).getTextContent(), -1);
+            
+            // laconica does this wrong :(
+            NodeList nl = element.getElementsByTagName("reset-time-in-seconds");
+            if (nl == null || nl.getLength() == 0) { nl = element.getElementsByTagName("reset_time_in_seconds"); }
+
+            resetTime = 1000 * parseLong(nl.item(0).getTextContent(), -1);
 
             return new Long[]{remaining, total, resetTime, (long)usedCalls};
         } else {
@@ -1011,7 +1023,9 @@ public class TwitterAPI {
      * @return true if we have been authorised, else false.
      */
     public boolean isAllowed(final boolean forceRecheck) {
-        if (myUsername.isEmpty() || getToken().isEmpty() || getTokenSecret().isEmpty()) {
+        if (myUsername.isEmpty()) { return false; }
+
+        if ((useOAuth && (getToken().isEmpty() || getTokenSecret().isEmpty())) || (!useOAuth && myPassword.isEmpty())) {
             return false;
         }
         if (allowed == allowed.UNKNOWN || forceRecheck) {

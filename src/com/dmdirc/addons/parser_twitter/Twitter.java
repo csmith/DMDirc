@@ -151,24 +151,24 @@ public class Twitter implements Parser, TwitterErrorHandler {
     }
 
     /** {@inheritDoc} */
-		@Override
-		public void disconnect(final String message) {
+    @Override
+    public void disconnect(final String message) {
         connected = false;
         currentParsers.remove(this);
         api = new TwitterAPI("", "", "", "", "");
 
         getCallbackManager().getCallbackType(SocketCloseListener.class).call();
-		}
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public void joinChannel(final String channel) {
+    @Override
+    public void joinChannel(final String channel) {
         joinChannel(channel, "");
-		}
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public void joinChannel(final String channel, final String key) {
+    @Override
+    public void joinChannel(final String channel, final String key) {
         if (isValidChannelName(channel) && getChannel(channel) == null && !channel.equalsIgnoreCase(mainChannelName)) {
             final TwitterChannelInfo newChannel = new TwitterChannelInfo(channel, this);
             newChannel.addChannelClient(new TwitterChannelClientInfo(newChannel, myself));
@@ -199,44 +199,44 @@ public class Twitter implements Parser, TwitterErrorHandler {
         } else {
             getCallbackManager().getCallbackType(NumericListener.class).call(474, new String[]{":"+myServerName, "474", myself.getNickname(), channel, "Cannot join channel - name is not valid, or you are already there."});
         }
-		}
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public ChannelInfo getChannel(final String channel) {
-				return channels.containsKey(channel.toLowerCase()) ? channels.get(channel.toLowerCase()) : null;
-		}
+    @Override
+    public ChannelInfo getChannel(final String channel) {
+        return channels.containsKey(channel.toLowerCase()) ? channels.get(channel.toLowerCase()) : null;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public Collection<? extends ChannelInfo> getChannels() {
-				return new ArrayList<TwitterChannelInfo>(channels.values());
-		}
+    @Override
+    public Collection<? extends ChannelInfo> getChannels() {
+        return new ArrayList<TwitterChannelInfo>(channels.values());
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public void setBindIP(final String ip) {
-				return;
-		}
+    @Override
+    public void setBindIP(final String ip) {
+        return;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public int getMaxLength(final String type, final String target) {
-				return 140;
-		}
+    @Override
+    public int getMaxLength(final String type, final String target) {
+        return 140;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public LocalClientInfo getLocalClient() {
-				return myself;
-		}
+    @Override
+    public LocalClientInfo getLocalClient() {
+        return myself;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public ClientInfo getClient(final String details) {
+    @Override
+    public ClientInfo getClient(final String details) {
         final String client = TwitterClientInfo.parseHost(details);
-				return clients.containsKey(client.toLowerCase()) ? clients.get(client.toLowerCase()) : new TwitterClientInfo(details, this).setFake(true);
-		}
+        return clients.containsKey(client.toLowerCase()) ? clients.get(client.toLowerCase()) : new TwitterClientInfo(details, this).setFake(true);
+    }
 
     /**
     * Tokenise a line.
@@ -266,13 +266,13 @@ public class Twitter implements Parser, TwitterErrorHandler {
     }
 
     /** {@inheritDoc} */
-		@Override
-		public void sendRawMessage(final String message) {
+    @Override
+    public void sendRawMessage(final String message) {
         sendRawMessage(message, QueuePriority.NORMAL);
     }
 
     /** {@inheritDoc} */
-		@Override
+    @Override
     public void sendRawMessage(final String message, final QueuePriority priority) {
         // TODO: Parse some lines in order to fake IRC.
         final String[] bits = tokeniseLine(message);
@@ -309,124 +309,124 @@ public class Twitter implements Parser, TwitterErrorHandler {
         } else {
             getCallbackManager().getCallbackType(NumericListener.class).call(474, new String[]{":"+myServerName, "421", myself.getNickname(), bits[0], "Unknown Command - "+message});
         }
-		}
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public boolean isValidChannelName(final String name) {
-				return (name.matches("^&[0-9]+$") || name.equalsIgnoreCase(mainChannelName) || name.startsWith("#"));
-		}
+    @Override
+    public boolean isValidChannelName(final String name) {
+        return (name.matches("^&[0-9]+$") || name.equalsIgnoreCase(mainChannelName) || name.startsWith("#"));
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getServerName() {
-				return myServerName + "/" + myself.getNickname();
-		}
+    @Override
+    public String getServerName() {
+        return myServerName + "/" + myself.getNickname();
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getNetworkName() {
-				return myServerName + "/" + myself.getNickname();
-		}
+    @Override
+    public String getNetworkName() {
+        return myServerName + "/" + myself.getNickname();
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getServerSoftware() {
-				return myServerName;
-		}
+    @Override
+    public String getServerSoftware() {
+        return myServerName;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getServerSoftwareType() {
-				return "twitter";
-		}
+    @Override
+    public String getServerSoftwareType() {
+        return "twitter";
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public int getMaxTopicLength() {
-				return 140;
-		}
+    @Override
+    public int getMaxTopicLength() {
+        return 140;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getBooleanChannelModes() {
-				return "";
-		}
+    @Override
+    public String getBooleanChannelModes() {
+        return "";
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getListChannelModes() {
-				return "b";
-		}
+    @Override
+    public String getListChannelModes() {
+        return "b";
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public int getMaxListModes(final char mode) {
-				return 0;
-		}
+    @Override
+    public int getMaxListModes(final char mode) {
+        return 0;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public boolean isUserSettable(final char mode) {
-				switch (mode) {
+    @Override
+    public boolean isUserSettable(final char mode) {
+        switch (mode) {
             case 'b':
                 return true;
             default:
                 return false;
         }
-		}
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getParameterChannelModes() {
-				return "";
-		}
+    @Override
+    public String getParameterChannelModes() {
+        return "";
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getDoubleParameterChannelModes() {
-				return "b";
-		}
+    @Override
+    public String getDoubleParameterChannelModes() {
+        return "b";
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getUserModes() {
-				return "";
-		}
+    @Override
+    public String getUserModes() {
+        return "";
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public String getChannelUserModes() {
-				return "ov";
-		}
+    @Override
+    public String getChannelUserModes() {
+        return "ov";
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public CallbackManager<? extends Parser> getCallbackManager() {
-				return myCallbackManager;
-		}
+    @Override
+    public CallbackManager<? extends Parser> getCallbackManager() {
+        return myCallbackManager;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public long getServerLatency() {
-				return 0;
-		}
+    @Override
+    public long getServerLatency() {
+        return 0;
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public void sendCTCP(final String target, final String type, final String message) {
-				sendPrivateNotice("This parser does not support CTCPs.");
-		}
+    @Override
+    public void sendCTCP(final String target, final String type, final String message) {
+        sendPrivateNotice("This parser does not support CTCPs.");
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public void sendCTCPReply(final String target, final String type, final String message) {
-				sendPrivateNotice("This parser does not support CTCP replies.");
-		}
+    @Override
+    public void sendCTCPReply(final String target, final String type, final String message) {
+        sendPrivateNotice("This parser does not support CTCP replies.");
+    }
 
     /** {@inheritDoc} */
-		@Override
-		public void sendMessage(final String target, final String message) {
+    @Override
+    public void sendMessage(final String target, final String message) {
         final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(target);
         if (target.equalsIgnoreCase(mainChannelName)) {
             if (wantAuth) {
@@ -481,7 +481,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
         } else {
             sendPrivateNotice("Messages to '"+target+"' are not currently supported.");
         }
-		}
+    }
 
     /** {@inheritDoc} */
     @Override
@@ -684,7 +684,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
         int count = 0;
         final long pruneCount = 20; // Every 20 loops, clear the status cache of
         final long pruneTime = 3600 * 1000 ; // anything older than 1 hour.
-				while (connected) {
+        while (connected) {
             final int startCalls = (wantAuth) ? 0 : api.getUsedCalls();
 
             if (!wantAuth && api.isAllowed()) {
@@ -808,7 +808,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 api.pruneStatusCache(System.currentTimeMillis() - pruneTime);
             }
         }
-		}
+    }
 
     /**
      * Reset the state of the parser.

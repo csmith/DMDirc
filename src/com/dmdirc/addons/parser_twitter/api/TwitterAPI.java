@@ -346,11 +346,50 @@ public class TwitterAPI {
                 ex.printStackTrace();
             }
         } else {
-          sun.misc.BASE64Encoder enc = new sun.misc.BASE64Encoder();
-          String userpassword = myUsername + ":" + myPassword;
-          String encodedAuthorization = enc.encode(userpassword.getBytes());
+          // final String userpassword = myUsername + ":" + myPassword;
+          // sun.misc.BASE64Encoder enc = new sun.misc.BASE64Encoder();
+          // String encodedAuthorization = enc.encode(userpassword.getBytes());
+
+          final String encodedAuthorization = b64encode(myUsername + ":" + myPassword);
           connection.setRequestProperty("Authorization", "Basic "+ encodedAuthorization);
         }
+    }
+
+    /**
+     * Encode a string to base64,
+     * Based on code from http://www.wikihow.com/Encode-a-String-to-Base64-With-Java
+     *
+     * @param string String to encode
+     * @return Encoded output
+     */
+    private String b64encode(final String string) {
+        final String base64code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        final StringBuilder encoded = new StringBuilder();
+        byte[] stringArray;
+        try {
+            stringArray = string.getBytes("UTF-8");
+        } catch (UnsupportedEncodingException ex) {
+            stringArray = string.getBytes();
+        }
+
+        // determine how many padding bytes to add to the output
+        final int paddingCount = (3 - (stringArray.length % 3)) % 3;
+
+        // add any necessary padding to the input
+        final byte[] padded = new byte[stringArray.length + paddingCount];
+        System.arraycopy(stringArray, 0, padded, 0, stringArray.length);
+
+        // process 3 bytes at a time, churning out 4 output bytes
+        for (int i = 0; i < padded.length; i += 3) {
+            int j = (padded[i] << 16) + (padded[i + 1] << 8) + padded[i + 2];
+            encoded.append(base64code.charAt((j >> 18) & 0x3f));
+            encoded.append(base64code.charAt((j >> 12) & 0x3f));
+            encoded.append(base64code.charAt((j >> 6) & 0x3f));
+            encoded.append(base64code.charAt(j & 0x3f));
+        }
+
+        // replace encoded padding nulls with "="
+        return encoded.substring(0, encoded.length() - paddingCount) + "==".substring(0, paddingCount);
     }
 
     /**

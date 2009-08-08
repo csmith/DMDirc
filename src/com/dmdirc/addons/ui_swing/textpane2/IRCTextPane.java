@@ -22,14 +22,10 @@
 
 package com.dmdirc.addons.ui_swing.textpane2;
 
-import com.dmdirc.logger.ErrorLevel;
-import com.dmdirc.logger.Logger;
 
 import com.dmdirc.ui.messages.Styliser;
 import java.util.List;
 import javax.swing.JTextPane;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.StyledDocument;
 
 /** Text pane designed for IRC. */
 public class IRCTextPane extends JTextPane {
@@ -40,6 +36,10 @@ public class IRCTextPane extends JTextPane {
      * objects being unserialized with the new class).
      */
     private static final long serialVersionUID = 1;
+    /** Blank holding document. */
+    private IRCDocument blankDocument;
+    /** Real document. */
+    private IRCDocument document;
 
     /** Instantiates a new IRCTextPane. */
     public IRCTextPane() {
@@ -49,10 +49,12 @@ public class IRCTextPane extends JTextPane {
     /**
      * Instantiates a new IRCTextPane with the specified document.
      *
-     * @param doc
+     * @param document Document to use
      */
-    public IRCTextPane(final IRCDocument doc) {
-        super(doc);
+    public IRCTextPane(final IRCDocument document) {
+        super(document);
+        this.document = document;
+        blankDocument = new IRCDocument();
         super.setEditable(false);
     }
 
@@ -63,7 +65,9 @@ public class IRCTextPane extends JTextPane {
      */
     public void addStyledString(final String[] strings) {
         setVisible(false);
-        Styliser.addStyledString((StyledDocument) getDocument(), strings);
+        setDocument(blankDocument);
+        Styliser.addStyledString(document, strings);
+        setDocument(document);
         setVisible(true);
     }
 
@@ -84,7 +88,9 @@ public class IRCTextPane extends JTextPane {
 
     /** Clears the textpane. */
     public void clear() {
-        setDocument(new IRCDocument());
+        document = new IRCDocument();
+        setDocument(document);
+
     }
 
     /** Clears the selection in the textpane. */

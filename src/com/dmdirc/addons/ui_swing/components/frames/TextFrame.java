@@ -444,9 +444,9 @@ public abstract class TextFrame extends JInternalFrame implements Window,
                     if (timestamp) {
                         lines.add(new String[]{
                                     Formatter.formatMessage(getConfigManager(),
-                                    "timestamp", new Date()), myLine + "\n",});
+                                    "timestamp", new Date()), myLine,});
                     } else {
-                        lines.add(new String[]{myLine + "\n",});
+                        lines.add(new String[]{myLine,});
                     }
 
                     new LoggingSwingWorker() {

@@ -52,6 +52,7 @@ import com.dmdirc.parser.interfaces.callbacks.NickChangeListener;
 import com.dmdirc.parser.interfaces.callbacks.NumericListener;
 import com.dmdirc.parser.interfaces.callbacks.Post005Listener;
 import com.dmdirc.parser.interfaces.callbacks.PrivateMessageListener;
+import com.dmdirc.parser.interfaces.callbacks.UnknownMessageListener;
 import com.dmdirc.parser.interfaces.callbacks.PrivateNoticeListener;
 import com.dmdirc.parser.interfaces.callbacks.ServerReadyListener;
 import com.dmdirc.parser.interfaces.callbacks.UserModeDiscoveryListener;
@@ -615,7 +616,22 @@ public class Twitter implements Parser, TwitterErrorHandler {
      * @param hostname Who is the message from?
      */
     private void sendPrivateMessage(final String message, final String hostname) {
-        getCallbackManager().getCallbackType(PrivateMessageListener.class).call(message, hostname);
+        sendPrivateMessage(message, hostname, myUsername);
+    }
+
+    /**
+     * Send a PM to the client.
+     *
+     * @param message Message to send.
+     * @param hostname Who is the message from?
+     * @param target Who is the message to?
+     */
+    private void sendPrivateMessage(final String message, final String hostname, final String target) {
+        if (hostname.equalsIgnoreCase(myUsername)) {
+            getCallbackManager().getCallbackType(UnknownMessageListener.class).call(message, target, hostname);
+        } else {
+            getCallbackManager().getCallbackType(PrivateMessageListener.class).call(message, hostname);
+        }
     }
 
     /**
@@ -623,7 +639,6 @@ public class Twitter implements Parser, TwitterErrorHandler {
      *
      * @param channel Channel to send message to
      * @param message Message to send.
-     * @param hostname Hostname that the message is from.
      */
     private void sendChannelMessage(final ChannelInfo channel, final String message) {
         sendChannelMessage(channel, message, myServerName);
@@ -791,12 +806,23 @@ public class Twitter implements Parser, TwitterErrorHandler {
                     sendChannelMessage(channel, message, hostname);
                 }
 
+                final List<TwitterMessage> directMessages = new ArrayList<TwitterMessage>();
                 for (TwitterMessage directMessage : api.getDirectMessages(lastDirectMessageId)) {
-                    final String message = directMessage.getText();
-                    final String hostname = directMessage.getSenderScreenName();
-
-                    sendPrivateMessage(message, hostname);
+                    directMessages.add(directMessage);
                     if (directMessage.getID() > lastDirectMessageId) { lastDirectMessageId = directMessage.getID(); }
+                }
+
+                if (IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "getSentMessages")) {
+                    for (TwitterMessage directMessage : api.getSentDirectMessages(lastDirectMessageId)) {
+                        directMessages.add(directMessage);
+                        if (directMessage.getID() > lastDirectMessageId) { lastDirectMessageId = directMessage.getID(); }
+                    }
+                }
+                Collections.sort(directMessages);
+
+                for (TwitterMessage dm : directMessages) {
+                    System.out.println("<"+dm.getSenderScreenName()+" - "+dm.getTargetScreenName()+" > "+dm.getText());
+                    sendPrivateMessage(dm.getText(), dm.getSenderScreenName(), dm.getTargetScreenName());
                 }
 
                 checkTopic(channel);

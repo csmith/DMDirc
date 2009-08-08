@@ -950,6 +950,37 @@ public class TwitterAPI {
     }
 
     /**
+     * Get the direct messages sent by us that are later than the given ID.
+     *
+     * @param lastDirectMessageId Last reply we know of.
+     * @return The direct messages sent by us that are later than the given ID.
+     */
+    public List<TwitterMessage> getSentDirectMessages(final long lastDirectMessageId) {
+        return getSentDirectMessages(lastDirectMessageId, 20);
+    }
+
+    /**
+     * Get the direct messages sent by us that are later than the given ID.
+     *
+     * @param lastDirectMessageId Last reply we know of.
+     * @param count How many messages to request at a time
+     * @return The direct messages sent by us that are later than the given ID.
+     */
+    public List<TwitterMessage> getSentDirectMessages(final long lastDirectMessageId, final int count) {
+        final List<TwitterMessage> result = new ArrayList<TwitterMessage>();
+
+        final Document doc = getXML(getURL("direct_messages/sent")+"?since_id="+lastDirectMessageId+"&count="+count);
+        if (doc != null) {
+            final NodeList nodes = doc.getElementsByTagName("direct_message");
+            for (int i = 0; i < nodes.getLength(); i++) {
+                result.add(new TwitterMessage(this, nodes.item(i)));
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Set your status to the given TwitterStatus
      *
      * @param status Status to send

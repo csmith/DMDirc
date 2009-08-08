@@ -146,29 +146,39 @@ public class TwitterUser {
         if (oldUser != null) {
             this.followingUs = oldUser.isFollowingUs();
         }
-        
+
+        TwitterStatus newStatus = null;
+        boolean useOldStatus = true;
+
         // Now set the status, using either the oldStatus, the given status or null!
         if (status == null) {
-            if (oldUser != null) {
-                this.lastStatus = oldUser.getStatus();
-            } else {
-                final NodeList nodes = element.getElementsByTagName("status");
-                if (nodes != null && nodes.getLength() > 0) {
-                    this.lastStatus = new TwitterStatus(api, nodes.item(0), this.getScreenName());
-                } else {
-                    this.lastStatus = new TwitterStatus(api, "", -1, -1, this.getScreenName(), System.currentTimeMillis());
+            final TwitterStatus proposedStatus;
+            final NodeList nodes = element.getElementsByTagName("status");
+            if (nodes != null && nodes.getLength() > 0) {
+                proposedStatus = new TwitterStatus(api, nodes.item(0), this.getScreenName());
+                if (oldUser == null || oldUser.getStatus() == null || oldUser.getStatus().getID() < status.getID()) {
+                    useOldStatus = false;
+                    newStatus = proposedStatus;
                 }
+            } else if (oldUser == null || oldUser.getStatus() == null) {
+                useOldStatus = false;
+                newStatus = new TwitterStatus(api, "", -1, -1, this.getScreenName(), System.currentTimeMillis());
             }
         } else {
             // Keep the status from the old version of this user if it has a
             // higher ID, regardless of the fact we were given a specific
             // status to use.
-            if (oldUser != null && oldUser.getStatus() != null && oldUser.getStatus().getID() > status.getID()) {
-                this.lastStatus = oldUser.getStatus();
-            } else {
-                this.lastStatus = status;
+            if (oldUser == null || oldUser.getStatus() == null || oldUser.getStatus().getID() < status.getID()) {
+                useOldStatus = false;
+                newStatus = status;
             }
         }
+
+        if (useOldStatus && oldUser != null && oldUser.getStatus() != null) {
+            newStatus = oldUser.getStatus();
+        }
+
+        this.lastStatus = newStatus;
     }
 
 

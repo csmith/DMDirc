@@ -294,7 +294,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
                     getCallbackManager().getCallbackType(NumericListener.class).call(401, new String[]{":"+myServerName, "401", myself.getNickname(), bits[1], reason});
                 } else {
                     // Time since last update
-                    final long secondsIdle = (System.currentTimeMillis() - user.getStatus().getTime()) / 1000;
+                    final long secondsIdle = ((user.getStatus() != null) ? System.currentTimeMillis() - user.getStatus().getTime() : user.getRegisteredTime()) / 1000;
                     final long signonTime = user.getRegisteredTime() / 1000;
 
                     getCallbackManager().getCallbackType(NumericListener.class).call(311, new String[]{":"+myServerName, "311", myself.getNickname(), bits[1], "user", myServerName, "*", user.getRealName()+" (http://"+myAddress.getServer()+"/"+user.getScreenName()+")"});
@@ -483,6 +483,11 @@ public class Twitter implements Parser, TwitterErrorHandler {
         if (target.equalsIgnoreCase(mainChannelName)) {
             if (wantAuth) {
                 final String[] bits = message.split(" ");
+                if (bits[0].equalsIgnoreCase("usepw")) {
+                    sendChannelMessage(channel, "Switching to once-off password authentication, please enter your password.");
+                    api.setUseOAuth(false);
+                    return;
+                }
                 try {
                     if (api.useOAuth()) {
                         api.setAccessPin(bits[0]);

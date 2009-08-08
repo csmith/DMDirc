@@ -87,7 +87,7 @@ public class ExportedService {
 		} catch (InvocationTargetException ite) {
                         final StringBuilder sb = new StringBuilder();
                         for (Object arg : args) { sb.append("'"+arg+"' "); }
-			throw new RuntimeException("ite: "+ite+" -> "+ite.getMessage()+" ["+myObject+" -> "+sb.toString()+"]");
+			throw new RuntimeException("ite: "+ite+" -> "+ite.getMessage()+" "+myMethod+" ["+myObject+" -> "+sb.toString()+"]");
 		}
 	}
 }

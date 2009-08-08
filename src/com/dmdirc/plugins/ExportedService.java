@@ -79,6 +79,7 @@ public class ExportedService {
                 }
 		
 		try {
+                    myMethod.in
 			return myMethod.invoke(myObject, args);
 		} catch (IllegalAccessException iae) {
                         throw new RuntimeException("iae: "+iae);
@@ -87,7 +88,7 @@ public class ExportedService {
 		} catch (InvocationTargetException ite) {
                         final StringBuilder sb = new StringBuilder();
                         for (Object arg : args) { sb.append("'"+arg+"' "); }
-			throw new RuntimeException("ite: "+ite+" -> "+ite.getMessage()+" "+myMethod+" ["+myObject+" -> "+sb.toString()+"]");
+			throw new RuntimeException("ite: "+ite.getCause()+" -> "+ite.getCause().getMessage()+" "+myMethod+" ["+myObject+" -> "+sb.toString()+"]");
 		}
 	}
 }

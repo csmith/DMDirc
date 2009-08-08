@@ -85,7 +85,9 @@ public class ExportedService {
 		} catch (IllegalArgumentException iae) {
 			throw new RuntimeException("iae2: "+iae);
 		} catch (InvocationTargetException ite) {
-			throw new RuntimeException("ite: "+ite);
+                        final StringBuilder sb = new StringBuilder();
+                        for (Object arg : args) { sb.append("'"+arg+"' "); }
+			throw new RuntimeException("ite: "+ite+" -> "+ite.getMessage()+" ["+myObject+" -> "+sb.toString()+"]");
 		}
 	}
 }

@@ -139,9 +139,15 @@ public class TwitterUser {
         this.following = TwitterAPI.parseBoolean(TwitterAPI.getElementContents(element, "following", ""));
 
         // Check to see if a cached user object for us exists that we can
-        // take the status from.
+        // take some information from.
         final TwitterUser oldUser = api.getCachedUser(this.screenName);
 
+        // First, are they following us back do we know?
+        if (oldUser != null) {
+            this.followingUs = oldUser.isFollowingUs();
+        }
+        
+        // Now set the status, using either the oldStatus, the given status or null!
         if (status == null) {
             if (oldUser != null) {
                 this.lastStatus = oldUser.getStatus();

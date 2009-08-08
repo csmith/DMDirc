@@ -486,8 +486,8 @@ public class Twitter implements Parser, TwitterErrorHandler {
                     if (api.useOAuth()) {
                         api.setAccessPin(bits[0]);
                         if (api.isAllowed(true)) {
-                            IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "token-"+myUsername, api.getToken());
-                            IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "tokenSecret-"+myUsername, api.getTokenSecret());
+                            IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "token-"+myServerName+"-"+myUsername, api.getToken());
+                            IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "tokenSecret-"+myServerName+"-"+myUsername, api.getTokenSecret());
                             sendChannelMessage(channel, "Thank you for authorising DMDirc.");
                             updateTwitterChannel();
                             wantAuth = false;
@@ -653,7 +653,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
         final String consumerSecret;
         if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "consumerKey-"+myServerName)) { 
             consumerKey = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "consumerKey-"+myServerName);
-        } else { consumerKey = "qftK3mAbLfbWWHf8shiyjw"; }
+        } else { consumerKey = "qftK3mALbLfbWWHf8shiyjw"; }
         if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "consumerSecret-"+myServerName)) { 
             consumerSecret = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "consumerSecret-"+myServerName);
         } else { consumerSecret = "flPr2TJGp4795DeTu4VkUlNLX8g25SpXWXZ7SKW0Bg"; }
@@ -661,11 +661,11 @@ public class Twitter implements Parser, TwitterErrorHandler {
         final String token;
         final String tokenSecret;
 
-        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "token-"+myUsername)) {
-            token = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "token-"+myUsername);
+        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "token-"+myServerName+"-"+myUsername)) {
+            token = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "token-"+myServerName+"-"+myUsername);
         } else { token = ""; }
-        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "tokenSecret-"+myUsername)) {
-            tokenSecret = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "tokenSecret-"+myUsername);
+        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "tokenSecret-"+myServerName+"-"+myUsername)) {
+            tokenSecret = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "tokenSecret-"+myServerName+"-"+myUsername);
         } else { tokenSecret = ""; }
 
         final StringBuilder serverExtra = new StringBuilder("/");
@@ -731,6 +731,19 @@ public class Twitter implements Parser, TwitterErrorHandler {
         long lastReplyId = -1;
         long lastTimelineId = -1;
         long lastDirectMessageId = -1;
+
+        if (IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "saveLastIDs")) {
+            if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername)) {
+                lastReplyId = TwitterAPI.parseLong(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername), -1);
+            }
+            if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "lastRlastTimelineIdeplyId-"+myServerName+"-"+myUsername)) {
+                lastTimelineId = TwitterAPI.parseLong(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "lastTimelineId-"+myServerName+"-"+myUsername), -1);
+            }
+            if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername)) {
+                lastDirectMessageId = TwitterAPI.parseLong(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername), -1);
+            }
+        }
+
         int count = 0;
         final long pruneCount = 20; // Every 20 loops, clear the status cache of
         final long pruneTime = 3600 * 1000 ; // anything older than 1 hour.
@@ -787,6 +800,12 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 }
 
                 checkTopic(channel);
+            }
+
+            if (IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "saveLastIDs")) {
+                IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername, Long.toString(lastReplyId));
+                IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastTimelineId-"+myServerName+"-"+myUsername, Long.toString(lastTimelineId));
+                IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername, Long.toString(lastDirectMessageId));
             }
 
             final boolean debug = IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "debugEnabled");

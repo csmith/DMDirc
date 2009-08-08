@@ -652,7 +652,19 @@ public class Twitter implements Parser, TwitterErrorHandler {
      * @param hostname Hostname that the message is from.
      */
     private void sendChannelMessage(final ChannelInfo channel, final String message, final String hostname) {
-        getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, null, message, hostname);
+        sendChannelMessage(channel, message, null, hostname);
+    }
+
+    /**
+     * Send a message to the given channel.
+     *
+     * @param channel Channel to send message to
+     * @param message Message to send.
+     * @param cci Channel Client to send from
+     * @param hostname Hostname that the message is from.
+     */
+    private void sendChannelMessage(final ChannelInfo channel, final String message, final ChannelClientInfo cci, final String hostname) {
+        getCallbackManager().getCallbackType(ChannelMessageListener.class).call(channel, cci, message, hostname);
     }
 
     /**
@@ -668,7 +680,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
         final String consumerSecret;
         if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "consumerKey-"+myServerName)) { 
             consumerKey = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "consumerKey-"+myServerName);
-        } else { consumerKey = "qftK3mALbLfbWWHf8shiyjw"; }
+        } else { consumerKey = "qftK3mAbLfbWWHf8shiyjw"; }
         if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "consumerSecret-"+myServerName)) { 
             consumerSecret = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "consumerSecret-"+myServerName);
         } else { consumerSecret = "flPr2TJGp4795DeTu4VkUlNLX8g25SpXWXZ7SKW0Bg"; }
@@ -803,7 +815,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
                         message = String.format("%s     %c15&%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
                     }
                     final String hostname = status.getUser().getScreenName();
-                    sendChannelMessage(channel, message, hostname);
+                    sendChannelMessage(channel, message, cci, hostname);
                 }
 
                 final List<TwitterMessage> directMessages = new ArrayList<TwitterMessage>();

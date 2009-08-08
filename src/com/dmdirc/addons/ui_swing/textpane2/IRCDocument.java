@@ -54,20 +54,6 @@ public class IRCDocument extends DefaultStyledDocument {
     public IRCDocument(Content c, StyleContext styles) {
         super(c, styles);
     }
-    
-    public String getText(int offset, int length) throws BadLocationException {
-	if (length < 0) {
-	    throw new BadLocationException("Length must be positive. Length = "+length, 0);
-	}
-	
-	return super.getText(offset, length);
-    }    
-    
-    public void getText(int offset, int length, Segment txt) throws BadLocationException {
-	if (length < 0) {
-	    throw new BadLocationException("Length must be positive. Length = "+length, 0);
-	}
-	
-        super.getText(offset, length, txt);
-    }    
+
+
 }

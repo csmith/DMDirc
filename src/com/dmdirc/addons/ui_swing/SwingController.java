@@ -165,7 +165,12 @@ public final class SwingController extends Plugin implements UIController {
             /** {@inheritDoc} */
             @Override
             public void run() {
+                try {
                 setObject(new ServerFrame(server, SwingController.this));
+                System.out.println(getObject());
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
             }
         });
     }

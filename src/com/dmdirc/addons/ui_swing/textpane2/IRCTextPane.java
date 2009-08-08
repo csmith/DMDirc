@@ -25,8 +25,11 @@ package com.dmdirc.addons.ui_swing.textpane2;
 import com.dmdirc.logger.ErrorLevel;
 import com.dmdirc.logger.Logger;
 
+import com.dmdirc.ui.messages.Styliser;
+import java.util.List;
 import javax.swing.JTextPane;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.StyledDocument;
 
 /** Text pane designed for IRC. */
 public class IRCTextPane extends JTextPane {
@@ -59,13 +62,14 @@ public class IRCTextPane extends JTextPane {
      * @param strings Unstyled lines to add
      */
     public void addStyledString(final String[] strings) {
-        //Styliser.addStyledString((StyledDocument) getDocument(), string);
-        for (String str : strings) {
-            try {
-                getDocument().insertString(getDocument().getLength(), str, null);
-            } catch (BadLocationException ex) {
-                Logger.appError(ErrorLevel.HIGH, "Adding a line to the document failed.", ex);
-            }
+        setVisible(false);
+        Styliser.addStyledString((StyledDocument) getDocument(), strings);
+        setVisible(true);
+    }
+
+    public void addStyledString(final List<String[]> strings) {
+        for (String[] string : strings) {
+            addStyledString(string);
         }
     }
 

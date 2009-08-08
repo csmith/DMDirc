@@ -31,15 +31,9 @@ import com.dmdirc.addons.ui_swing.actions.ChannelCopyAction;
 import com.dmdirc.addons.ui_swing.actions.CommandAction;
 import com.dmdirc.addons.ui_swing.actions.HyperlinkCopyAction;
 import com.dmdirc.addons.ui_swing.actions.NicknameCopyAction;
-import com.dmdirc.addons.ui_swing.actions.SearchAction;
-import com.dmdirc.addons.ui_swing.actions.TextPaneCopyAction;
 import com.dmdirc.addons.ui_swing.components.LoggingSwingWorker;
-import com.dmdirc.addons.ui_swing.components.SwingSearchBar;
 import com.dmdirc.addons.ui_swing.textpane.ClickType;
-import com.dmdirc.addons.ui_swing.textpane.LineInfo;
-import com.dmdirc.addons.ui_swing.textpane.TextPane;
-import com.dmdirc.addons.ui_swing.textpane.TextPanePageDownAction;
-import com.dmdirc.addons.ui_swing.textpane.TextPanePageUpAction;
+import com.dmdirc.addons.ui_swing.textpane2.IRCTextPane;
 import com.dmdirc.commandparser.PopupManager;
 import com.dmdirc.commandparser.PopupMenu;
 import com.dmdirc.commandparser.PopupMenuItem;
@@ -56,7 +50,6 @@ import com.dmdirc.ui.WindowManager;
 import com.dmdirc.ui.interfaces.InputWindow;
 import com.dmdirc.ui.interfaces.Window;
 import com.dmdirc.ui.messages.Formatter;
-import com.dmdirc.util.URLHandler;
 
 import java.awt.Dimension;
 import java.awt.Point;
@@ -112,9 +105,9 @@ public abstract class TextFrame extends JInternalFrame implements Window,
     /** The channel object that owns this frame. */
     protected final FrameContainer frameParent;
     /** Frame output pane. */
-    private TextPane textPane;
+    private IRCTextPane textPane;
     /** search bar. */
-    private SwingSearchBar searchBar;
+    //private SwingSearchBar searchBar;
     /** String transcoder. */
     private StringTranscoder transcoder;
     /** Frame buffer size. */
@@ -451,9 +444,9 @@ public abstract class TextFrame extends JInternalFrame implements Window,
                     if (timestamp) {
                         lines.add(new String[]{
                                     Formatter.formatMessage(getConfigManager(),
-                                    "timestamp", new Date()), myLine,});
+                                    "timestamp", new Date()), myLine + "\n",});
                     } else {
-                        lines.add(new String[]{myLine,});
+                        lines.add(new String[]{myLine + "\n",});
                     }
 
                     new LoggingSwingWorker() {
@@ -469,7 +462,8 @@ public abstract class TextFrame extends JInternalFrame implements Window,
                     }.execute();
                 }
 
-                textPane.getDocument().addText(lines);
+                //textPane.getDocument().addText(lines);
+                textPane.addStyledString(lines);
 
                 if (frameBufferSize > 0) {
                     textPane.trim(frameBufferSize);
@@ -516,14 +510,10 @@ public abstract class TextFrame extends JInternalFrame implements Window,
      * Initialises the components for this frame.
      */
     private void initComponents() {
-        setTextPane(new TextPane(getContainer()));
+        setTextPane(new IRCTextPane());
 
         getTextPane().addMouseListener(this);
         getTextPane().addKeyListener(this);
-
-        searchBar = new SwingSearchBar(this, controller.getMainFrame());
-        searchBar.setVisible(false);
-        searchBar.addKeyListener(this);
 
         getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).
                 put(KeyStroke.getKeyStroke(KeyEvent.VK_PAGE_UP, 0),
@@ -539,12 +529,6 @@ public abstract class TextFrame extends JInternalFrame implements Window,
         getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).
                 put(KeyStroke.getKeyStroke(KeyEvent.VK_F,
                 UIUtilities.getCtrlDownMask()), "searchAction");
-
-        getActionMap().put("pageUpAction",
-                new TextPanePageUpAction(getTextPane()));
-        getActionMap().put("pageDownAction",
-                new TextPanePageDownAction(getTextPane()));
-        getActionMap().put("searchAction", new SearchAction(searchBar));
     }
 
     /**
@@ -786,7 +770,7 @@ public abstract class TextFrame extends JInternalFrame implements Window,
      *
      * @return Text pane for this frame
      */
-    public final TextPane getTextPane() {
+    public final IRCTextPane getTextPane() {
         return textPane;
     }
 
@@ -815,7 +799,7 @@ public abstract class TextFrame extends JInternalFrame implements Window,
      *
      * @param newTextPane new text pane to use
      */
-    protected final void setTextPane(final TextPane newTextPane) {
+    protected final void setTextPane(final IRCTextPane newTextPane) {
         this.textPane = newTextPane;
     }
 
@@ -827,7 +811,7 @@ public abstract class TextFrame extends JInternalFrame implements Window,
     @Override
     public void mouseClicked(final MouseEvent mouseEvent) {
         if (mouseEvent.getSource() == getTextPane()) {
-            processMouseClickEvent(mouseEvent, MouseClickType.CLICKED);
+            //processMouseClickEvent(mouseEvent, MouseClickType.CLICKED);
         }
 
     }
@@ -839,7 +823,7 @@ public abstract class TextFrame extends JInternalFrame implements Window,
      */
     @Override
     public void mousePressed(final MouseEvent mouseEvent) {
-        processMouseClickEvent(mouseEvent, MouseClickType.PRESSED);
+        //processMouseClickEvent(mouseEvent, MouseClickType.PRESSED);
     }
 
     /**
@@ -854,7 +838,7 @@ public abstract class TextFrame extends JInternalFrame implements Window,
             getTextPane().clearSelection();
         }
 
-        processMouseClickEvent(mouseEvent, MouseClickType.RELEASED);
+        //processMouseClickEvent(mouseEvent, MouseClickType.RELEASED);
     }
 
     /**
@@ -883,7 +867,7 @@ public abstract class TextFrame extends JInternalFrame implements Window,
      * @param e mouse event
      * @param type 
      */
-    public void processMouseClickEvent(final MouseEvent e,
+    /*public void processMouseClickEvent(final MouseEvent e,
             final MouseClickType type) {
         final Point point = getTextPane().getMousePosition();
         if (e.getSource() == getTextPane() && point != null) {
@@ -921,7 +905,7 @@ public abstract class TextFrame extends JInternalFrame implements Window,
             }
         }
         super.processMouseEvent(e);
-    }
+    }*/
 
     /**
      * What popup type should be used for popup menus for nicknames
@@ -1000,7 +984,7 @@ public abstract class TextFrame extends JInternalFrame implements Window,
                 break;
         }
 
-        popupMenu.add(new TextPaneCopyAction(getTextPane()));
+        //popupMenu.add(new TextPaneCopyAction(getTextPane()));
 
         addCustomPopupItems(popupMenu);
 
@@ -1145,9 +1129,9 @@ public abstract class TextFrame extends JInternalFrame implements Window,
      *
      * @return the frames search bar
      */
-    public final SwingSearchBar getSearchBar() {
-        return searchBar;
-    }
+    //public final SwingSearchBar getSearchBar() {
+    //    return searchBar;
+    //}
 
     /** {@inheritDoc} */
     @Override

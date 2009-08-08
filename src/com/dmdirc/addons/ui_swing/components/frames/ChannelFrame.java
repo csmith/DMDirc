@@ -47,6 +47,7 @@ import java.util.Collection;
 
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 
 import net.miginfocom.swing.MigLayout;
@@ -166,10 +167,10 @@ public final class ChannelFrame extends InputTextFrame implements ActionListener
         getContentPane().setLayout(new MigLayout("fill, ins 0, hidemode 3, wrap 1"));
 
         getContentPane().add(splitPane, "grow, push");
-        getContentPane().add(getSearchBar(), "growx, pushx");
+        //getContentPane().add(getSearchBar(), "growx, pushx");
         getContentPane().add(inputPanel, "growx, pushx");
 
-        splitPane.setLeftComponent(getTextPane());
+        splitPane.setLeftComponent(new JScrollPane(getTextPane()));
         splitPane.setRightComponent(nicklist);
         splitPane.setResizeWeight(1);
 

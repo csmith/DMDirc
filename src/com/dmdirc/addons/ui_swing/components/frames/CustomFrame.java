@@ -27,6 +27,7 @@ import com.dmdirc.commandparser.PopupType;
 
 import javax.swing.JPopupMenu;
 
+import javax.swing.JScrollPane;
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -64,8 +65,8 @@ public class CustomFrame extends TextFrame {
         setTitle("Custom Frame");
 
         getContentPane().setLayout(new MigLayout("ins 0, fill, hidemode 3, wrap 1"));
-        getContentPane().add(getTextPane(), "grow, push");
-        getContentPane().add(getSearchBar(), "growx, pushx");
+        getContentPane().add(new JScrollPane(getTextPane()), "grow, push");
+        //getContentPane().add(getSearchBar(), "growx, pushx");
 
         pack();
     }

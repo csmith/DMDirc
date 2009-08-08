@@ -31,6 +31,7 @@ import com.dmdirc.addons.ui_swing.components.SwingInputHandler;
 
 import javax.swing.JPopupMenu;
 
+import javax.swing.JScrollPane;
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -80,8 +81,8 @@ public final class QueryFrame extends InputTextFrame implements QueryWindow {
         setTitle("Query Frame");
 
         getContentPane().setLayout(new MigLayout("ins 0, fill, hidemode 3, wrap 1"));
-        getContentPane().add(getTextPane(), "grow, push");
-        getContentPane().add(getSearchBar(), "growx, pushx");
+        getContentPane().add(new JScrollPane(getTextPane()), "grow, push");
+        //getContentPane().add(getSearchBar(), "growx, pushx");
         getContentPane().add(inputPanel, "growx, pushx");
 
         pack();

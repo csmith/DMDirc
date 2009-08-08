@@ -38,6 +38,7 @@ import java.awt.event.ActionListener;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 
+import javax.swing.JScrollPane;
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -92,8 +93,8 @@ public final class ServerFrame extends InputTextFrame implements ServerWindow,
         setTitle("Server Frame");
 
         getContentPane().setLayout(new MigLayout("ins 0, fill, hidemode 3, wrap 1"));
-        getContentPane().add(getTextPane(), "grow, push");
-        getContentPane().add(getSearchBar(), "growx, pushx");
+        getContentPane().add(new JScrollPane(getTextPane()), "grow, push");
+        //getContentPane().add(getSearchBar(), "growx, pushx");
         getContentPane().add(inputPanel, "growx, pushx");
 
         pack();

@@ -53,7 +53,7 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
         this.myChannel = channel;
         this.myClient = ci;
 
-        myClient.addChannel(myChannel);
+        myClient.addChannelClient(this);
     }
 
     /** {@inheritDoc} */
@@ -123,7 +123,7 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     public void kick(final String message) {
         ((Twitter)myClient.getParser()).getApi().delFriend(myClient.getUser().getScreenName());
         myChannel.delChannelClient(this);
-        myClient.delChannel(myChannel);
+        myClient.delChannelClient(this);
     }
 
     /**

@@ -48,6 +48,8 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import javax.xml.parsers.DocumentBuilder;
@@ -114,33 +116,65 @@ public class TwitterAPI {
     private List<TwitterErrorHandler> errorHandlers = new LinkedList<TwitterErrorHandler>();
 
     /** What server name should we connect to?. */
-    private final String serverName;
+    private final String myServerName;
 
     /** Should we use OAuth? */
     private boolean useOAuth = true;
 
+    /** Should we use ssl? */
+    private boolean useSSL = false;
+
+    /** Source to try and use for non-oauth status updates. */
+    private String mySource = "web";
+
+    /**
+     * Create a non-OAuth using TwitterAPI.
+     *
+     * @param username
+     * @param password
+     * @param serverName
+     */
+    public TwitterAPI(final String username, final String password, final String serverName) {
+        this(username, password, serverName, "", "", "", "");
+        useOAuth = false;
+    }
+
     /**
      * Create a new Twitter API for the given user.
      *
-     * @param myUsername
-     * @param myPassword
+     * @param username
+     * @param password
      * @param serverName
      * @param consumerKey
      * @param consumerSecret
+     * @param token
+     * @param tokenSecret
      */
-    public TwitterAPI(final String myUsername, final String myPassword, final String serverName, final String consumerKey, final String consumerSecret) {
-        this.myUsername = myUsername;
-        this.serverName = serverName;
-        this.myPassword = myPassword;
+    public TwitterAPI(final String username, final String password, final String serverName, final String consumerKey, final String consumerSecret, final String token, final String tokenSecret) {
+        this.myUsername = username;
+        this.myServerName = serverName.replaceAll("/+$", ""); // Remove trailing / which break OAuth
+        this.myPassword = password;
 
-        System.out.println("servername: "+serverName);
+        if (myServerName.isEmpty() && myUsername.isEmpty()) { return; }
 
-        consumer = new DefaultOAuthConsumer(consumerKey, consumerSecret, SignatureMethod.HMAC_SHA1);
-        provider = new DefaultOAuthProvider(consumer, "http://"+serverName+"/oauth/request_token", "http://"+serverName+"/oauth/access_token", "http://"+serverName+"/oauth/authorize");
+        if (!consumerKey.isEmpty() && !consumerSecret.isEmpty()) {
+            consumer = new DefaultOAuthConsumer(consumerKey, consumerSecret, SignatureMethod.HMAC_SHA1);
+            if (useSSL) {
+                provider = new DefaultOAuthProvider(consumer, "https://"+myServerName+"/oauth/request_token", "https://"+myServerName+"/oauth/access_token", "https://"+myServerName+"/oauth/authorize");
+            } else {
+                provider = new DefaultOAuthProvider(consumer, "http://"+myServerName+"/oauth/request_token", "http://"+myServerName+"/oauth/access_token", "http://"+myServerName+"/oauth/authorize");
+            }
 
-        try {
-            useOAuth = !(getOAuthURL().isEmpty());
-        } catch (TwitterRuntimeException tre) {
+            this.token = token;
+            this.tokenSecret = tokenSecret;
+
+            try {
+                useOAuth = !(getOAuthURL().isEmpty());
+            } catch (TwitterRuntimeException tre) {
+                System.out.println("tre :( "+tre);
+                useOAuth = false;
+            }
+        } else {
             useOAuth = false;
         }
 
@@ -154,6 +188,23 @@ public class TwitterAPI {
         }
     }
 
+    /**
+     * Get the source used in status updates when not using OAuth.
+     * 
+     * @return The source used in status updates when not using OAuth.
+     */
+    public String getSource() {
+        return mySource;
+    }
+
+    /**
+     * Set the source used in status updates when using OAuth.
+     *
+     * @param source The source to use in status updates when not using OAuth.
+     */
+    public void setSource(final String source) {
+        this.mySource = source;
+    }
 
     /**
      * Get the address to send API Calls to.
@@ -162,7 +213,7 @@ public class TwitterAPI {
      * @return URL To use!
      */
     private String getURL(final String apiCall) {
-        return "http://" + serverName + "/" + apiCall + ".xml";
+        return (useSSL ? "https" : "http") + "://" + myServerName + "/" + apiCall + ".xml";
     }
 
     /**
@@ -271,24 +322,6 @@ public class TwitterAPI {
     }
 
     /**
-     * Set the twitter access token.
-     *
-     * @param token new Access Token
-     */
-    public void setToken(final String token) {
-        this.token = token;
-    }
-
-    /**
-     * Set the twitter access token secret.
-     *
-     * @param tokenSecret new Access Token Secret
-     */
-    public void setTokenSecret(final String tokenSecret) {
-        this.tokenSecret = tokenSecret;
-    }
-
-    /**
      * Attempt to sign the given connection.
      * If not using OAuth, we just authenticate the connection instead.
      *
@@ -329,12 +362,27 @@ public class TwitterAPI {
      * @return Long from string
      */
     public static Long parseLong(final String string, final long fallback) {
-        long result = fallback;
         try {
-            result = Long.parseLong(string);
-        } catch (NumberFormatException nfe) { }
+            return Long.parseLong(string);
+        } catch (NumberFormatException nfe) {
+            return fallback;
+        }
+    }
 
-        return result;
+    /**
+     * Parse the given string as a twitter time to a long.
+     * If parsing fails, then the fallback will be used.
+     *
+     * @param string String to parse.
+     * @param fallback Default on failure.
+     * @return Long from string
+     */
+    public static Long timeStringToLong(final String string, final long fallback) {
+        try {
+            return (new SimpleDateFormat("EEE MMM dd HH:mm:ss zzzz yyyy").parse(string)).getTime();
+        } catch (ParseException ex) {
+            return fallback;
+        }
     }
 
     /**
@@ -345,6 +393,34 @@ public class TwitterAPI {
      */
     public static boolean parseBoolean(final String string) {
         return string.equalsIgnoreCase("true") || string.equalsIgnoreCase("yes") || string.equalsIgnoreCase("1");
+    }
+
+    /**
+     * Get the contents of the given node from an element.
+     * If node doesn't exist, fallbcak will be returned.
+     *
+     * @param element Element to look at
+     * @param string Node to get content from.
+     * @param fallback Default on failure.
+     * @return Long from string
+     */
+    public static String getElementContents(final Element element, final String string, final String fallback) {
+        final NodeList nl = element.getElementsByTagName(string);
+        if (nl != null && nl.getLength() > 0) {
+            return nl.item(0).getTextContent();
+        } else {
+            return fallback;
+        }
+    }
+
+    /**
+     * Does this document represent an error?
+     *
+     * @param doc Document
+     * @return true of <error> element exists.
+     */
+    private boolean isError(final Document doc) {
+        return !(getElementContents(doc.getDocumentElement(), "error", "").isEmpty());
     }
 
     /**
@@ -592,14 +668,14 @@ public class TwitterAPI {
             } else {
                 final Document doc = getXML(getURL("users/show")+"?screen_name="+username);
 
-                if (doc != null) {
+                if (doc != null && !isError(doc)) {
                     user = new TwitterUser(this, doc.getDocumentElement());
                 } else {
                     user = null;
                 }
             }
 
-            updateUser(user);
+            if (user != null) { updateUser(user); }
         }
 
         return user;
@@ -887,6 +963,9 @@ public class TwitterAPI {
             if (id >= 0) {
                 params.append("&in_reply_to_status_id="+Long.toString(id));
             }
+            if (!useOAuth) {
+                params.append("&source="+mySource);
+            }
 
             final URL url = new URL(getURL("statuses/update")+"?" + params.toString());
             final HttpURLConnection request = (HttpURLConnection) url.openConnection();
@@ -928,14 +1007,12 @@ public class TwitterAPI {
         if (doc != null) {
             final Element element = doc.getDocumentElement();
 
-            final long remaining = parseLong(element.getElementsByTagName("remaining-hits").item(0).getTextContent(), -1);
-            final long total = parseLong(element.getElementsByTagName("hourly-limit").item(0).getTextContent(), -1);
+            final long remaining = parseLong(getElementContents(element, "remaining-hits", ""), -1);
+            final long total = parseLong(getElementContents(element, "hourly-limit", ""), -1);
             
-            // laconica does this wrong :(
-            NodeList nl = element.getElementsByTagName("reset-time-in-seconds");
-            if (nl == null || nl.getLength() == 0) { nl = element.getElementsByTagName("reset_time_in_seconds"); }
-
-            resetTime = 1000 * parseLong(nl.item(0).getTextContent(), -1);
+            // laconica does this wrong :( so support both.
+            final String resetTimeString = getElementContents(element, "reset-time-in-seconds", getElementContents(element, "reset_time_in_seconds", "0"));
+            resetTime = 1000 * parseLong(resetTimeString, -1);
 
             return new Long[]{remaining, total, resetTime, (long)usedCalls};
         } else {
@@ -1108,5 +1185,4 @@ public class TwitterAPI {
 
         return null;
     }
-
 }

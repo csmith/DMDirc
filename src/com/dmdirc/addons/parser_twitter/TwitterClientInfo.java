@@ -23,6 +23,7 @@
 package com.dmdirc.addons.parser_twitter;
 
 import com.dmdirc.addons.parser_twitter.api.TwitterUser;
+import com.dmdirc.parser.interfaces.ChannelClientInfo;
 import com.dmdirc.parser.interfaces.LocalClientInfo;
 import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.parser.interfaces.callbacks.ChannelNickChangeListener;
@@ -50,8 +51,8 @@ public class TwitterClientInfo implements LocalClientInfo {
     /** Map of random objects. */
     final Map<Object, Object> myMap = new HashMap<Object, Object>();
 
-    /** List of channels I am in. */
-    final List<TwitterChannelInfo> channels = new ArrayList<TwitterChannelInfo>();
+    /** List of my channelclients. */
+    final List<ChannelClientInfo> channelClients = new ArrayList<ChannelClientInfo>();
 
     /**
      * Parse an IRC Hostname into its separate parts.
@@ -220,8 +221,19 @@ public class TwitterClientInfo implements LocalClientInfo {
     /** {@inheritDoc} */
     @Override
     public int getChannelCount() {
-        synchronized (channels) {
-            return channels.size();
+        synchronized (channelClients) {
+            return channelClients.size();
+        }
+    }
+
+    /**
+     * Get a list of all the channel clients associated with this user.
+     * 
+     * @return Channel Clients for this Client.
+     */
+    public List<ChannelClientInfo> getChannelClients() {
+        synchronized (channelClients) {
+            return new ArrayList<ChannelClientInfo>(channelClients);
         }
     }
 
@@ -238,27 +250,27 @@ public class TwitterClientInfo implements LocalClientInfo {
     }
 
     /**
-     * Add this client to the given channel.
+     * Add a channelClient to this Client.
      * 
-     * @param channel channel to add us to.
+     * @param channelClient channelClient to add as us.
      */
-    public void addChannel(final TwitterChannelInfo channel) {
-        synchronized (channels) {
-            if (!channels.contains(channel)) {
-                channels.add(channel);
+    public void addChannelClient(final TwitterChannelClientInfo channelClient) {
+        synchronized (channelClients) {
+            if (!channelClients.contains(channelClient)) {
+                channelClients.add(channelClient);
             }
         }
     }
 
     /**
-     * Remove this client from the given channel.
+     * Remove a channelclient from this client..
      *
-     * @param channel channel to remove us from.
+     * @param channelClient channelClient to remove.
      */
-    public void delChannel(final TwitterChannelInfo channel) {
-        synchronized (channels) {
-            if (channels.contains(channel)) {
-                channels.remove(channel);
+    public void delChannelClient(final TwitterChannelClientInfo channelClient) {
+        synchronized (channelClients) {
+            if (channelClients.contains(channelClient)) {
+                channelClients.remove(channelClient);
             }
         }
     }

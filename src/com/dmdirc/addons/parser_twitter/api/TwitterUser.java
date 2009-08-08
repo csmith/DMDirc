@@ -22,6 +22,8 @@
 
 package com.dmdirc.addons.parser_twitter.api;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -52,6 +54,21 @@ public class TwitterUser {
     /** API Object that owns this. */
     private final TwitterAPI myAPI;
 
+    /** URL to users profile picture. */
+    private String myProfilePicture;
+
+    /** URL from users profile. */
+    private String myURL;
+
+    /** Location of user */
+    private String myLocation;
+
+    /** Description of user */
+    private String myDescription;
+
+    /** Time user registered with twitter. */
+    private Long myRegisteredTime;
+
     /**
      * Create a unknown TwitterUser
      *
@@ -78,6 +95,11 @@ public class TwitterUser {
         this.realName = realName;
         this.following = following;
         this.lastStatus = null;
+        this.myProfilePicture = "";
+        this.myURL = "";
+        this.myLocation = "";
+        this.myDescription = "";
+        this.myRegisteredTime = 0L;
     }
 
     /**
@@ -102,11 +124,19 @@ public class TwitterUser {
 
         final Element element = (Element) node;
         this.myAPI = api;
-        this.realName = element.getElementsByTagName("name").item(0).getTextContent();
-        this.screenName = element.getElementsByTagName("screen_name").item(0).getTextContent();
+
+        this.realName = TwitterAPI.getElementContents(element, "name", "");
+        this.screenName = TwitterAPI.getElementContents(element, "screen_name", "");
         
-        this.userID = TwitterAPI.parseLong(element.getElementsByTagName("id").item(0).getTextContent(), -1);
-        this.following = TwitterAPI.parseBoolean(element.getElementsByTagName("following").item(0).getTextContent());
+        this.myProfilePicture = TwitterAPI.getElementContents(element, "profile_image_url", "");
+        this.myURL = TwitterAPI.getElementContents(element, "url", "");
+        this.myLocation = TwitterAPI.getElementContents(element, "location", "");
+        this.myDescription = TwitterAPI.getElementContents(element, "description", "");
+
+        this.myRegisteredTime = TwitterAPI.timeStringToLong(TwitterAPI.getElementContents(element, "created_at", ""), 0);
+
+        this.userID = TwitterAPI.parseLong(TwitterAPI.getElementContents(element, "id", ""), -1);
+        this.following = TwitterAPI.parseBoolean(TwitterAPI.getElementContents(element, "following", ""));
 
         // Check to see if a cached user object for us exists that we can
         // take the status from.
@@ -197,6 +227,51 @@ public class TwitterUser {
      */
     public void setFollowingUs(final boolean followingUs) {
         this.followingUs = followingUs;
+    }
+
+    /**
+     * URL for users profile pic.
+     *
+     * @return URL for users profile pic.
+     */
+    public String getProfilePicture() {
+        return myProfilePicture;
+    }
+
+    /**
+     * URL for user.
+     *
+     * @return URL for user.
+     */
+    public String getURL() {
+        return myURL;
+    }
+
+    /**
+     * Description for user.
+     *
+     * @return Description for user.
+     */
+    public String getDescription() {
+        return myDescription;
+    }
+
+    /**
+     * Location for user.
+     *
+     * @return Location for user.
+     */
+    public String getLocation() {
+        return myLocation;
+    }
+
+    /**
+     * Time user registered at.
+     *
+     * @return Time user registered at.
+     */
+    public Long getRegisteredTime() {
+        return myRegisteredTime;
     }
 
 

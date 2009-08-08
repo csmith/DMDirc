@@ -88,7 +88,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
     private TwitterPlugin myPlugin = null;
 
     /** Twitter API. */
-    private TwitterAPI api = new TwitterAPI("", "", "", "", "");
+    private TwitterAPI api = new TwitterAPI("", "", "");
 
     /** Channels we are in. */
     private final Map<String, TwitterChannelInfo> channels = new HashMap<String, TwitterChannelInfo>();
@@ -156,7 +156,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
     public void disconnect(final String message) {
         connected = false;
         currentParsers.remove(this);
-        api = new TwitterAPI("", "", "", "", "");
+        api = new TwitterAPI("", "", "");
 
         getCallbackManager().getCallbackType(SocketCloseListener.class).call();
     }
@@ -280,6 +280,56 @@ public class Twitter implements Parser, TwitterErrorHandler {
 
         if (bits[0].equalsIgnoreCase("JOIN") && bits.length > 1) {
             joinChannel(bits[1]);
+        } else if (bits[0].equalsIgnoreCase("WHOIS") && bits.length > 1) {
+            if (bits[1].equalsIgnoreCase(myServerName)) {
+                getCallbackManager().getCallbackType(NumericListener.class).call(311, new String[]{":"+myServerName, "311", myself.getNickname(), bits[1], "user", myServerName, "*", "Psuedo-User for DMDirc "+myServerName+" plugin"});
+                getCallbackManager().getCallbackType(NumericListener.class).call(312, new String[]{":"+myServerName, "312", myself.getNickname(), bits[1], myServerName, "DMDirc "+myServerName+" plugin"});
+            } else {
+                final boolean forced = (bits.length > 2 && bits[1].equalsIgnoreCase(bits[2]));
+                final TwitterUser user = (forced) ? api.getUser(bits[1], true) : api.getCachedUser(bits[1]);
+                
+                if (user == null) {
+                    final String reason = (forced) ? "No such user found, see http://"+myAddress.getServer()+"/"+user.getScreenName() : "No such user found in cache, try /WHOIS "+bits[1]+" "+bits[1]+" to poll twitter (uses 1 API call) or try http://"+myAddress.getServer()+"/"+user.getScreenName();
+                    getCallbackManager().getCallbackType(NumericListener.class).call(401, new String[]{":"+myServerName, "401", myself.getNickname(), bits[1], reason});
+                } else {
+                    // Time since last update
+                    final long secondsIdle = (System.currentTimeMillis() - user.getStatus().getTime()) / 1000;
+                    final long signonTime = user.getRegisteredTime() / 1000;
+
+                    getCallbackManager().getCallbackType(NumericListener.class).call(311, new String[]{":"+myServerName, "311", myself.getNickname(), bits[1], "user", myServerName, "*", user.getRealName()+" (http://"+myAddress.getServer()+"/"+user.getScreenName()+")"});
+
+                    final TwitterClientInfo client = (TwitterClientInfo)getClient(bits[1]);
+                    if (client != null) {
+                        final StringBuilder channelList = new StringBuilder();
+
+                        for (ChannelClientInfo cci : client.getChannelClients()) {
+                            if (channelList.length() > 0) { channelList.append(" "); }
+                            channelList.append(cci.getImportantModePrefix()+cci.getChannel().getName());
+                        }
+
+                        if (channelList.length() > 0) {
+                            getCallbackManager().getCallbackType(NumericListener.class).call(319, new String[]{":"+myServerName, "319", myself.getNickname(), bits[1], channelList.toString()});
+                        }
+                    }
+
+                    // AWAY Message Abuse!
+                    getCallbackManager().getCallbackType(NumericListener.class).call(301, new String[]{":"+myServerName, "301", myself.getNickname(), bits[1], "URL: "+user.getURL()});
+                    getCallbackManager().getCallbackType(NumericListener.class).call(301, new String[]{":"+myServerName, "301", myself.getNickname(), bits[1], "Bio: "+user.getDescription()});
+                    getCallbackManager().getCallbackType(NumericListener.class).call(301, new String[]{":"+myServerName, "301", myself.getNickname(), bits[1], "Location: "+user.getLocation()});
+                    getCallbackManager().getCallbackType(NumericListener.class).call(301, new String[]{":"+myServerName, "301", myself.getNickname(), bits[1], "Status: "+user.getStatus().getText()});
+                    if (bits[1].equalsIgnoreCase(myself.getNickname())) {
+                        final Long[] apiCalls = api.getRemainingApiCalls();
+                        getCallbackManager().getCallbackType(NumericListener.class).call(301, new String[]{":"+myServerName, "301", myself.getNickname(), bits[1], "API Allowance: "+apiCalls[1]});
+                        getCallbackManager().getCallbackType(NumericListener.class).call(301, new String[]{":"+myServerName, "301", myself.getNickname(), bits[1], "API Allowance Remaining: "+apiCalls[0]});
+                        getCallbackManager().getCallbackType(NumericListener.class).call(301, new String[]{":"+myServerName, "301", myself.getNickname(), bits[1], "API Calls Used: "+apiCalls[3]});
+                    }
+
+                    getCallbackManager().getCallbackType(NumericListener.class).call(312, new String[]{":"+myServerName, "312", myself.getNickname(), bits[1], myServerName, "DMDirc "+myServerName+" plugin"});
+                    getCallbackManager().getCallbackType(NumericListener.class).call(317, new String[]{":"+myServerName, "317", myself.getNickname(), bits[1], Long.toString(secondsIdle), Long.toString(signonTime), "seconds idle, signon time"});
+                }
+            }
+
+            getCallbackManager().getCallbackType(NumericListener.class).call(318, new String[]{":"+myServerName, "318", myself.getNickname(), bits[1], "End of /WHOIS list."});
         } else if (bits[0].equalsIgnoreCase("INVITE") && bits.length > 2) {
             if (bits[2].equalsIgnoreCase(mainChannelName)) {
                 final TwitterUser user = api.addFriend(bits[1]);
@@ -603,30 +653,29 @@ public class Twitter implements Parser, TwitterErrorHandler {
         final String consumerSecret;
         if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "consumerKey-"+myServerName)) { 
             consumerKey = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "consumerKey-"+myServerName);
-        } else {
-            consumerKey = "qftK3mAbLfbWWHf8shiyjw";
-        }
+        } else { consumerKey = "qftK3mAbLfbWWHf8shiyjw"; }
         if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "consumerSecret-"+myServerName)) { 
             consumerSecret = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "consumerSecret-"+myServerName);
-        } else {
-            consumerSecret = "flPr2TJGp4795DeTu4VkUlNLX8g25SpXWXZ7SKW0Bg";
-        }
+        } else { consumerSecret = "flPr2TJGp4795DeTu4VkUlNLX8g25SpXWXZ7SKW0Bg"; }
+
+        final String token;
+        final String tokenSecret;
+
+        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "token-"+myUsername)) {
+            token = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "token-"+myUsername);
+        } else { token = ""; }
+        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "tokenSecret-"+myUsername)) {
+            tokenSecret = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "tokenSecret-"+myUsername);
+        } else { tokenSecret = ""; }
 
         final StringBuilder serverExtra = new StringBuilder("/");
         for (String addressChannel : myAddress.getChannels()) {
             if (serverExtra.length() > 1) { serverExtra.append(","); }
             serverExtra.append(addressChannel);
         }
-        
-        System.out.println("Address: "+myAddress);
 
-        api = new TwitterAPI(myUsername, myPassword, myServerName+serverExtra.toString(), consumerKey, consumerSecret);
-        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "token-"+myUsername)) {
-            api.setToken(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "token-"+myUsername));
-        }
-        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "tokenSecret-"+myUsername)) {
-            api.setTokenSecret(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "tokenSecret-"+myUsername));
-        }
+        api = new TwitterAPI(myUsername, myPassword, myServerName+serverExtra.toString(), consumerKey, consumerSecret, token, tokenSecret);
+        api.setSource("DMDirc");
         currentParsers.add(this);
         connected = true;
         
@@ -668,11 +717,11 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 sendChannelMessage(channel, "To do this, please visit: "+api.getOAuthURL());
                 sendChannelMessage(channel, "and then type the pin number here.");
             } else {
-                sendChannelMessage(channel, "Sorry, You did not provide DMDirc with a password for the account \""+api.getUsername()+"\" and the server \""+myServerName+"\" does not support OAuth.");
+                sendChannelMessage(channel, "Sorry, You did not provide DMDirc with a password for the account \""+api.getUsername()+"\" and the server \""+myServerName+"\" does not support OAuth or is not accepting our key.");
                 sendChannelMessage(channel, "");
                 sendChannelMessage(channel, "Before you can use DMDirc with "+myServerName+" you need to provide a password.");
                 sendChannelMessage(channel, "");
-                sendChannelMessage(channel, "To do this, please type the password here, or set it correctly in the URL (twitter://username:password@api.url/).");
+                sendChannelMessage(channel, "To do this, please type the password here, or set it correctly in the URL (twitter://" + myUsername + ":your_password@"+myServerName+serverExtra.toString()+").");
             }
         } else {
             sendChannelMessage(channel, "DMDirc has been authorised to use the account \""+api.getUsername()+"\"");
@@ -799,7 +848,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 sleepTime = (sleepsRequired > 0) ? timeLeft / sleepsRequired : timeLeft;
             }
 
-            System.out.println("Sleeping for: "+sleepTime);
+            if (debug) { System.out.println("Sleeping for: "+sleepTime); }
 
             // Sleep for sleep time, 
             // If we have a negative sleep time, use 5 minutes.

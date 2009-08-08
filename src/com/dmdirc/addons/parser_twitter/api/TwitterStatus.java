@@ -107,7 +107,7 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
         this.myAPI = api;
         final Element element = (Element) node;
 
-        this.message = element.getElementsByTagName("text").item(0).getTextContent();
+        this.message = TwitterAPI.getElementContents(element, "text", "");
 
         final TwitterUser userUser;
         if (user == null) {
@@ -124,15 +124,10 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
             this.user = user;
         }
 
-        this.id = TwitterAPI.parseLong(element.getElementsByTagName("id").item(0).getTextContent(), -1);
-        this.replyID = TwitterAPI.parseLong(element.getElementsByTagName("in_reply_to_status_id").item(0).getTextContent(), -1);
+        this.id = TwitterAPI.parseLong(TwitterAPI.getElementContents(element, "id", ""), -1);
+        this.replyID = TwitterAPI.parseLong(TwitterAPI.getElementContents(element, "in_reply_to_status_id", ""), -1);
         
-        final String timeString = element.getElementsByTagName("created_at").item(0).getTextContent();
-        long parsedTime = System.currentTimeMillis();
-        try {
-            parsedTime = new SimpleDateFormat("EEE MMM dd HH:mm:ss zzzz yyyy").parse(timeString).getTime();
-        } catch (ParseException ex) { }
-        this.time = parsedTime;
+        this.time = TwitterAPI.timeStringToLong(TwitterAPI.getElementContents(element, "created_at", ""), 0);
 
         api.updateStatus(this);
     }

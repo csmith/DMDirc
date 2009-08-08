@@ -98,7 +98,7 @@ public class TwitterMessage {
         this.myAPI = api;
         final Element element = (Element) node;
 
-        this.message = element.getElementsByTagName("text").item(0).getTextContent();
+        this.message = TwitterAPI.getElementContents(element, "text", "");
 
         final TwitterUser senderUser;
         if (user == null) {
@@ -116,14 +116,8 @@ public class TwitterMessage {
             this.sender = user;
         }
 
-        this.id = TwitterAPI.parseLong(element.getElementsByTagName("id").item(0).getTextContent(), -1);
-
-        final String timeString = element.getElementsByTagName("created_at").item(0).getTextContent();
-        long parsedTime = System.currentTimeMillis();
-        try {
-            parsedTime = new SimpleDateFormat("EEE MMM dd HH:mm:ss zzzz yyyy").parse(timeString).getTime();
-        } catch (ParseException ex) { }
-        this.time = parsedTime;
+        this.id = TwitterAPI.parseLong(TwitterAPI.getElementContents(element, "id", ""), -1);
+        this.time = TwitterAPI.timeStringToLong(TwitterAPI.getElementContents(element, "created_at", ""), 0);
     }
 
     /**

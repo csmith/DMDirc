@@ -79,7 +79,6 @@ public class ExportedService {
                 }
 		
 		try {
-                    myMethod.in
 			return myMethod.invoke(myObject, args);
 		} catch (IllegalAccessException iae) {
                         throw new RuntimeException("iae: "+iae);

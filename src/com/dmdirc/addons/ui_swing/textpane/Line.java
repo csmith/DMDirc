@@ -62,6 +62,11 @@ public class Line {
         this.lineParts = lineParts;
         this.config = config;
         this.lineHeight = -1;
+        if (config.hasOptionString("ui", "textPaneFontSize")) {
+            this.lineHeight = config.getOptionInt("ui", "textPaneFontSize");
+        } else {
+            this.lineHeight = UIManager.getFont("TextPane.font").getSize();
+        }
     }
 
     /**
@@ -71,7 +76,8 @@ public class Line {
      * @param config Configuration manager for this line
      * @param lineHeight The height for this line
      */
-    public Line(final String[] lineParts, final ConfigManager config, final int lineHeight) {
+    public Line(final String[] lineParts, final ConfigManager config,
+            final int lineHeight) {
         this.lineParts = lineParts;
         this.config = config;
         this.lineHeight = lineHeight;
@@ -157,22 +163,18 @@ public class Line {
 
         final Font defaultFont = UIManager.getFont("TextPane.font");
         String fontName = null;
-        int fontSize = -1;
         if (config.hasOptionString("ui", "textPaneFontName")) {
             fontName = config.getOption("ui", "textPaneFontName");
         } else {
             fontName = defaultFont.getName();
         }
-        if (lineHeight == -1) {
-            if (config.hasOptionString("ui", "textPaneFontSize")) {
-                fontSize = config.getOptionInt("ui", "textPaneFontSize");
-            } else {
-                fontSize = defaultFont.getSize();
-            }
-            lineHeight = fontSize;
+        if (config.hasOptionString("ui", "textPaneFontSize")) {
+            lineHeight = config.getOptionInt("ui", "textPaneFontSize");
+        } else {
+            lineHeight = defaultFont.getSize();
         }
         if (attString.getIterator().getEndIndex() != 0) {
-            final Font font = new Font(fontName, Font.PLAIN, fontSize);
+            final Font font = new Font(fontName, Font.PLAIN, lineHeight);
             attString.addAttribute(TextAttribute.SIZE, font.getSize());
             attString.addAttribute(TextAttribute.FAMILY, font.getFamily());
         }

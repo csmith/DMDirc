@@ -55,7 +55,7 @@ public class ExportInfo {
 			final Plugin p = className.equals(pluginInfo.getMainClass()) ? pluginInfo.getPluginObject() : null;
 			return new ExportedService(c, methodName, p);
 		} catch (ClassNotFoundException cnfe) {
-			return new ExportedService(null, null);
+			throw new RuntimeException("cnfe when creating export: "+cnfe);
 		}
 	}
 }

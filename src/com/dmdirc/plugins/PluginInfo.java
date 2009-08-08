@@ -1445,7 +1445,7 @@ public class PluginInfo implements Comparable<PluginInfo>, ServiceProvider {
 		if (exports.containsKey(name)) {
 			return exports.get(name).getExportedService();
 		} else {
-			return new ExportedService(null, null);
+                	throw new RuntimeException(toString()+" does not provide an export for "+name);
 		}
 	}
 	

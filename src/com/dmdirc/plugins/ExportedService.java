@@ -74,16 +74,18 @@ public class ExportedService {
 	 * @return result of executing the method
 	 */
 	public Object execute(final Object... args) {
-		if (myMethod == null) { return null; }
+		if (myMethod == null) {
+                    throw new RuntimeException("Executing null method");
+                }
 		
 		try {
 			return myMethod.invoke(myObject, args);
 		} catch (IllegalAccessException iae) {
-			return null;
+                        throw new RuntimeException("iae: "+iae);
 		} catch (IllegalArgumentException iae) {
-			return null;
+			throw new RuntimeException("iae2: "+iae);
 		} catch (InvocationTargetException ite) {
-			return null;
+			throw new RuntimeException("ite: "+ite);
 		}
 	}
 }

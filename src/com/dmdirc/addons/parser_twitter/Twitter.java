@@ -673,6 +673,22 @@ public class Twitter implements Parser, TwitterErrorHandler {
     }
 
     /**
+     * Show the user an ascii failwhale!
+     */
+    public void showFailWhale() {
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5                        ");
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5  W     W      W        ");
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5  W        W  W     W   ");
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5                '."+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5  W   ");
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5    .-\"\"-._     \\ \\.--| ");
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5   /       \"-..__) .-'  ");
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5  |     _         /     ");
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5  \\'-.__,   .__.,'      ");
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5   `'----'._\\--'        ");
+        sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V");
+    }
+
+    /**
      * Run the twitter parser.
      */
     @Override
@@ -878,7 +894,11 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 // (This will also happen if twitter didn't respond for some reason)
                 sleepTime = 10 * 60 * 1000;
                 // Also alert the user.
-                sendPrivateNotice("Unable to communicate with twitter, or no API calls allowed at all, retrying in 10 minutes.");
+                if (Math.random() <= 0.25) {
+                    showFailWhale();
+                } else {
+                    sendPrivateNotice("Unable to communicate with twitter, or no API calls allowed at all, retrying in 10 minutes.");
+                }
             } else if (api.getUsedCalls() > apiLimit) {
                 // Sleep for the rest of the hour, we have done too much!
                 sleepTime = timeLeft;

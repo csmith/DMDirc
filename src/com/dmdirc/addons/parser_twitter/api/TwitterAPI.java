@@ -83,13 +83,13 @@ public class TwitterAPI {
     private String myPassword;
 
     /** Cache of users. */
-    final static Map<String, TwitterUser> userCache = new HashMap<String, TwitterUser>();
+    final Map<String, TwitterUser> userCache = new HashMap<String, TwitterUser>();
 
     /** Cache of user IDs to screen names. */
-    final static Map<Long, String> userIDMap = new HashMap<Long, String>();
+    final Map<Long, String> userIDMap = new HashMap<Long, String>();
 
     /** Cache of statuses. */
-    final static Map<Long, TwitterStatus> statusCache = new HashMap<Long, TwitterStatus>();
+    final Map<Long, TwitterStatus> statusCache = new HashMap<Long, TwitterStatus>();
 
     /** API Allowed status */
     private APIAllowed allowed = APIAllowed.UNKNOWN;
@@ -113,7 +113,7 @@ public class TwitterAPI {
     private String apiOutput = "";
 
     /** List of TwitterErrorHandlers */
-    private List<TwitterErrorHandler> errorHandlers = new LinkedList<TwitterErrorHandler>();
+    private final List<TwitterErrorHandler> errorHandlers = new LinkedList<TwitterErrorHandler>();
 
     /** What server name should we connect to?. */
     private final String myServerName;
@@ -510,7 +510,6 @@ public class TwitterAPI {
      * POST request.
      *
      * @param request HttpURLConnection to get XML for.
-     * @param params Params to post.
      * @return Document object for this xml.
      */
     private Document postXML(final HttpURLConnection request) {
@@ -530,7 +529,6 @@ public class TwitterAPI {
      * Get the XML for the given UNSIGNED HttpURLConnection object.
      *
      * @param request HttpURLConnection to get XML for.
-     * @param params Any params for the data type if needed, else null.
      * @return Document object for this xml.
      */
     private Document getXML(final HttpURLConnection request) {

@@ -22,7 +22,6 @@
 
 package com.dmdirc.addons.ui_swing.textpane;
 
-import com.dmdirc.addons.ui_swing.UIUtilities;
 import com.dmdirc.ui.messages.IRCTextAttribute;
 
 import java.awt.Cursor;
@@ -81,8 +80,6 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
     private int firstVisibleLine;
     /** Last visible line. */
     private int lastVisibleLine;
-    /** Line wrapping cache. */
-    private final Map<Integer, Integer> lineWrap;
     /** Cached canvas. */
     private BufferedImage buffer;
 
@@ -101,7 +98,6 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
         setOpaque(true);
         textLayouts = new HashMap<TextLayout, LineInfo>();
         positions = new HashMap<Rectangle, TextLayout>();
-        lineWrap = new HashMap<Integer, Integer>();
         selection = new LinePosition(-1, -1, -1, -1);
         addMouseListener(this);
         addMouseMotionListener(this);
@@ -118,9 +114,15 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
         if (buffer == null) {
             calc();
         }
+        graphics.setColor(textPane.getBackground());
+        graphics.clearRect(getBounds().x, getBounds().y,
+                getBounds().width, getBounds().height);
         graphics.drawImage(buffer, 0, 0, null);
     }
 
+    /**
+     * This method is badly named, it might aswell be badly javadoced.
+     */
     protected void recalc() {
         buffer = null;
     }
@@ -186,19 +188,9 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
                     g.getFontRenderContext());
             lineMeasurer.setPosition(paragraphStart);
 
-            final int wrappedLine;
-
-            //do we have the line wrapping in the cache?
-            if (lineWrap.containsKey(line)) {
-                //use it
-                wrappedLine = lineWrap.get(line);
-            } else {
-                //get it and populate the cache
-                wrappedLine = getNumWrappedLines(lineMeasurer,
+            final int wrappedLine = getNumWrappedLines(lineMeasurer,
                         paragraphStart, paragraphEnd,
                         formatWidth);
-                lineWrap.put(line, wrappedLine);
-            }
 
             if (wrappedLine > 1) {
                 drawPosY -= lineHeight * wrappedLine;
@@ -875,8 +867,6 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
      */
     @Override
     public void componentResized(final ComponentEvent e) {
-        //line wrap cache now invalid, clear and repaint
-        clearWrapCache();
         buffer = null;
         if (isVisible()) {
             repaint();
@@ -911,17 +901,5 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
     @Override
     public void componentHidden(final ComponentEvent e) {
         //Ignore
-    }
-
-    /** Clears the line wrapping cache. */
-    protected void clearWrapCache() {
-        UIUtilities.invokeLater(new Runnable() {
-
-            /** {@inheritDoc} */
-            @Override
-            public void run() {
-                lineWrap.clear();
-            }
-        });
     }
 }

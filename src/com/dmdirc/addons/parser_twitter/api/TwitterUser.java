@@ -156,7 +156,7 @@ public class TwitterUser {
             final NodeList nodes = element.getElementsByTagName("status");
             if (nodes != null && nodes.getLength() > 0) {
                 proposedStatus = new TwitterStatus(api, nodes.item(0), this.getScreenName());
-                if (oldUser == null || oldUser.getStatus() == null || oldUser.getStatus().getID() < status.getID()) {
+                if (oldUser == null || oldUser.getStatus() == null) {
                     useOldStatus = false;
                     newStatus = proposedStatus;
                 }

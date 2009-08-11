@@ -150,6 +150,7 @@ public final class TextPane extends JComponent implements AdjustmentListener,
         final int allowedDeviation = lines - linesAllowed;
 
         if (lines == 0) {
+            canvas.recalc();
             canvas.repaint();
         }
 
@@ -346,6 +347,7 @@ public final class TextPane extends JComponent implements AdjustmentListener,
         document.clear();
         setScrollBarPosition(0);
         setScrollBarMax(1);
+        canvas.recalc();
         canvas.repaint();
     }
 
@@ -423,6 +425,7 @@ public final class TextPane extends JComponent implements AdjustmentListener,
     /** {@inheritDoc}. */
     @Override
     public void repaintNeeded() {
+        canvas.recalc();
         canvas.repaint();
     }
 

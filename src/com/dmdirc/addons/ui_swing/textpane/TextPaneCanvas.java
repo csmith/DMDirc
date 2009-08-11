@@ -39,6 +39,7 @@ import java.awt.font.LineBreakMeasurer;
 import java.awt.font.TextAttribute;
 import java.awt.font.TextHitInfo;
 import java.awt.font.TextLayout;
+import java.awt.image.BufferedImage;
 import java.text.AttributedCharacterIterator;
 import java.text.AttributedString;
 import java.util.HashMap;
@@ -82,6 +83,8 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
     private int lastVisibleLine;
     /** Line wrapping cache. */
     private final Map<Integer, Integer> lineWrap;
+    /** Cached canvas. */
+    private BufferedImage buffer;
 
     /**
      * Creates a new text pane canvas.
@@ -102,7 +105,7 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
         selection = new LinePosition(-1, -1, -1, -1);
         addMouseListener(this);
         addMouseMotionListener(this);
-        addComponentListener(this);
+        addComponentListener(this);        
     }
 
     /**
@@ -112,7 +115,23 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
      */
     @Override
     public void paintComponent(final Graphics graphics) {
-        final Graphics2D g = (Graphics2D) graphics;
+        if (buffer == null) {
+            calc();
+        }
+        graphics.drawImage(buffer, 0, 0, null);
+    }
+
+    protected void recalc() {
+        buffer = null;
+    }
+
+    /**
+     * Calculates the position of the lines and highlights.
+     */
+    protected void calc() {
+        final BufferedImage image = new BufferedImage(getWidth(), getHeight(),
+                BufferedImage.TYPE_INT_ARGB);
+        final Graphics2D g = image.createGraphics();
 
         final Map desktopHints = (Map) Toolkit.getDefaultToolkit().
                 getDesktopProperty("awt.font.desktophints");
@@ -130,7 +149,7 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
         LineBreakMeasurer lineMeasurer;
 
         g.setColor(textPane.getBackground());
-        g.fill(g.getClipBounds());
+        g.fill(getBounds());
 
         textLayouts.clear();
         positions.clear();
@@ -230,6 +249,10 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
             }
         }
         checkForLink();
+        buffer = new BufferedImage(getWidth(), getHeight(),
+                BufferedImage.TYPE_INT_ARGB);
+        buffer.createGraphics().drawImage(image, null, null);
+
     }
 
     /**
@@ -369,6 +392,7 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
     protected void setScrollBarPosition(final int position) {
         if (scrollBarPosition != position) {
             scrollBarPosition = position;
+            buffer = null;
             if (textPane.isVisible()) {
                 repaint();
             }
@@ -714,6 +738,7 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
                 selection.setEndLine(info.getLine());
                 selection.setEndPos(info.getIndex());
 
+                buffer = null;
                 repaint();
             }
         }
@@ -806,6 +831,7 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
     protected void clearSelection() {
         selection.setEndLine(selection.getStartLine());
         selection.setEndPos(selection.getStartPos());
+        buffer = null;
         if (isVisible()) {
             repaint();
         }
@@ -818,6 +844,7 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
      */
     public void setSelectedRange(final LinePosition position) {
         selection = new LinePosition(position);
+        buffer = null;
         if (isVisible()) {
             repaint();
         }
@@ -850,6 +877,7 @@ class TextPaneCanvas extends JPanel implements MouseInputListener,
     public void componentResized(final ComponentEvent e) {
         //line wrap cache now invalid, clear and repaint
         clearWrapCache();
+        buffer = null;
         if (isVisible()) {
             repaint();
         }

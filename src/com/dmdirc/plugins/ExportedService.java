@@ -21,6 +21,8 @@
  */
 package com.dmdirc.plugins;
 
+import com.dmdirc.logger.ErrorLevel;
+import com.dmdirc.logger.Logger;
 import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
 
@@ -79,11 +81,14 @@ public class ExportedService {
 		try {
 			return myMethod.invoke(myObject, args);
 		} catch (IllegalAccessException iae) {
-			return null;
+                    Logger.userError(ErrorLevel.MEDIUM, "Unable to execute exported method", iae);
+                    return null;
 		} catch (IllegalArgumentException iae) {
-			return null;
+                    Logger.userError(ErrorLevel.MEDIUM, "Unable to execute exported method", iae);
+                    return null;
 		} catch (InvocationTargetException ite) {
-			return null;
+                    Logger.userError(ErrorLevel.MEDIUM, "Unable to execute exported method", ite);
+                    return null;
 		}
 	}
 }

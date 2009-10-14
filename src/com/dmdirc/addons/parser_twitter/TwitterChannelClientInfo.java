@@ -103,7 +103,17 @@ public class TwitterChannelClientInfo implements ChannelClientInfo {
     public int getImportantModeValue() {
         if (myClient == null || myClient.isFake()) { return 0; }
         final String ourNickname = ((Twitter) myClient.getParser()).getApi().getUsername();
-        return myClient.getNickname().equalsIgnoreCase(ourNickname) ? 2 : myClient.getUser().isFollowingUs() ? 1 : 0;
+        
+        if (ourNickname.equalsIgnoreCase(myClient.getNickname())) {
+            // Show ourselves as half-op
+            return 2;
+        } else if (myClient.getUser() != null && myClient.getUser().isFollowingUs()) {
+            // Show followers as voiced
+            return 1;
+        } else {
+            // Show everyone else as nothing
+            return 0;
+        }
     }
 
     /** {@inheritDoc} */

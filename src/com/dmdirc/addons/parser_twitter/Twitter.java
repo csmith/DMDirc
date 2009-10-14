@@ -763,7 +763,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 sendChannelMessage(channel, "Before you can use DMDirc with "+myServerName+" you need to authorise it.");
                 sendChannelMessage(channel, "");
                 sendChannelMessage(channel, "To do this, please visit: "+api.getOAuthURL());
-                sendChannelMessage(channel, "and then type the pin number here.");
+                sendChannelMessage(channel, "and then type the PIN here.");
             } else {
                 sendChannelMessage(channel, "Sorry, You did not provide DMDirc with a password for the account \""+api.getUsername()+"\" and the server \""+myServerName+"\" does not support OAuth or is not accepting our key.");
                 sendChannelMessage(channel, "");

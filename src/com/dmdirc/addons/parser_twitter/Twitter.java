@@ -831,9 +831,9 @@ public class Twitter implements Parser, TwitterErrorHandler {
                     final ChannelClientInfo cci = channel.getChannelClient(status.getUser().getScreenName());
                     final String message;
                     if (status.getReplyTo() > 0) {
-                        message = String.format("%s    %c15&%d %cin reply to%4$c &%d", status.getText(), Styliser.CODE_COLOUR, status.getID(), Styliser.CODE_ITALIC, status.getReplyTo());
+                        message = String.format("%s   %c15 &%d %cin reply to%4$c &%d", status.getText(), Styliser.CODE_COLOUR, status.getID(), Styliser.CODE_ITALIC, status.getReplyTo());
                     } else {
-                        message = String.format("%s     %c15&%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
+                        message = String.format("%s    %c15 &%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
                     }
                     final String hostname = status.getUser().getScreenName();
                     sendChannelMessage(channel, message, cci, hostname);

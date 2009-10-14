@@ -27,6 +27,7 @@ import com.dmdirc.actions.CoreActionType;
 import com.dmdirc.actions.wrappers.AliasWrapper;
 import com.dmdirc.commandparser.CommandManager;
 import com.dmdirc.commandparser.CommandType;
+import com.dmdirc.commandparser.parsers.RawCommandParser;
 import com.dmdirc.config.ConfigManager;
 import com.dmdirc.config.Identity;
 import com.dmdirc.config.IdentityManager;
@@ -43,6 +44,7 @@ import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.parser.interfaces.SecureParser;
 import com.dmdirc.parser.interfaces.StringConverter;
 import com.dmdirc.parser.common.MyInfo;
+import com.dmdirc.parser.irc.IRCParser;
 import com.dmdirc.ui.WindowManager;
 import com.dmdirc.ui.input.TabCompleter;
 import com.dmdirc.ui.input.TabCompletionType;
@@ -120,6 +122,8 @@ public class Server extends WritableFrameContainer implements Serializable {
 
     /** The current state of this server. */
     private final ServerStatus myState = new ServerStatus(this);
+    /** Object used to synchronoise access to ServerStatus. */
+    private final Object myStateLock = new Object();
 
     /** The timer we're using to delay reconnects. */
     private Timer reconnectTimer;
@@ -237,7 +241,7 @@ public class Server extends WritableFrameContainer implements Serializable {
     public void connect(final IrcAddress address, final Identity profile) {
         assert profile != null;
 
-        synchronized (myState) {
+        synchronized (myStateLock) {
             switch (myState.getState()) {
                 case RECONNECT_WAIT:
                     reconnectTimer.cancel();
@@ -251,7 +255,9 @@ public class Server extends WritableFrameContainer implements Serializable {
                 case DISCONNECTING:
                     while (!myState.getState().isDisconnected()) {
                         try {
-                            myState.wait();
+                            synchronized (myState) {
+                                myState.wait();
+                            }
                         } catch (InterruptedException ex) {
                             return;
                         }
@@ -275,9 +281,14 @@ public class Server extends WritableFrameContainer implements Serializable {
             updateTitle();
             updateIcon();
 
-            addLine("serverConnecting", address.getServer(), address.getPort());
-
             parser = buildParser();
+
+            if (parser == null) {
+                addLine("serverUnknownProtocol", address.getProtocol());
+                return;
+            }
+
+            addLine("serverConnecting", address.getServer(), address.getPort());
 
             myState.transition(ServerState.CONNECTING);
 
@@ -304,7 +315,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param reason The quit reason to send
      */
     public void reconnect(final String reason) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING) {
                 return;
             }
@@ -335,7 +346,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param reason disconnect reason
      */
     public void disconnect(final String reason) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             switch (myState.getState()) {
             case CLOSING:
             case DISCONNECTING:
@@ -380,7 +391,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      */
     @Precondition("The server state is transiently disconnected")
     private void doDelayedReconnect() {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() != ServerState.TRANSIENTLY_DISCONNECTED) {
                 throw new IllegalStateException("doDelayedReconnect when not "
                         + "transiently disconnected\n\nState: " + myState);
@@ -395,7 +406,7 @@ public class Server extends WritableFrameContainer implements Serializable {
             reconnectTimer.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    synchronized (myState) {
+                    synchronized (myStateLock) {
                         if (myState.getState() == ServerState.RECONNECT_WAIT) {
                             myState.transition(ServerState.TRANSIENTLY_DISCONNECTED);
                             reconnect();
@@ -498,7 +509,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      */
     public void addRaw() {
         if (raw == null) {
-            raw = new Raw(this);
+            raw = new Raw(this, new RawCommandParser(this));
 
             if (parser != null) {
                 raw.registerCallbacks();
@@ -541,7 +552,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param chan channel to add
      */
     public void addChannel(final ChannelInfo chan) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING) {
                 // Can't join channels while the server is closing
                 return;
@@ -566,7 +577,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param host host of the remote client being queried
      */
     public void addQuery(final String host) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING) {
                 // Can't open queries while the server is closing
                 return;
@@ -685,14 +696,16 @@ public class Server extends WritableFrameContainer implements Serializable {
             secureParser.setKeyManagers(certManager.getKeyManager());
         }
 
-        myParser.setIgnoreList(ignoreList);
-        myParser.setPingTimerInterval(getConfigManager().getOptionInt(DOMAIN_SERVER,
-                "pingtimer"));
-        myParser.setPingTimerFraction((int) (getConfigManager().getOptionInt(DOMAIN_SERVER,
-                "pingfrequency") / myParser.getPingTimerInterval()));
+        if (myParser != null) {
+            myParser.setIgnoreList(ignoreList);
+            myParser.setPingTimerInterval(getConfigManager().getOptionInt(DOMAIN_SERVER,
+                    "pingtimer"));
+            myParser.setPingTimerFraction((int) (getConfigManager().getOptionInt(DOMAIN_SERVER,
+                    "pingfrequency") / myParser.getPingTimerInterval()));
 
-        if (getConfigManager().hasOptionString(DOMAIN_GENERAL, "bindip")) {
-            myParser.setBindIP(getConfigManager().getOption(DOMAIN_GENERAL, "bindip"));
+            if (getConfigManager().hasOptionString(DOMAIN_GENERAL, "bindip")) {
+                myParser.setBindIP(getConfigManager().getOption(DOMAIN_GENERAL, "bindip"));
+            }
         }
 
         return myParser;
@@ -755,7 +768,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param key The key for the channel
      */
     public void join(final String channel, final String key) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CONNECTED) {
                 removeInvites(channel);
 
@@ -780,7 +793,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param channel The channel to be joined
      */
     public void join(final String channel) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CONNECTED) {
                 removeInvites(channel);
 
@@ -799,7 +812,7 @@ public class Server extends WritableFrameContainer implements Serializable {
     /** {@inheritDoc} */
     @Override
     public void sendLine(final String line) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (parser != null && myState.getState() == ServerState.CONNECTED) {
                 if (!line.isEmpty()) {
                     parser.sendRawMessage(window.getTranscoder().encode(line));
@@ -866,7 +879,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @since 0.6.3m1rc3
      */
     public boolean isNetwork(String target) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (parser == null) {
                 return false;
             } else {
@@ -978,7 +991,7 @@ public class Server extends WritableFrameContainer implements Serializable {
     /** {@inheritDoc} */
     @Override
     public void windowClosing() {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             // 1: Make the window non-visible
             window.setVisible(false);
 
@@ -1209,7 +1222,7 @@ public class Server extends WritableFrameContainer implements Serializable {
 
         eventHandler.unregisterCallbacks();
 
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING
                     || myState.getState() == ServerState.DISCONNECTED) {
                 // This has been triggered via .disconect()
@@ -1256,7 +1269,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      */
     @Precondition("The current server state is CONNECTING")
     public void onConnectError(final ParserError errorInfo) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING
                     || myState.getState() == ServerState.DISCONNECTING) {
                 // Do nothing
@@ -1328,7 +1341,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      */
     @Precondition("State is CONNECTING")
     public void onPost005() {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() != ServerState.CONNECTING) {
                 // Shouldn't happen
                 throw new IllegalStateException("Received onPost005 while not "

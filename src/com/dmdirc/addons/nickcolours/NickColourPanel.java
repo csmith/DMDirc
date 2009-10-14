@@ -32,13 +32,16 @@ import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
-import javax.swing.JButton;
 
+import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
+
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -48,7 +51,7 @@ import net.miginfocom.swing.MigLayout;
  * @author Chris
  */
 public class NickColourPanel extends JPanel implements ActionListener,
-        PreferencesInterface {
+        PreferencesInterface, ListSelectionListener {
 
     /**
      * A version number for this class. It should be changed whenever the class
@@ -63,6 +66,9 @@ public class NickColourPanel extends JPanel implements ActionListener,
     /** The table headings. */
     private static final String[] headers = {"Network", "Nickname",
         "Text colour", "Nicklist colour"};
+
+    /** Edit and delete buttons. */
+    private final JButton editButton, deleteButton;
 
     /**
      * Creates a new instance of NickColourPanel.
@@ -107,6 +113,7 @@ public class NickColourPanel extends JPanel implements ActionListener,
 
         final JScrollPane scrollPane = new JScrollPane(table);
 
+        table.getSelectionModel().addListSelectionListener(this);
         table.setFillsViewportHeight(true);
         table.setDefaultRenderer(Color.class, new ColourRenderer());
 
@@ -114,16 +121,20 @@ public class NickColourPanel extends JPanel implements ActionListener,
                 SwingPreferencesDialog.CLIENT_HEIGHT));
         add(scrollPane, "grow, wrap, spanx, hmax 100%");
 
-        JButton button;
-        button = new JButton("Add");
-        button.addActionListener(this);
-        add(button, "sg button, growx, pushx");
-        button = new JButton("Edit");
-        button.addActionListener(this);
-        add(button, "sg button, growx, pushx");
-        button = new JButton("Delete");
-        button.addActionListener(this);
-        add(button, "sg button, growx, pushx");
+        final JButton addButton = new JButton("Add");
+        addButton.addActionListener(this);
+        add(addButton, "sg button, growx, pushx");
+
+        editButton = new JButton("Edit");
+        editButton.addActionListener(this);
+        add(editButton, "sg button, growx, pushx");
+
+        deleteButton = new JButton("Delete");
+        deleteButton.addActionListener(this);
+        add(deleteButton, "sg button, growx, pushx");
+
+        editButton.setEnabled(false);
+        deleteButton.setEnabled(false);
     }
 
     /** 
@@ -221,5 +232,14 @@ public class NickColourPanel extends JPanel implements ActionListener,
             IdentityManager.getConfigIdentity().setOption(plugin.getDomain(),
                     "color:" + row[0] + ":" + row[1], row[2] + ":" + row[3]);
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void valueChanged(ListSelectionEvent e) {
+        boolean enable = table.getSelectedRow() > -1 && table.getModel().getRowCount() > 0;
+
+        editButton.setEnabled(enable);
+        deleteButton.setEnabled(enable);
     }
 }

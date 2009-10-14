@@ -164,9 +164,6 @@ if [ "${plugins}" = "*" -o "${plugins_linux}" = "*" -o "${plugins_windows}" = "*
 	if [ "${plugins_osx}" = "*" ]; then plugins_osx=${allPlugins}; fi
 fi;
 
-# Remove plugins added by createAllPluginJar
-zip -d dist/DMDirc.jar plugins plugins/*
-
 if [ ${isSVN} -eq 1 ]; then
 	VERSION=""
 	if [ "${LAST}" != "" ]; then
@@ -309,8 +306,13 @@ echo "Clean Up"
 echo "================================================================"
 # Now revert the trunk so as not to break updates.
 for updatedir in ${REVERTLIST}; do
-	SVN=`which svn`
-	${SVN} revert ${updatedir}/*
+	if [ ${isSVN} -eq 1 ]; then
+		SVN=`which svn`
+		${SVN} revert ${updatedir}/*
+	else
+		GIT=`which git`
+		${GIT} checkout ${updatedir}
+	fi;
 done;
 
 if [ "1" = "${UPLOAD}" -a "" != "${TAGGED}" ]; then

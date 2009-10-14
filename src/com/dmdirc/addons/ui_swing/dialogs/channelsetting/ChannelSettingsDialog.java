@@ -217,7 +217,7 @@ public final class ChannelSettingsDialog extends StandardDialog implements Actio
         channelSettingsPane.addOption("ui.frameBufferSize",
                 "Frame buffer size", OptionType.SPINNER);
         channelSettingsPane.addOption("ui.textPaneFontName", "Textpane font name",
-                OptionType.TEXTFIELD);
+                OptionType.FONT);
         channelSettingsPane.addOption("ui.textPaneFontSize", "Textpane font size",
                 OptionType.SPINNER);
         channelSettingsPane.addOption("ui.inputbuffersize",
@@ -231,7 +231,7 @@ public final class ChannelSettingsDialog extends StandardDialog implements Actio
         channelSettingsPane.addOption("ui.nicklistforegroundcolour",
                 "Nicklist foreground colour", OptionType.COLOUR);
         channelSettingsPane.addOption("channel.encoding", "Encoding",
-                OptionType.TEXTFIELD);
+                OptionType.COMBOBOX);
     }
 
     /** Initialises listeners for this dialog. */

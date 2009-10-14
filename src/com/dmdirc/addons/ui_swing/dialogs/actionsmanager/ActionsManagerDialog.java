@@ -22,11 +22,15 @@
 
 package com.dmdirc.addons.ui_swing.dialogs.actionsmanager;
 
+import com.dmdirc.addons.ui_swing.components.frames.AppleJFrame;
 import com.dmdirc.actions.Action;
 import com.dmdirc.actions.ActionGroup;
 import com.dmdirc.actions.ActionManager;
 import com.dmdirc.actions.CoreActionType;
 import com.dmdirc.actions.interfaces.ActionType;
+import com.dmdirc.addons.ui_swing.Apple;
+import com.dmdirc.addons.ui_swing.MainFrame;
+import com.dmdirc.addons.ui_swing.SwingController;
 import com.dmdirc.config.IdentityManager;
 import com.dmdirc.config.prefs.validator.ActionGroupValidator;
 import com.dmdirc.config.prefs.validator.FileNameValidator;
@@ -55,6 +59,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
+import javax.swing.UIManager;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
@@ -63,7 +68,8 @@ import net.miginfocom.swing.MigLayout;
 /**
  * Allows the user to manage actions.
  */
-public final class ActionsManagerDialog extends StandardDialog implements ActionListener,
+public final class ActionsManagerDialog extends StandardDialog implements
+        ActionListener,
         ListSelectionListener, com.dmdirc.interfaces.ActionListener {
 
     /**
@@ -95,9 +101,13 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
     /** Group panel. */
     private JPanel groupPanel;
 
-    /** Creates a new instance of ActionsManagerDialog. */
-    private ActionsManagerDialog() {
-        super(null, ModalityType.MODELESS);
+    /** 
+     * Creates a new instance of ActionsManagerDialog.
+     */
+    private ActionsManagerDialog(final Window parentWindow,
+            final SwingController controller) {
+        super(Apple.isAppleUI() ? new AppleJFrame((MainFrame) parentWindow,
+                controller) : null, ModalityType.MODELESS);
 
         initComponents();
         addListeners();
@@ -113,9 +123,11 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
      * Creates the dialog if one doesn't exist, and displays it. 
      * 
      * @param parentWindow Parent window
+     * @param controller Swing controller
      */
-    public static void showActionsManagerDialog(final Window parentWindow) {
-        getActionsManagerDialog();
+    public static void showActionsManagerDialog(final Window parentWindow,
+            final SwingController controller) {
+        getActionsManagerDialog(parentWindow, controller);
 
         me.setIconImages(parentWindow.getIconImages());
         me.pack();
@@ -127,19 +139,25 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
                 getOptionInt("dialogstate", "actionsmanagerdialog");
         if (selected >= 0 && selected < me.groups.getModel().getSize()) {
             me.groups.setSelectedIndex(selected);
-            me.changeActiveGroup((ActionGroup) me.groups.getModel().getElementAt(selected));
+            me.changeActiveGroup((ActionGroup) me.groups.getModel().getElementAt(
+                    selected));
         }
     }
 
     /**
      * Returns the current instance of the ActionsManagerDialog.
      *
+     * @param parentWindow Parent window
+     * @param controller Swing controller
+     *
      * @return The current ActionsManagerDialog instance
      */
-    public static ActionsManagerDialog getActionsManagerDialog() {
+    public static ActionsManagerDialog getActionsManagerDialog(
+            final Window parentWindow,
+            final SwingController controller) {
         synchronized (ActionsManagerDialog.class) {
             if (me == null) {
-                me = new ActionsManagerDialog();
+                me = new ActionsManagerDialog(parentWindow, controller);
             } else {
                 me.reloadGroups();
             }
@@ -154,8 +172,11 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
     private void initComponents() {
         orderButtons(new JButton(), new JButton());
         infoLabel = new TextLabel("Actions allow you to make DMDirc" +
-                " intelligently respond to various events.");
-        groups = new JList(new SortedListModel<ActionGroup>(new ActionGroupNameComparator()));
+                " intelligently respond to various events.  Action groups are " +
+                "there for you to organise groups, add or remove them " +
+                "to suit your needs.");
+        groups = new JList(new SortedListModel<ActionGroup>(
+                new ActionGroupNameComparator()));
         actions = new ActionsGroupPanel(this, null);
         info = new ActionGroupInformationPanel(null);
         settings = new HashMap<ActionGroup, ActionGroupSettingsPanel>();
@@ -167,11 +188,14 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
         groupPanel = new JPanel();
         groupPanel.setName("Groups");
 
-        groupPanel.setBorder(BorderFactory.createTitledBorder(groupPanel.getBorder(),
+        groupPanel.setBorder(BorderFactory.createTitledBorder(UIManager.
+                getBorder("TitledBorder.border"),
                 "Groups"));
-        info.setBorder(BorderFactory.createTitledBorder(info.getBorder(),
+        info.setBorder(BorderFactory.createTitledBorder(UIManager.getBorder(
+                "TitledBorder.border"),
                 "Information"));
-        actions.setBorder(BorderFactory.createTitledBorder(actions.getBorder(),
+        actions.setBorder(BorderFactory.createTitledBorder(UIManager.getBorder(
+                "TitledBorder.border"),
                 "Actions"));
 
         groups.setCellRenderer(new ActionGroupListCellRenderer());
@@ -276,7 +300,8 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
             final ActionGroupSettingsPanel currentSettings =
                     new ActionGroupSettingsPanel(group, this);
             settings.put(group, currentSettings);
-            currentSettings.setBorder(BorderFactory.createTitledBorder(currentSettings.getBorder(),
+            currentSettings.setBorder(BorderFactory.createTitledBorder(currentSettings.
+                    getBorder(),
                     "Settings"));
         }
         activeSettings = settings.get(group);
@@ -347,7 +372,8 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
             /** {@inheritDoc} */
             @Override
             public boolean save() {
-                if (getText() == null || getText().isEmpty() && !ActionManager.getGroups().
+                if (getText() == null || getText().isEmpty() && !ActionManager.
+                        getGroups().
                         containsKey(getText())) {
                     return false;
                 } else {
@@ -361,7 +387,7 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
             /** {@inheritDoc} */
             @Override
             public void cancelled() {
-            //Ignore
+                //Ignore
             }
         };
         inputDialog.display(this);
@@ -403,7 +429,7 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
             /** {@inheritDoc} */
             @Override
             public void cancelled() {
-            //Ignore
+                //Ignore
             }
         };
         inputDialog.setText(oldName);
@@ -422,7 +448,8 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
                 "Confirm deletion", JOptionPane.YES_NO_OPTION);
         if (response == JOptionPane.YES_OPTION) {
             int location =
-                    ((DefaultListModel) groups.getModel()).indexOf(ActionManager.getGroup(group));
+                    ((DefaultListModel) groups.getModel()).indexOf(
+                    ActionManager.getGroup(group));
             ActionManager.removeGroup(group);
             reloadGroups();
             if (groups.getModel().getSize() == 0) {
@@ -464,11 +491,13 @@ public final class ActionsManagerDialog extends StandardDialog implements Action
         if (type.equals(CoreActionType.ACTION_CREATED) ||
                 type.equals(CoreActionType.ACTION_UPDATED)) {
             final Action action = (Action) arguments[0];
-            if (action.getGroup().equals(((ActionGroup) groups.getSelectedValue()).getName())) {
+            if (action.getGroup().equals(((ActionGroup) groups.getSelectedValue()).
+                    getName())) {
                 actions.actionChanged(action);
             }
         } else {
-            if (arguments[0].equals(((ActionGroup) groups.getSelectedValue()).getName())) {
+            if (arguments[0].equals(((ActionGroup) groups.getSelectedValue()).
+                    getName())) {
                 actions.actionDeleted((String) arguments[1]);
             }
         }

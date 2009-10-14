@@ -20,26 +20,20 @@
  * SOFTWARE.
  */
 
-package com.dmdirc.logger;
+package com.dmdirc.updater;
 
 /**
- * Passes uncaught exceptions to the logger.
+ * This interface is implemented by components that are related to a specific
+ * file.
+ * 
+ * @author shane
  */
-public final class DMDircExceptionHandler implements
-        Thread.UncaughtExceptionHandler {
-
-    /** Instantiates the Exception handler. */
-    public DMDircExceptionHandler() {
-        super();
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public void uncaughtException(final Thread t, final Throwable e) {
-        if (e instanceof Error) {
-            Logger.appError(ErrorLevel.FATAL, e.toString(), e);
-        } else {
-            Logger.appError(ErrorLevel.HIGH, e.toString(), e);
-        }
-    }
+public interface FileComponent {
+    
+    /**
+     * Retrieves the file name of this component.
+     * 
+     * @return This component's file name
+     */
+    String getFileName();
 }

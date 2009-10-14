@@ -35,7 +35,7 @@ import javax.swing.JSplitPane;
 /**
  * JSplit pane that snaps around its components preferred size.
  */
-public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListener {
+public class SplitPane extends JSplitPane implements ConfigChangeListener {
 
     /**
      * A version number for this class. It should be changed whenever the class
@@ -65,7 +65,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * Instantiates a new snapping split pane. Defaults to using a horizontal 
      * split, two null components and snapping to the left component.
      */
-    public SnappingJSplitPane() {
+    public SplitPane() {
         this(Orientation.HORIZONTAL);
     }
 
@@ -75,7 +75,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * 
      * @param snapDistance Distance to around the preferred size
      */
-    public SnappingJSplitPane(final int snapDistance) {
+    public SplitPane(final int snapDistance) {
         this(Orientation.HORIZONTAL, snapDistance);
     }
 
@@ -85,7 +85,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * 
      * @param leftComponentSnap Snap to the preferred size of the left component?
      */
-    public SnappingJSplitPane(final boolean leftComponentSnap) {
+    public SplitPane(final boolean leftComponentSnap) {
         this(Orientation.HORIZONTAL, leftComponentSnap, 10);
     }
 
@@ -96,7 +96,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * @param leftComponentSnap Snap to the preferred size of the left component?
      * @param snapDistance Distance to around the preferred size
      */
-    public SnappingJSplitPane(final boolean leftComponentSnap,
+    public SplitPane(final boolean leftComponentSnap,
             final int snapDistance) {
         this(Orientation.HORIZONTAL, leftComponentSnap, snapDistance);
     }
@@ -109,7 +109,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * <code>JSplitPane.HORIZONTAL_SPLIT</code> or 
      * <code>JSplitPane.VERTICAL_SPLIT</code>
      */
-    public SnappingJSplitPane(final Orientation orientation) {
+    public SplitPane(final Orientation orientation) {
         this(orientation, null, null, 10);
     }
 
@@ -122,7 +122,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * <code>JSplitPane.VERTICAL_SPLIT</code>
      * @param snapDistance Distance to around the preferred size
      */
-    public SnappingJSplitPane(final Orientation orientation,
+    public SplitPane(final Orientation orientation,
             final int snapDistance) {
         this(orientation, null, null, snapDistance);
     }
@@ -136,7 +136,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * <code>JSplitPane.VERTICAL_SPLIT</code>
      * @param leftComponentSnap Snap to the preferred size of the left component?
      */
-    public SnappingJSplitPane(final Orientation orientation,
+    public SplitPane(final Orientation orientation,
             final boolean leftComponentSnap) {
         this(orientation, null, null, leftComponentSnap, 10);
     }
@@ -151,7 +151,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * @param leftComponentSnap Snap to the preferred size of the left component?
      * @param snapDistance Distance to around the preferred size
      */
-    public SnappingJSplitPane(final Orientation orientation,
+    public SplitPane(final Orientation orientation,
             final boolean leftComponentSnap, final int snapDistance) {
         this(orientation, null, null, leftComponentSnap, snapDistance);
     }
@@ -166,7 +166,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * @param leftComponent left component
      * @param rightComponent right component
      */
-    public SnappingJSplitPane(final Orientation orientation,
+    public SplitPane(final Orientation orientation,
             final Component leftComponent, final Component rightComponent) {
         this(orientation, leftComponent, rightComponent, true, 10);
     }
@@ -182,7 +182,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * @param rightComponent right component
      * @param snapDistance Distance to around the preferred size
      */
-    public SnappingJSplitPane(final Orientation orientation,
+    public SplitPane(final Orientation orientation,
             final Component leftComponent, final Component rightComponent,
             final int snapDistance) {
         this(orientation, leftComponent, rightComponent, true, snapDistance);
@@ -199,7 +199,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * @param rightComponent right component
      * @param leftComponentSnap Snap to the preferred size of the left component?
      */
-    public SnappingJSplitPane(final Orientation orientation,
+    public SplitPane(final Orientation orientation,
             final Component leftComponent, final Component rightComponent,
             final boolean leftComponentSnap) {
         this(orientation, leftComponent, rightComponent, leftComponentSnap, 10);
@@ -217,7 +217,7 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
      * @param leftComponentSnap Snap to the preferred size of the left component?
      * @param snapDistance Distance to around the preferred size
      */
-    public SnappingJSplitPane(final Orientation orientation,
+    public SplitPane(final Orientation orientation,
             final Component leftComponent, final Component rightComponent,
             final boolean leftComponentSnap, final int snapDistance) {
         super((orientation.equals(Orientation.HORIZONTAL)) ? HORIZONTAL_SPLIT : VERTICAL_SPLIT,
@@ -236,58 +236,6 @@ public class SnappingJSplitPane extends JSplitPane implements ConfigChangeListen
         getActionMap().clear();
 
         config.addChangeListener("ui", "useOneTouchExpandable", this);
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public void setDividerLocation(final int location) {
-        if (getOrientation() == HORIZONTAL_SPLIT) {
-            setDividerLocationHorizontal(location);
-        } else {
-            setDividerLocationVertical(location);
-        }
-    }
-
-    /**
-     * Sets the divider location snapping to the preferred component size.
-     * 
-     * @param location new location
-     */
-    private void setDividerLocationHorizontal(final int location) {
-        if (leftComponentSnap) {
-            final int pref = getLeftComponent().getPreferredSize().width;
-            super.setDividerLocation(Math.abs(pref - location) <= snapDistance ? pref
-                    : location);
-        } else {
-            final int pref = getRightComponent().getPreferredSize().width;
-            final int result = Math.abs(getWidth() - location - pref);
-            if (result >= -snapDistance && result <= snapDistance) {
-                super.setDividerLocation(Math.abs(getWidth() - pref));
-            } else {
-                super.setDividerLocation(location);
-            }
-        }
-    }
-
-    /**
-     * Sets the divider location snapping to the preferred component size.
-     * 
-     * @param location new location
-     */
-    private void setDividerLocationVertical(final int location) {
-        if (leftComponentSnap) {
-            final int pref = getLeftComponent().getPreferredSize().height;
-            super.setDividerLocation(Math.abs(pref - location) <= snapDistance ? pref
-                    : location);
-        } else {
-            final int pref = getRightComponent().getPreferredSize().height;
-            final int result = Math.abs(getWidth() - location - pref);
-            if (result >= -snapDistance && result <= snapDistance) {
-                super.setDividerLocation(Math.abs(getWidth() - pref));
-            } else {
-                super.setDividerLocation(location);
-            }
-        }
     }
 
     /** {@inheritDoc} */

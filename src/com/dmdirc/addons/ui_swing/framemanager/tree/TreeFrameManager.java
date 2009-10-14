@@ -19,6 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package com.dmdirc.addons.ui_swing.framemanager.tree;
 
 import com.dmdirc.FrameContainer;
@@ -32,12 +33,10 @@ import com.dmdirc.logger.Logger;
 import com.dmdirc.ui.interfaces.FrameManager;
 import com.dmdirc.ui.interfaces.Window;
 import com.dmdirc.addons.ui_swing.UIUtilities;
-
 import com.dmdirc.ui.WindowManager;
+
 import java.awt.Color;
 import java.awt.Rectangle;
-import java.awt.event.AdjustmentEvent;
-import java.awt.event.AdjustmentListener;
 import java.awt.event.MouseEvent;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -46,7 +45,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.swing.JComponent;
-import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
@@ -61,8 +59,7 @@ import net.miginfocom.swing.MigLayout;
  * Manages open windows in the application in a tree style view.
  */
 public final class TreeFrameManager implements FrameManager,
-        AdjustmentListener, Serializable,
-        ConfigChangeListener, SelectionListener,
+        Serializable, ConfigChangeListener, SelectionListener,
         NotificationListener, FrameInfoListener {
 
     /**
@@ -116,8 +113,8 @@ public final class TreeFrameManager implements FrameManager,
             public void run() {
                 final JScrollPane scrollPane = new JScrollPane(tree);
                 scrollPane.setAutoscrolls(true);
-                scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-                scrollPane.getHorizontalScrollBar().addAdjustmentListener(TreeFrameManager.this);
+                scrollPane.setHorizontalScrollBarPolicy(
+                        JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
                 parent.setLayout(new MigLayout("ins 0, fill"));
                 parent.add(scrollPane, "grow");
@@ -205,9 +202,11 @@ public final class TreeFrameManager implements FrameManager,
                 }
                 tree.expandPath(new TreePath(node.getPath()).getParentPath());
                 final Rectangle view =
-                        tree.getRowBounds(tree.getRowForPath(new TreePath(node.getPath())));
+                        tree.getRowBounds(tree.getRowForPath(new TreePath(node.
+                        getPath())));
                 if (view != null) {
-                    tree.scrollRectToVisible(new Rectangle(0, (int) view.getY(), 0, 0));
+                    tree.scrollRectToVisible(new Rectangle(0, (int) view.getY(),
+                            0, 0));
                 }
                 window.addSelectionListener(TreeFrameManager.this);
                 window.addFrameInfoListener(TreeFrameManager.this);
@@ -225,17 +224,6 @@ public final class TreeFrameManager implements FrameManager,
         return tree;
     }
 
-    /** 
-     * {@inheritDoc}
-     * 
-     * @param e Adjustment event
-     */
-    @Override
-    public void adjustmentValueChanged(final AdjustmentEvent e) {
-        //HACK Disregard all scrolling events
-        ((JScrollBar) e.getSource()).setValue(0);
-    }
-
     /**
      * Checks for and sets a rollover node.
      * 
@@ -246,7 +234,8 @@ public final class TreeFrameManager implements FrameManager,
 
         if (event == null) {
             node = null;
-        } else if (tree.getNodeForLocation(event.getX(), event.getY()) != null) {
+        } else if (tree.getNodeForLocation(event.getX(), event.getY()) !=
+                null) {
             node =
                     tree.getNodeForLocation(event.getX(), event.getY()).getLabel();
         }
@@ -286,25 +275,35 @@ public final class TreeFrameManager implements FrameManager,
      * Starts the tree from scratch taking into account new sort orders.
      */
     private void redoTreeView() {
-        ((DefaultTreeModel)tree.getModel()).setRoot(null);
-        ((DefaultTreeModel)tree.getModel()).setRoot(new TreeViewNode(null, null));
-        
-        final Window[] rootWindows = WindowManager.getRootWindows();
+        UIUtilities.invokeLater(new Runnable() {
 
-        for (Window window : rootWindows) {
-            addWindow(window.getContainer());
-            final Window[] childWindows = WindowManager.getChildren(window);
-            for (Window childWindow : childWindows) {
-                addWindow(window.getContainer(), childWindow.getContainer());
+            /** {@inheritDoc} */
+            @Override
+            public void run() {
+                ((DefaultTreeModel) tree.getModel()).setRoot(null);
+                ((DefaultTreeModel) tree.getModel()).setRoot(new TreeViewNode(
+                        null, null));
+
+                final Window[] rootWindows = WindowManager.getRootWindows();
+
+                for (Window window : rootWindows) {
+                    addWindow(window.getContainer());
+                    final Window[] childWindows = WindowManager.getChildren(
+                            window);
+                    for (Window childWindow : childWindows) {
+                        addWindow(window.getContainer(), childWindow.
+                                getContainer());
+                    }
+                }
             }
-        }
+        });
     }
 
     /** {@inheritDoc} */
     @Override
     public void selectionChanged(final Window window) {
         synchronized (nodes) {
-            final Collection<TreeViewNode> collection = 
+            final Collection<TreeViewNode> collection =
                     new ArrayList<TreeViewNode>(nodes.values());
             for (TreeViewNode treeNode : collection) {
                 final NodeLabel label = treeNode.getLabel();
@@ -313,14 +312,23 @@ public final class TreeFrameManager implements FrameManager,
         }
 
         if (window != null) {
-            final TreeNode[] treePath =
-                    ((DefaultTreeModel) tree.getModel()).getPathToRoot(nodes.get(window.getContainer()));
-            if (treePath != null && treePath.length > 0) {
-                final TreePath path = new TreePath(treePath);
-                if (path != null) {
-                    tree.setTreePath(path);
+            UIUtilities.invokeLater(new Runnable() {
+
+                /** {@inheritDoc} */
+                @Override
+                public void run() {
+                    final TreeNode[] treePath =
+                            ((DefaultTreeModel) tree.getModel()).getPathToRoot(
+                            nodes.get(window.getContainer()));
+                    if (treePath != null && treePath.length > 0) {
+                        final TreePath path = new TreePath(treePath);
+                        if (path != null) {
+                            tree.setTreePath(path);
+                            tree.scrollPathToVisible(path);
+                        }
+                    }
                 }
-            }
+            });
         }
     }
 

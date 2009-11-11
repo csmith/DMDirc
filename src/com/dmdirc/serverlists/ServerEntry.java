@@ -22,6 +22,8 @@
 
 package com.dmdirc.serverlists;
 
+import java.net.URI;
+
 /**
  * Describes an entry for a server within a {@link ServerGroup}.
  *
@@ -30,18 +32,11 @@ package com.dmdirc.serverlists;
  */
 public class ServerEntry {
 
-    private String host;
-    private int port;
-    private boolean ssl;
-    private String password;
+    private URI address;
     private String profile;
 
-    public ServerEntry(final String host, final int port, final boolean ssl,
-            final String password, final String profile) {
-        this.host = host;
-        this.port = port;
-        this.ssl = ssl;
-        this.password = password;
+    public ServerEntry(final URI address, final String profile) {
+        this.address = address;
         this.profile = profile;
     }
 

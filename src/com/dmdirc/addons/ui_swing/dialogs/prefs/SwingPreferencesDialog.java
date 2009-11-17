@@ -70,7 +70,7 @@ public final class SwingPreferencesDialog extends StandardDialog implements
      *
      * @since 0.6.3m1
      */
-    public static int CLIENT_HEIGHT = 375;
+    public static final int CLIENT_HEIGHT = 375;
     /** Previously instantiated instance of SwingPreferencesDialog. */
     private static volatile SwingPreferencesDialog me;
     /** Preferences tab list, used to switch option types. */
@@ -294,9 +294,15 @@ public final class SwingPreferencesDialog extends StandardDialog implements
                 return;
             }
 
+            if (node == selected) {
+                return;
+            }
+
             if (selected != null) {
                 selected.fireCategoryDeselected();
             }
+            final int index = tabList.getSelectedIndex();
+            tabList.scrollRectToVisible(tabList.getCellBounds(index, index));
             selected = node;
             if (selected != null) {
                 selected.fireCategorySelected();
@@ -320,7 +326,8 @@ public final class SwingPreferencesDialog extends StandardDialog implements
             if (manager.save()) {
                 dispose();
                 new SwingRestartDialog(parentWindow, 
-                        ModalityType.APPLICATION_MODAL).setVisible(true);
+                        ModalityType.APPLICATION_MODAL,
+                        "apply settings").setVisible(true);
             }
         }
     }

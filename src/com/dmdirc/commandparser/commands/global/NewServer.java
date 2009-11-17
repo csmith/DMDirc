@@ -30,8 +30,8 @@ import com.dmdirc.config.IdentityManager;
 import com.dmdirc.logger.ErrorLevel;
 import com.dmdirc.logger.Logger;
 import com.dmdirc.ui.interfaces.InputWindow;
-import com.dmdirc.util.InvalidAddressException;
-import com.dmdirc.util.IrcAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * The new server command allows users to open a new server window.
@@ -53,16 +53,18 @@ public final class NewServer extends GlobalCommand {
     @Override
     public void execute(final InputWindow origin, final boolean isSilent,
             final CommandArguments args) {
-        IrcAddress address = null;
+        URI address = null;
+
         if (args.getArguments().length == 0) {
             showUsage(origin, isSilent, "newserver",
                     "<host[:[+]port]> [password]");
             address = null;
             return;
-        } else if (args.getArguments().length == 1) {
+        } else if (args.getArguments().length == 1
+                && args.getArgumentsAsString().contains("://")) {
             try {
-                address = new IrcAddress(args.getArgumentsAsString());
-            } catch (InvalidAddressException ex) {
+                address = new URI(args.getArgumentsAsString());
+            } catch (URISyntaxException ex) {
                 address = null;
             }
         }
@@ -78,12 +80,12 @@ public final class NewServer extends GlobalCommand {
         server.connect();
     }
     
-    private IrcAddress parseInput(final InputWindow origin, final boolean isSilent,
+    public static URI parseInput(final InputWindow origin, final boolean isSilent,
             final CommandArguments args) {
 
         boolean ssl = false;
         String host = "";
-        String pass = "";
+        String pass = null;
         int port = 6667;
         int offset = 0;
 
@@ -100,6 +102,16 @@ public final class NewServer extends GlobalCommand {
         // Check for port
         if (args.getArguments()[offset].indexOf(':') > -1) {
             final String[] parts = args.getArguments()[offset].split(":");
+
+            if (parts.length < 2) {
+                if (origin != null) {
+                    origin.addLine(FORMAT_ERROR, "Invalid port specified");
+                } else {
+                    Logger.userError(ErrorLevel.LOW, "Invalid port specified " +
+                            "in newserver command");
+                }
+                return null;
+            }
             host = parts[0];
 
             if (parts[1].length() > 0 && parts[1].charAt(0) == '+') {
@@ -110,13 +122,24 @@ public final class NewServer extends GlobalCommand {
             try {
                 port = Integer.parseInt(parts[1]);
             } catch (NumberFormatException ex) {
-                origin.addLine(FORMAT_ERROR, "Invalid port specified");
+                if (origin != null) {
+                    origin.addLine(FORMAT_ERROR, "Invalid port specified");
+                } else {
+                    Logger.userError(ErrorLevel.LOW, "Invalid port specified " +
+                            "in newserver command");
+                }
                 return null;
             }
 
             if (port <= 0 || port > 65535) {
-                sendLine(origin, isSilent, FORMAT_ERROR,
-                        "Port must be between 1 and 65535");
+                if (origin != null) {
+                    if (!isSilent) {
+                        origin.addLine(FORMAT_ERROR, "Port must be between 1 and 65535");
+                    }
+                } else {
+                    Logger.userError(ErrorLevel.LOW, "Port must be between 1 " +
+                            "and 65535 in newserver command");
+                }
                 return null;
             }
         } else {
@@ -128,7 +151,12 @@ public final class NewServer extends GlobalCommand {
             pass = args.getArgumentsAsString(offset);
         }
 
-        return new IrcAddress(host, port, pass, ssl);
+        try {
+            return new URI("irc" + (ssl ? "s" : ""), pass, host, port, null, null, null);
+        } catch (URISyntaxException ex) {
+            Logger.appError(ErrorLevel.MEDIUM, "Unable to create URI", ex);
+            return null;
+        }
     }
 
     /** {@inheritDoc}. */

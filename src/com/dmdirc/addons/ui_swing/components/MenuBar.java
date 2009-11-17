@@ -93,7 +93,7 @@ public class MenuBar extends JMenuBar implements ActionListener, MenuListener {
         initServerMenu();
         initChannelMenu();
         initSettingsMenu();
-        add(new WindowMenuFrameManager());
+        add(new WindowMenuFrameManager(controller));
         initHelpMenu();
         add(Box.createHorizontalGlue(), "growx, pushx");
         add(new MDIBar(mainFrame));
@@ -260,7 +260,7 @@ public class MenuBar extends JMenuBar implements ActionListener, MenuListener {
         } else if (e.getActionCommand().equals("Exit")) {
             mainFrame.quit();
         } else if (e.getActionCommand().equals("Actions")) {
-            ActionsManagerDialog.showActionsManagerDialog(mainFrame);
+            ActionsManagerDialog.showActionsManagerDialog(mainFrame, controller);
         } else if (e.getActionCommand().equals("Aliases")) {
             AliasManagerDialog.showAliasManagerDialog(mainFrame);
         } else if (e.getActionCommand().equals("JoinDevChat")) {

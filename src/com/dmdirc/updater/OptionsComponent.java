@@ -19,27 +19,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.dmdirc.util;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+package com.dmdirc.updater;
 
-public class InvalidAddressExceptionTest {
-
-    @Test
-    public void testMessage() {
-        final InvalidAddressException iae = new InvalidAddressException("message");
-        
-        assertEquals("message", iae.getMessage());
-    }
+/**
+ * This interface is implemented by components that provide options for upgrades
+ * 
+ * @author shane
+ */
+public interface OptionsComponent {
     
-    @Test
-    public void testCause() {
-        final Exception e = new Exception("moo");
-        final InvalidAddressException iae = new InvalidAddressException("message",
-                e);
-        
-        assertEquals(e, iae.getCause());
-    }
-
+    /**
+     * Retrieves the options for this component.
+     * 
+     * @return Array containing the options for this component
+     */
+    String[] getOptions();
 }

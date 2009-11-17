@@ -22,37 +22,31 @@
 
 package com.dmdirc.util;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 /**
- * Thrown to indicate that an invalid IRC address has been used.
+ * Utilities for dealing with streams.
  *
- * @author Chris
+ * @since 0.6.3m2
+ * @author chris
  */
-public class InvalidAddressException extends Exception {
-    
+public abstract class StreamUtil {
+
     /**
-     * A version number for this class. It should be changed whenever the class
-     * structure is changed (or anything else that would prevent serialized
-     * objects being unserialized with the new class).
-     */
-    private static final long serialVersionUID = 2;
-    
-    /**
-     * Creates a new InvalidAddressException.
+     * Closes the stream if it is non-null, and ignores any IOExceptions
+     * raised by doing so.
      *
-     * @param message The message to use
+     * @param stream The stream to be closed
      */
-    public InvalidAddressException(final String message) {
-        super(message);
+    public static void close(final Closeable stream) {
+        if (stream != null) {
+            try {
+                stream.close();
+            } catch (IOException ex) {
+                // Do nothing. We don't care.
+            }
+        }
     }
-    
-    /**
-     * Creates a new InvalidAddressException.
-     * 
-     * @param message The message to use
-     * @param ex The cause of this exception
-     */
-    public InvalidAddressException(final String message, final Throwable ex) {
-        super(message, ex);
-    }    
-    
+
 }

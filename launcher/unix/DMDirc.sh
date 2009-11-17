@@ -23,7 +23,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-LAUNCHERVERSION="12"
+LAUNCHERVERSION="13"
+LAUNCHERINFO="unix-${LAUNCHERVERSION}"
 
 params=""
 
@@ -52,7 +53,7 @@ fi
 
 # Store params so that we can pass them back to the client
 for param in "$@"; do
-	if [ "${param}" = "--noprofile" ]; then 
+	if [ "${param}" = "--noprofile" -o "${param}" = "--updateonly" ]; then 
 		continue;
 	fi;
 	PSN=`echo "${param}" | grep "^-psn_"`
@@ -67,13 +68,106 @@ for param in "$@"; do
 	fi;
 done;
 
-# Check for OS X
-OSASCRIPT=`which osascript`
-KERNEL=`uname -s`
-ISOSX="0"
-# Kernel is darwin, and osascript exists, probably OS X!
-if [ "${KERNEL}" = "Darwin" -a "" != "${OSASCRIPT}" ]; then
-	ISOSX="1"
+if [ -e "functions.sh" ]; then
+	. `dirname $0`/functions.sh
+else
+	# TODO: Remove this and depend on functions.sh...
+	echo "Unable to find functions.sh, using old functions"
+	
+	# Check for OS X
+	OSASCRIPT=`which osascript`
+	KERNEL=`uname -s`
+	ISOSX="0"
+	# Kernel is darwin, and osascript exists, probably OS X!
+	if [ "${KERNEL}" = "Darwin" -a "" != "${OSASCRIPT}" ]; then
+		ISOSX="1"
+	fi;
+
+	if [ "${ISOSX}" != "1" ]; then
+		PIDOF=`which pidof`
+		if [ "${PIDOF}" = "" ]; then
+			# For some reason some distros hide pidof...
+			if [ -e /sbin/pidof ]; then
+				PIDOF=/sbin/pidof
+			elif [ -e /usr/sbin/pidof ]; then
+				PIDOF=/usr/sbin/pidof
+			fi;
+		fi;
+		
+		## Helper Functions
+		if [ "${PIDOF}" != "" ]; then
+			ISKDE=`${PIDOF} -x -s kdeinit`
+			ISGNOME=`${PIDOF} -x -s gnome-panel`
+		else
+			ISKDE=`ps -Af | grep kdeinit | grep -v grep`
+			ISGNOME=`ps -Af | grep gnome-panel | grep -v grep`
+		fi;
+		KDIALOG=`which kdialog`
+		ZENITY=`which zenity`
+		KSUDO=`which kdesudo`
+		GSUDO=`which gksudo`
+	fi;
+	
+	errordialog() {
+		# Send message to console.
+		echo ""
+		echo "-----------------------------------------------------------------------"
+		echo "Error: ${1}"
+		echo "-----------------------------------------------------------------------"
+		echo "${2}"
+		echo "-----------------------------------------------------------------------"
+	
+		if [ "${ISOSX}" = "1" -a "" != "${OSASCRIPT}" ]; then
+			echo "Displaying dialog.."
+			${OSASCRIPT} -e 'tell application "System Events"' -e "activate" -e "display dialog \"${1}\n${2}\" buttons {\"Ok\"} with icon stop" -e 'end tell'
+		else
+			if [ "" != "${ISKDE}" -a "" != "${KDIALOG}" -a "" != "${DISPLAY}" ]; then
+				echo "Dialog on Display: ${DISPLAY}"
+				${KDIALOG} --title "DMDirc: ${1}" --error "${1}\n\n${2}"
+			elif [ "" != "${ISGNOME}" -a "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then
+				echo "Dialog on Display: ${DISPLAY}"
+				${ZENITY} --error --title "DMDirc: ${1}" --text "${1}\n\n${2}"
+			fi
+		fi;
+	}
+	
+	messagedialog() {
+		# Send message to console.
+		echo ""
+		echo "-----------------------------------------------------------------------"
+		echo "Info: ${1}"
+		echo "-----------------------------------------------------------------------"
+		echo "${2}"
+		echo "-----------------------------------------------------------------------"
+	
+		if [ "${ISOSX}" = "1" -a "" != "${OSASCRIPT}" ]; then
+			echo "Displaying dialog.."
+			${OSASCRIPT} -e 'tell application "System Events"' -e "activate" -e "display dialog \"${1}\n${2}\" buttons {\"Ok\"} giving up after 120 with icon note" -e 'end tell'
+		else
+			if [ "" != "${ISKDE}" -a "" != "${KDIALOG}" -a "" != "${DISPLAY}" ]; then
+				echo "Dialog on Display: ${DISPLAY}"
+				${KDIALOG} --title "DMDirc: ${1}" --msgbox "${1}\n\n${2}"
+			elif [ "" != "${ISGNOME}" -a "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then
+				echo "Dialog on Display: ${DISPLAY}"
+				${ZENITY} --info --title "DMDirc: ${1}" --text "${1}\n\n${2}"
+			fi
+		fi;
+	}
+fi;
+
+# Check to see if we can bspatch things
+BSPATCH="./bspatch"
+if [ ! -e "${BSPATCH}" ]; then
+	BSPATCH=`which bspatch`
+fi;
+
+# This launcher supports zip files.
+LAUNCHERINFO=${LAUNCHERINFO}",zip"
+
+if [ "${BSPATCH}" != "" ]; then
+	# TODO: Website should (if available) send bsdiff patches
+	# to clients with bsdiff compatible launchers
+	LAUNCHERINFO=${LAUNCHERINFO}",bsdiff";
 fi;
 
 # Check for some CLI params
@@ -84,6 +178,7 @@ else
 fi;
 
 USEPROFILE=1;
+UPDATEONLY=0;
 while test -n "$1"; do
 	case "$1" in
 		--directory|-d)
@@ -93,80 +188,15 @@ while test -n "$1"; do
 		--noprofile)
 			USEPROFILE=0;
 			;;
+		--updateonly)
+			UPDATEONLY=1;
+			;;
+		-p|--portable)
+			profiledir=${PWD};
+			;;
 	esac
 	shift
 done
-
-if [ "${ISOSX}" != "1" ]; then
-	PIDOF=`which pidof`
-	if [ "${PIDOF}" = "" ]; then
-		# For some reason some distros hide pidof...
-		if [ -e /sbin/pidof ]; then
-			PIDOF=/sbin/pidof
-		elif [ -e /usr/sbin/pidof ]; then
-			PIDOF=/usr/sbin/pidof
-		fi;
-	fi;
-	
-	## Helper Functions
-	if [ "${PIDOF}" != "" ]; then
-		ISKDE=`${PIDOF} -x -s kdeinit`
-		ISGNOME=`${PIDOF} -x -s gnome-panel`
-	else
-		ISKDE=`ps -Af | grep kdeinit | grep -v grep`
-		ISGNOME=`ps -Af | grep gnome-panel | grep -v grep`
-	fi;
-	KDIALOG=`which kdialog`
-	ZENITY=`which zenity`
-	KSUDO=`which kdesudo`
-	GSUDO=`which gksudo`
-fi;
-
-errordialog() {
-	# Send message to console.
-	echo ""
-	echo "-----------------------------------------------------------------------"
-	echo "Error: ${1}"
-	echo "-----------------------------------------------------------------------"
-	echo "${2}"
-	echo "-----------------------------------------------------------------------"
-
-	if [ "${ISOSX}" = "1" -a "" != "${OSASCRIPT}" ]; then
-		echo "Displaying dialog.."
-		${OSASCRIPT} -e 'tell application "System Events"' -e "activate" -e "display dialog \"${1}\n${2}\" buttons {\"Ok\"} with icon stop" -e 'end tell'
-	else
-		if [ "" != "${ISKDE}" -a "" != "${KDIALOG}" -a "" != "${DISPLAY}" ]; then
-			echo "Dialog on Display: ${DISPLAY}"
-			${KDIALOG} --title "DMDirc: ${1}" --error "${1}\n\n${2}"
-		elif [ "" != "${ISGNOME}" -a "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then
-			echo "Dialog on Display: ${DISPLAY}"
-			${ZENITY} --error --title "DMDirc: ${1}" --text "${1}\n\n${2}"
-		fi
-	fi;
-}
-
-messagedialog() {
-	# Send message to console.
-	echo ""
-	echo "-----------------------------------------------------------------------"
-	echo "Info: ${1}"
-	echo "-----------------------------------------------------------------------"
-	echo "${2}"
-	echo "-----------------------------------------------------------------------"
-
-	if [ "${ISOSX}" = "1" -a "" != "${OSASCRIPT}" ]; then
-		echo "Displaying dialog.."
-		${OSASCRIPT} -e 'tell application "System Events"' -e "activate" -e "display dialog \"${1}\n${2}\" buttons {\"Ok\"} giving up after 120 with icon note" -e 'end tell'
-	else
-		if [ "" != "${ISKDE}" -a "" != "${KDIALOG}" -a "" != "${DISPLAY}" ]; then
-			echo "Dialog on Display: ${DISPLAY}"
-			${KDIALOG} --title "DMDirc: ${1}" --msgbox "${1}\n\n${2}"
-		elif [ "" != "${ISGNOME}" -a "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then
-			echo "Dialog on Display: ${DISPLAY}"
-			${ZENITY} --info --title "DMDirc: ${1}" --text "${1}\n\n${2}"
-		fi
-	fi;
-}
 
 getConfigOption() {
 	FILE="${profiledir}/dmdirc.config"
@@ -191,8 +221,6 @@ getConfigOption() {
 		fi;
 	fi;
 }
-
-# LOOKANDFEEL=`getConfigOption "ui" "lookandfeel" | tail -n 1`
 
 if [ "${ISOSX}" = "1" ]; then
 	jarDir=`dirname $0`/../Resources/Java/
@@ -220,6 +248,11 @@ else
 	echo "Running on unknown unix variation: ${KERNEL}."
 fi;
 
+if [ -e "${profiledir}/.launcher.zip" ]; then
+	# Unzip!
+	unzip ${profiledir}/.launcher.zip -d ${profiledir}/
+fi;
+
 echo -n "Checking for launcher updates in ${profiledir} - ";
 if [ -e "${profiledir}/.launcher.sh.ignore" ]; then
 	rm -Rf "${profiledir}/.launcher.sh.ignore"
@@ -230,51 +263,57 @@ elif [ -e "${profiledir}/.launcher.sh" ]; then
 
 	cat <<EOF> ${launcherUpdater}
 		cd `dirname $0`
-		errordialog() {
-			# Send message to console.
-			echo ""
-			echo "-----------------------------------------------------------------------"
-			echo "Error: \${1}"
-			echo "-----------------------------------------------------------------------"
-			echo "\${2}"
-			echo "-----------------------------------------------------------------------"
-
-			if [ "${ISOSX}" = "1" -a "" != "${OSASCRIPT}" ]; then
-				echo "Displaying dialog.."
-				${OSASCRIPT} -e 'tell application "System Events"' -e "activate" -e "display dialog \"${1}\n${2}\" buttons {\"Ok\"} with icon stop" -e 'end tell'
-			else
-				if [ "" != "${ISKDE}" -a "" != "${KDIALOG}" -a "" != "${DISPLAY}" ]; then
-					echo "Dialog on Display: ${DISPLAY}"
-					${KDIALOG} --title "DMDirc: \${1}" --error "\${1}\n\n\${2}"
-				elif [ "" != "${ISGNOME}" -a "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then
-					echo "Dialog on Display: ${DISPLAY}"
-					${ZENITY} --error --title "DMDirc: \${1}" --text "\${1}\n\n\${2}"
+		if [ -e "functions.sh" ]; then
+			. `dirname $0`/functions.sh
+		else
+			# TODO: Remove this and depend on functions.sh...
+			echo "Unable to find functions.sh, using old functions"
+			errordialog() {
+				# Send message to console.
+				echo ""
+				echo "-----------------------------------------------------------------------"
+				echo "Error: \${1}"
+				echo "-----------------------------------------------------------------------"
+				echo "\${2}"
+				echo "-----------------------------------------------------------------------"
+	
+				if [ "${ISOSX}" = "1" -a "" != "${OSASCRIPT}" ]; then
+					echo "Displaying dialog.."
+					${OSASCRIPT} -e 'tell application "System Events"' -e "activate" -e "display dialog \"${1}\n${2}\" buttons {\"Ok\"} with icon stop" -e 'end tell'
+				else
+					if [ "" != "${ISKDE}" -a "" != "${KDIALOG}" -a "" != "${DISPLAY}" ]; then
+						echo "Dialog on Display: ${DISPLAY}"
+						${KDIALOG} --title "DMDirc: \${1}" --error "\${1}\n\n\${2}"
+					elif [ "" != "${ISGNOME}" -a "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then
+						echo "Dialog on Display: ${DISPLAY}"
+						${ZENITY} --error --title "DMDirc: \${1}" --text "\${1}\n\n\${2}"
+					fi
 				fi
-			fi
-		}
-
-		messagedialog() {
-			# Send message to console.
-			echo ""
-			echo "-----------------------------------------------------------------------"
-			echo "Info: \${1}"
-			echo "-----------------------------------------------------------------------"
-			echo "\${2}"
-			echo "-----------------------------------------------------------------------"
-
-			if [ "${ISOSX}" = "1" -a "" != "${OSASCRIPT}" ]; then
-				echo "Displaying dialog.."
-				${OSASCRIPT} -e 'tell application "System Events"' -e "activate" -e "display dialog \"${1}\n${2}\" buttons {\"Ok\"} giving up after 120 with icon note" -e 'end tell'
-			else
-				if [ "" != "${ISKDE}" -a "" != "${KDIALOG}" -a "" != "${DISPLAY}" ]; then
-					echo "Dialog on Display: ${DISPLAY}"
-					${KDIALOG} --title "DMDirc: \${1}" --msgbox "\${1}\n\n\${2}"
-				elif [ "" != "${ISGNOME}" -a "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then
-					echo "Dialog on Display: ${DISPLAY}"
-					${ZENITY} --info --title "DMDirc: \${1}" --text "\${1}\n\n\${2}"
-				fi
-			fi;
-		}
+			}
+	
+			messagedialog() {
+				# Send message to console.
+				echo ""
+				echo "-----------------------------------------------------------------------"
+				echo "Info: \${1}"
+				echo "-----------------------------------------------------------------------"
+				echo "\${2}"
+				echo "-----------------------------------------------------------------------"
+	
+				if [ "${ISOSX}" = "1" -a "" != "${OSASCRIPT}" ]; then
+					echo "Displaying dialog.."
+					${OSASCRIPT} -e 'tell application "System Events"' -e "activate" -e "display dialog \"${1}\n${2}\" buttons {\"Ok\"} giving up after 120 with icon note" -e 'end tell'
+				else
+					if [ "" != "${ISKDE}" -a "" != "${KDIALOG}" -a "" != "${DISPLAY}" ]; then
+						echo "Dialog on Display: ${DISPLAY}"
+						${KDIALOG} --title "DMDirc: \${1}" --msgbox "\${1}\n\n\${2}"
+					elif [ "" != "${ISGNOME}" -a "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then
+						echo "Dialog on Display: ${DISPLAY}"
+						${ZENITY} --info --title "DMDirc: \${1}" --text "\${1}\n\n\${2}"
+					fi
+				fi;
+			}
+		fi;
 
 		mv -fv ${profiledir}/.launcher.sh ${0}
 		if [ ! -e "${profiledir}/.launcher.sh" ]; then
@@ -298,6 +337,9 @@ elif [ -e "${profiledir}/.launcher.sh" ]; then
 					elif [ "" != "${ISGNOME}" -a "" != "${GSUDO}" -a "" != "${DISPLAY}" ]; then
 						echo "Password dialog on ${DISPLAY}"
 						${GSUDO} -k --message "DMDirc Client Updater requires root access to modify the global installation" -- mv -fv "${profiledir}/.launcher.sh" "${0}"
+					elif [ "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then	
+						sudo -k
+						${ZENITY} --entry --title="DMDirc" --text="DMDirc Client Updater requires root access to modify the global installation, please enter your password to continue." --entry-text="" --hide-text | sudo -S -- mv -fv "${profiledir}/.launcher.sh" "${0}"
 					else
 						echo "DMDirc Client Updater requires root access to modify the global installation"
 						sudo mv -fv "${profiledir}/.launcher.sh" "${0}"
@@ -327,47 +369,105 @@ if [ -e "${launcherUpdater}" ]; then
 fi;
 
 echo -n "Checking for client updates in ${profiledir} - ";
-if [ -e "${profiledir}/.DMDirc.jar" ]; then
+
+UPDATESOURCE="${profiledir}/.DMDirc.jar"
+BSDIFF="0"
+if [ -e "${profiledir}/.DMDirc.jar.bsdiff" -a "${BSPATCH}" != "" ]; then
+	UPDATESOURCE="${profiledir}/.DMDirc.jar.bsdiff"
+	BSDIFF="1"
+fi;
+
+if [ -e "${UPDATESOURCE}" ]; then
+	UPDATEOK="0"
+	TRYROOT="1"
 	echo "Found!";
 	echo "Attempting to update..";
-	mv -fv ${profiledir}/.DMDirc.jar ${jar}
-	if [ ! -e "${profiledir}/.DMDirc.jar" ]; then
+	if [ "${BSDIFF}" = "1" ]; then
+		cp ${jar} ${jar}.bak
+		${BSPATCH} ${jar}.bak ${jar} ${UPDATESOURCE}
+		if [ "${?}" = "0" ]; then
+			FILEINFO=`which ${jar} | egrep "data$`
+			if [ "${FILEINFO}" = "" ]; then
+				UPDATEOK="1"
+			else
+				# Let the user know the update failed.
+				echo "1" >> "${profiledir}/.updatefailed";
+				chmod 777 "${profiledir}/.updatefailed";
+				# Replace the attempted update with the old jar
+				cp ${jar}.bak ${jar}
+				# Don't bother trying as root.
+				TRYROOT="0"
+			fi;
+		fi;
+	else
+		mv -fv ${UPDATESOURCE} ${jar}
+		if [ ! -e "${profiledir}/.DMDirc.jar" ]; then
+			UPDATEOK="1"
+		fi;
+	fi;
+	
+	if [ "${UPDATEOK}" = "1" ]; then
 		echo "Update successful."
 		messagedialog "Client Update" "Client Update successful"
+		if [ "${UPDATEONLY}" = "1" ]; then
+			exit 0;
+		fi;
 	else
 		if [ "${UID}" = "" ]; then
 			UID=`id -u`;
 		fi
-		if [ "0" != "${UID}" ]; then
+		if [ "0" != "${UID}" -a "1" = "${TRYROOT}" ]; then
 			if [ "${ISOSX}" = "1" ]; then
 				messagedialog "DMDirc" "The DMDirc Client Updater was unable to modify the client installation, trying again with administrator access"
 				if [ $? -eq 0 ]; then
 					echo "Password dialog on display"
-					osascript -e "do shell script \"mv -fv \\\"${profiledir}/.DMDirc.jar\\\" \\\"${jar}\\\"\" with administrator privileges"
+					# osascript -e "do shell script \"mv -fv \\\"${profiledir}/.DMDirc.jar\\\" \\\"${jar}\\\"\" with administrator privileges"
+					osascript -e "do shell script \"sh ${0} ${params} --updateonly\" with administrator privileges"
 				fi;
 			else
 				if [ "" != "${ISKDE}" -a "" != "${KSUDO}" -a "" != "${DISPLAY}" ]; then
 					echo "Password dialog on ${DISPLAY}"
-					${KSUDO} --comment "DMDirc Client Updater requires root access to modify the global installation" -- mv -fv "${profiledir}/.DMDirc.jar" "${jar}"
+					# ${KSUDO} --comment "DMDirc Client Updater requires root access to modify the global installation" -- mv -fv "${profiledir}/.DMDirc.jar" "${jar}"
+					${KSUDO} --comment "DMDirc Client Updater requires root access to modify the global installation" -- sh ${0} ${params} --updateonly
 				elif [ "" != "${ISGNOME}" -a "" != "${GSUDO}" -a "" != "${DISPLAY}" ]; then
 					echo "Password dialog on ${DISPLAY}"
-					${GSUDO} -k --message "DMDirc Client Updater requires root access to modify the global installation" -- mv -fv "${profiledir}/.DMDirc.jar" "${jar}"
+					# ${GSUDO} -k --message "DMDirc Client Updater requires root access to modify the global installation" -- mv -fv "${profiledir}/.DMDirc.jar" "${jar}"
+					${GSUDO} -k --message "DMDirc Client Updater requires root access to modify the global installation" -- sh ${0} ${params} --updateonly
+				elif [ "" != "${ZENITY}" -a "" != "${DISPLAY}" ]; then	
+					sudo -k
+					${ZENITY} --entry --title="DMDirc" --text="DMDirc Client Updater requires root access to modify the global installation, please enter your password to continue." --entry-text="" --hide-text | sudo -S -- sh ${0} ${params} --updateonly
 				else
 					echo "DMDirc Client Updater requires root access to modify the global installation"
-					sudo mv -fv "${profiledir}/.DMDirc.jar" "${jar}"
+					# sudo mv -fv "${profiledir}/.DMDirc.jar" "${jar}"
+					sudo sh ${0} ${params} --updateonly
 				fi;
 			fi;
-		fi
-		if [ ! -e "${profiledir}/.DMDirc.jar" ]; then
+		elif [ "${UPDATEONLY}" = "1" ]; then
+			# Update failed as root, so give up.
+			echo "1" >> "${profiledir}/.updatefailed";
+			chmod 777 "${profiledir}/.updatefailed";
+			exit 1;
+		fi;
+		
+		if [ ! -e "${profiledir}/.updatefailed" ]; then
 			echo "Update successful."
 			messagedialog "Client Update" "Client Update successful"
 		else
+			rm -Rf ${profiledir}/.updatefailed;
 			echo "Update failed."
 			errordialog "Client Update" "Client Update failed, using old version"
+			if [ "${BSDIFF}" = "1" ]; then
+				# Run the client without bspatch support
+				LAUNCHERINFO=`echo ${LAUNCHERINFO} | sed 's/|bsdiff//'`
+			fi;
 		fi;
 	fi
 else
 	echo "Not found.";
+fi;
+
+if [ "${UPDATEONLY}" = "1" ]; then
+	exit 0;
 fi;
 
 relaunch() {
@@ -475,7 +575,7 @@ if [ -e "${jar}" ]; then
 		#APPLEOPTS="${APPLEOPTS} -Dapple.awt.showGrowBox=true"
 		#APPLEOPTS="${APPLEOPTS} -Dapple.laf.useScreenMenuBar=true"
 	fi;
-	${JAVA}${APPLEOPTS} -ea -jar ${jar} -l unix-${LAUNCHERVERSION} ${params}
+	${JAVA}${APPLEOPTS} -ea -jar ${jar} -l ${LAUNCHERINFO} ${params}
 	EXITCODE=${?}
 	if [ ${EXITCODE} -eq 42 ]; then
 		# The client says we need to up update, rerun ourself before exiting.

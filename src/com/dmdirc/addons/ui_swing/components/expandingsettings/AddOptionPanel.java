@@ -26,11 +26,14 @@ import com.dmdirc.addons.ui_swing.components.renderers.AddOptionCellRenderer;
 import com.dmdirc.addons.ui_swing.components.ColourChooser;
 import com.dmdirc.addons.ui_swing.components.expandingsettings.SettingsPanel.OptionType;
 import com.dmdirc.addons.ui_swing.UIUtilities;
+import com.dmdirc.addons.ui_swing.components.FontPicker;
 
 import java.awt.Component;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import java.nio.charset.Charset;
 import javax.swing.AbstractAction;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
@@ -74,6 +77,10 @@ public final class AddOptionPanel extends JPanel implements ActionListener {
     private JCheckBox addInputCheckbox;
     /** Add option checkbox. */
     private JSpinner addInputSpinner;
+    /** Add option font picker. */
+    private FontPicker addInputFontPicker;
+    /** Add option combobox. */
+    private JComboBox addInputComboBox;
     /** Add option checkbox. */
     private JLabel addInputNone;
     
@@ -107,6 +114,8 @@ public final class AddOptionPanel extends JPanel implements ActionListener {
         addInputCheckbox.setOpaque(UIUtilities.getTabbedPaneOpaque());
         addInputSpinner = new JSpinner(new SpinnerNumberModel());
         addInputNone = new JLabel("");
+        addInputFontPicker = new FontPicker("Dialog");
+        addInputComboBox = new JComboBox(new DefaultComboBoxModel());
         
         addInputCurrent = addInputNone;
         
@@ -155,6 +164,12 @@ public final class AddOptionPanel extends JPanel implements ActionListener {
     protected void addOption(final String optionName) {
         ((DefaultComboBoxModel) addOptionComboBox.getModel()).addElement(
                 optionName);
+        if ("channel.encoding".equals(optionName)) {
+            ((DefaultComboBoxModel) addInputComboBox.getModel()).removeAllElements();
+            for (Object argument: Charset.availableCharsets().keySet()) {
+                ((DefaultComboBoxModel) addInputComboBox.getModel()).addElement(argument);
+            }
+        }
         addOptionButton.setEnabled(true);
         addOptionComboBox.setEnabled(true);
     }
@@ -206,6 +221,12 @@ public final class AddOptionPanel extends JPanel implements ActionListener {
                     addInputSpinner.setValue(0);
                     addInputCurrent = addInputSpinner;
                     break;
+                case FONT:
+                    addInputCurrent = addInputFontPicker;
+                    break;
+                case COMBOBOX:
+                    addInputCurrent = addInputComboBox;
+                    break;
                 default:
                     addInputCurrent = addInputNone;
                     break;
@@ -217,7 +238,11 @@ public final class AddOptionPanel extends JPanel implements ActionListener {
         addOptionComboBox.requestFocusInWindow();
     }
     
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * @param e Action event
+     */
     @Override
     public void actionPerformed(final ActionEvent e) {
         if (e.getSource() == addOptionComboBox) {
@@ -255,6 +280,17 @@ public final class AddOptionPanel extends JPanel implements ActionListener {
                             (String) addOptionComboBox.getSelectedItem(),
                             type,
                             addInputSpinner.getValue().toString());
+                    break;
+                case FONT:
+                    parent.addCurrentOption(
+                            (String) addOptionComboBox.getSelectedItem(),
+                            type,
+                            ((Font) addInputFontPicker.getSelectedItem()).getFamily());
+                    break;
+                case COMBOBOX:
+                    parent.addCurrentOption((String) addOptionComboBox.getSelectedItem(),
+                            type,
+                            (String) addInputComboBox.getSelectedItem());
                     break;
                 default:
                     break;

@@ -28,12 +28,17 @@ import com.dmdirc.addons.ui_swing.components.ImageButton;
 import com.dmdirc.addons.ui_swing.components.expandingsettings.SettingsPanel.OptionType;
 import com.dmdirc.addons.ui_swing.UIUtilities;
 
+import com.dmdirc.addons.ui_swing.components.FontPicker;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -66,6 +71,10 @@ public final class CurrentOptionsPanel extends JPanel implements ActionListener 
     private Map<String, ColourChooser> colours;
     /** config option -> spinners. */
     private Map<String, JSpinner> spinners;
+    /** config option -> spinners. */
+    private Map<String, FontPicker> fonts;
+    /** config option -> comboboxes. */
+    private Map<String, JComboBox> comboboxes;
     
     /**
      * Creates a new instance of CurrentOptionsPanel.
@@ -87,6 +96,8 @@ public final class CurrentOptionsPanel extends JPanel implements ActionListener 
         checkBoxes = new HashMap<String, JCheckBox>();
         colours = new HashMap<String, ColourChooser>();
         spinners = new HashMap<String, JSpinner>();
+        fonts = new HashMap<String, FontPicker>();
+        comboboxes = new HashMap<String, JComboBox>();
     }
     
     /** Clears all the current options. */
@@ -95,6 +106,8 @@ public final class CurrentOptionsPanel extends JPanel implements ActionListener 
         checkBoxes.clear();
         colours.clear();
         spinners.clear();
+        fonts.clear();
+        comboboxes.clear();
         populateCurrentSettings();
     }
     
@@ -112,8 +125,7 @@ public final class CurrentOptionsPanel extends JPanel implements ActionListener 
                 textFields.put(optionName, new JTextField(value));
                 break;
             case CHECKBOX:
-                checkBoxes.put(optionName, new JCheckBox("",
-                        Boolean.parseBoolean(value)));
+                checkBoxes.put(optionName, new JCheckBox("", Boolean.parseBoolean(value)));
                 break;
             case COLOUR:
                 colours.put(optionName, new ColourChooser(value, true, true));
@@ -121,6 +133,17 @@ public final class CurrentOptionsPanel extends JPanel implements ActionListener 
             case SPINNER:
                 spinners.put(optionName, new JSpinner(new SpinnerNumberModel()));
                 spinners.get(optionName).setValue(Integer.parseInt(value));
+                break;
+            case FONT:
+                fonts.put(optionName, new FontPicker(value));
+                break;
+            case COMBOBOX:
+                if ("channel.encoding".equals(optionName)) {
+                    comboboxes.put(optionName, new JComboBox(new DefaultComboBoxModel(Charset.availableCharsets().keySet().toArray())));
+                    comboboxes.get(optionName).setSelectedItem(value);
+                } else {
+                    //Ignore
+                }
                 break;
             default:
                 throw new IllegalArgumentException("Illegal Type: " + type);
@@ -149,6 +172,12 @@ public final class CurrentOptionsPanel extends JPanel implements ActionListener 
                 break;
             case SPINNER:
                 spinners.remove(optionName);
+                break;
+            case FONT:
+                fonts.remove(optionName);
+                break;
+            case COMBOBOX:
+                comboboxes.remove(optionName);
                 break;
             default:
                 throw new IllegalArgumentException("Illegal Type: " + type);
@@ -190,6 +219,16 @@ public final class CurrentOptionsPanel extends JPanel implements ActionListener 
             case SPINNER:
                 if (spinners.containsKey(optionName)) {
                     returnValue = spinners.get(optionName).getValue().toString();
+                }
+                break;
+            case FONT:
+                if (fonts.containsKey(optionName)) {
+                    returnValue = ((Font) fonts.get(optionName).getSelectedItem()).getFamily();
+                }
+                break;
+            case COMBOBOX:
+                if (comboboxes.containsKey(optionName)) {
+                    returnValue = (String) ((DefaultComboBoxModel) comboboxes.get(optionName).getModel()).getSelectedItem();
                 }
                 break;
             default:
@@ -250,6 +289,18 @@ public final class CurrentOptionsPanel extends JPanel implements ActionListener 
         }
         
         for (Entry<String, JSpinner> entry : spinners.entrySet()) {
+            addCurrentOption(entry.getKey(),
+                    parent.getOptionName(entry.getKey()),
+                    this, entry.getValue());
+        }
+
+        for (Entry<String, FontPicker> entry : fonts.entrySet()) {
+            addCurrentOption(entry.getKey(),
+                    parent.getOptionName(entry.getKey()),
+                    this, entry.getValue());
+        }
+
+        for (Entry<String, JComboBox> entry : comboboxes.entrySet()) {
             addCurrentOption(entry.getKey(),
                     parent.getOptionName(entry.getKey()),
                     this, entry.getValue());

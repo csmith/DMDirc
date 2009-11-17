@@ -25,6 +25,7 @@ package com.dmdirc.updater.components;
 import com.dmdirc.config.ConfigManager;
 import com.dmdirc.config.IdentityManager;
 import com.dmdirc.plugins.PluginInfo;
+import com.dmdirc.updater.FileComponent;
 import com.dmdirc.updater.UpdateChecker;
 import com.dmdirc.updater.UpdateComponent;
 import com.dmdirc.updater.Version;
@@ -36,7 +37,7 @@ import java.io.File;
  * 
  * @author chris
  */
-public class PluginComponent implements UpdateComponent {
+public class PluginComponent implements UpdateComponent, FileComponent {
     
     /** The plugin this component is for. */
     private final PluginInfo plugin;
@@ -90,7 +91,7 @@ public class PluginComponent implements UpdateComponent {
 
     /** {@inheritDoc} */
     @Override    
-    public boolean doInstall(final String path) throws Throwable {
+    public boolean doInstall(final String path) throws Exception {
         final File target = new File(plugin.getFullFilename());
         
         if ((plugin.isUnloadable() || !plugin.isLoaded()) && target.exists()) {
@@ -117,6 +118,11 @@ public class PluginComponent implements UpdateComponent {
         }
         
         return false;
+    }
+
+    @Override
+    public String getFileName() {
+        return plugin.getFilename();
     }
 
 }

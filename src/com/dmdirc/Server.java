@@ -27,6 +27,7 @@ import com.dmdirc.actions.CoreActionType;
 import com.dmdirc.actions.wrappers.AliasWrapper;
 import com.dmdirc.commandparser.CommandManager;
 import com.dmdirc.commandparser.CommandType;
+import com.dmdirc.commandparser.parsers.RawCommandParser;
 import com.dmdirc.config.ConfigManager;
 import com.dmdirc.config.Identity;
 import com.dmdirc.config.IdentityManager;
@@ -43,6 +44,7 @@ import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.parser.interfaces.SecureParser;
 import com.dmdirc.parser.interfaces.StringConverter;
 import com.dmdirc.parser.common.MyInfo;
+import com.dmdirc.parser.irc.IRCParser;
 import com.dmdirc.ui.WindowManager;
 import com.dmdirc.ui.input.TabCompleter;
 import com.dmdirc.ui.input.TabCompletionType;
@@ -50,14 +52,14 @@ import com.dmdirc.ui.interfaces.InputWindow;
 import com.dmdirc.ui.interfaces.ServerWindow;
 import com.dmdirc.ui.interfaces.Window;
 import com.dmdirc.ui.messages.Formatter;
-import com.dmdirc.util.InvalidAddressException;
-import com.dmdirc.util.IrcAddress;
 
 import java.io.Serializable;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -103,6 +105,17 @@ public class Server extends WritableFrameContainer implements Serializable {
     /** The Parser instance handling this server. */
     private transient Parser parser;
 
+    /**
+     * Object used to synchronoise access to parser. This object should be
+     * locked by anything requiring that the parser reference remains the same
+     * for a duration of time, or by anything which is updating the parser
+     * reference.
+     *
+     * If used in conjunction with myStateLock, the parserLock must always be
+     * locked INSIDE the myStateLock to prevent deadlocks.
+     */
+    private final Object parserLock = new Object();
+
     /** The IRC Parser Thread. */
     private transient Thread parserThread;
 
@@ -113,13 +126,16 @@ public class Server extends WritableFrameContainer implements Serializable {
     private ServerWindow window;
 
     /** The address of the server we're connecting to. */
-    private IrcAddress address;
+    private URI address;
 
     /** The profile we're using. */
     private transient Identity profile;
 
     /** The current state of this server. */
     private final ServerStatus myState = new ServerStatus(this);
+
+    /** Object used to synchronoise access to myState. */
+    private final Object myStateLock = new Object();
 
     /** The timer we're using to delay reconnects. */
     private Timer reconnectTimer;
@@ -151,30 +167,18 @@ public class Server extends WritableFrameContainer implements Serializable {
     // <editor-fold defaultstate="collapsed" desc="Constructors">
 
     /**
-     * Creates a new instance of Server.
-     *
-     * @since 0.6.3m2
-     * @param url The address of the server to connect to
-     * @param profile The profile to use
-     * @throws InvalidAddressException If the specified URL is not valid
-     */
-    public Server(final String url, final Identity profile) throws InvalidAddressException {
-        this(new IrcAddress(url), profile);
-    }
-
-    /**
      * Creates a new server which will connect to the specified URL with
      * the specified profile.
      *
-     * @since 0.6.3m2
-     * @param url The address of the server to connect to
+     * @since 0.6.4
+     * @param uri The address of the server to connect to
      * @param profile The profile to use
      */
-    public Server(final IrcAddress url, final Identity profile) {
-        super("server-disconnected", url.getServer(),
-                new ConfigManager("", "", url.getServer()));
+    public Server(final URI uri, final Identity profile) {
+        super("server-disconnected", uri.getHost(),
+                new ConfigManager("", "", uri.getHost()));
 
-        this.address = url;
+        this.address = uri;
         this.profile = profile;
 
         window = Main.getUI().getServer(this);
@@ -227,17 +231,17 @@ public class Server extends WritableFrameContainer implements Serializable {
      *
      * @param address The address of the server to connect to
      * @param profile The profile to use
-     * @since 0.6.3m2
+     * @since 0.6.4
      */
     @Precondition({
         "The current parser is null or not connected",
         "The specified profile is not null"
     })
     @SuppressWarnings("fallthrough")
-    public void connect(final IrcAddress address, final Identity profile) {
+    public void connect(final URI address, final Identity profile) {
         assert profile != null;
 
-        synchronized (myState) {
+        synchronized (myStateLock) {
             switch (myState.getState()) {
                 case RECONNECT_WAIT:
                     reconnectTimer.cancel();
@@ -251,7 +255,9 @@ public class Server extends WritableFrameContainer implements Serializable {
                 case DISCONNECTING:
                     while (!myState.getState().isDisconnected()) {
                         try {
-                            myState.wait();
+                            synchronized (myState) {
+                                myState.wait();
+                            }
                         } catch (InterruptedException ex) {
                             return;
                         }
@@ -262,36 +268,43 @@ public class Server extends WritableFrameContainer implements Serializable {
                     break;
             }
 
-            if (parser != null) {
-                throw new IllegalArgumentException("Connection attempt while parser "
-                        + "is still connected.\n\nMy state:" + getState());
-            }
+            synchronized (parserLock) {
+                if (parser != null) {
+                    throw new IllegalArgumentException("Connection attempt while parser "
+                            + "is still connected.\n\nMy state:" + getState());
+                }
 
-            getConfigManager().migrate("", "", address.getServer());
+                getConfigManager().migrate("", "", address.getHost());
 
-            this.address = address;
-            this.profile = profile;
+                this.address = address;
+                this.profile = profile;
 
-            updateTitle();
-            updateIcon();
+                updateTitle();
+                updateIcon();
 
-            addLine("serverConnecting", address.getServer(), address.getPort());
+                parser = buildParser();
 
-            parser = buildParser();
+                if (parser == null) {
+                    addLine("serverUnknownProtocol", address.getScheme());
+                    return;
+                }
 
-            myState.transition(ServerState.CONNECTING);
+                addLine("serverConnecting", address.getHost(), address.getPort());
 
-            doCallbacks();
+                myState.transition(ServerState.CONNECTING);
 
-            awayMessage = null;
-            removeInvites();
-            window.setAwayIndicator(false);
+                doCallbacks();
 
-            try {
-                parserThread = new Thread(parser, "IRC Parser thread");
-                parserThread.start();
-            } catch (IllegalThreadStateException ex) {
-                Logger.appError(ErrorLevel.FATAL, "Unable to start IRC Parser", ex);
+                awayMessage = null;
+                removeInvites();
+                window.setAwayIndicator(false);
+
+                try {
+                    parserThread = new Thread(parser, "IRC Parser thread");
+                    parserThread.start();
+                } catch (IllegalThreadStateException ex) {
+                    Logger.appError(ErrorLevel.FATAL, "Unable to start IRC Parser", ex);
+                }
             }
         }
 
@@ -304,7 +317,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param reason The quit reason to send
      */
     public void reconnect(final String reason) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING) {
                 return;
             }
@@ -335,7 +348,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param reason disconnect reason
      */
     public void disconnect(final String reason) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             switch (myState.getState()) {
             case CLOSING:
             case DISCONNECTING:
@@ -351,16 +364,18 @@ public class Server extends WritableFrameContainer implements Serializable {
 
             clearChannels();
 
-            if (parser == null) {
-                myState.transition(ServerState.DISCONNECTED);
-            } else {
-                myState.transition(ServerState.DISCONNECTING);
+            synchronized (parserLock) {
+                if (parser == null) {
+                    myState.transition(ServerState.DISCONNECTED);
+                } else {
+                    myState.transition(ServerState.DISCONNECTING);
 
-                removeInvites();
-                updateIcon();
+                    removeInvites();
+                    updateIcon();
 
-                parserThread.interrupt();
-                parser.disconnect(reason);
+                    parserThread.interrupt();
+                    parser.disconnect(reason);
+                }
             }
 
             if (getConfigManager().getOptionBool(DOMAIN_GENERAL,
@@ -380,7 +395,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      */
     @Precondition("The server state is transiently disconnected")
     private void doDelayedReconnect() {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() != ServerState.TRANSIENTLY_DISCONNECTED) {
                 throw new IllegalStateException("doDelayedReconnect when not "
                         + "transiently disconnected\n\nState: " + myState);
@@ -395,7 +410,7 @@ public class Server extends WritableFrameContainer implements Serializable {
             reconnectTimer.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    synchronized (myState) {
+                    synchronized (myStateLock) {
                         if (myState.getState() == ServerState.RECONNECT_WAIT) {
                             myState.transition(ServerState.TRANSIENTLY_DISCONNECTED);
                             reconnect();
@@ -498,10 +513,12 @@ public class Server extends WritableFrameContainer implements Serializable {
      */
     public void addRaw() {
         if (raw == null) {
-            raw = new Raw(this);
+            raw = new Raw(this, new RawCommandParser(this));
 
-            if (parser != null) {
-                raw.registerCallbacks();
+            synchronized (parserLock) {
+                if (parser != null) {
+                    raw.registerCallbacks();
+                }
             }
         } else {
             raw.activateFrame();
@@ -541,7 +558,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param chan channel to add
      */
     public void addChannel(final ChannelInfo chan) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING) {
                 // Can't join channels while the server is closing
                 return;
@@ -566,7 +583,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param host host of the remote client being queried
      */
     public void addQuery(final String host) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING) {
                 // Can't open queries while the server is closing
                 return;
@@ -673,7 +690,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @return A configured IRC parser.
      */
     private Parser buildParser() {
-        final CertificateManager certManager = new CertificateManager(address.getServer(),
+        final CertificateManager certManager = new CertificateManager(address.getHost(),
                 getConfigManager());
 
         final MyInfo myInfo = buildMyInfo();
@@ -685,14 +702,16 @@ public class Server extends WritableFrameContainer implements Serializable {
             secureParser.setKeyManagers(certManager.getKeyManager());
         }
 
-        myParser.setIgnoreList(ignoreList);
-        myParser.setPingTimerInterval(getConfigManager().getOptionInt(DOMAIN_SERVER,
-                "pingtimer"));
-        myParser.setPingTimerFraction((int) (getConfigManager().getOptionInt(DOMAIN_SERVER,
-                "pingfrequency") / myParser.getPingTimerInterval()));
+        if (myParser != null) {
+            myParser.setIgnoreList(ignoreList);
+            myParser.setPingTimerInterval(getConfigManager().getOptionInt(DOMAIN_SERVER,
+                    "pingtimer"));
+            myParser.setPingTimerFraction((int) (getConfigManager().getOptionInt(DOMAIN_SERVER,
+                    "pingfrequency") / myParser.getPingTimerInterval()));
 
-        if (getConfigManager().hasOptionString(DOMAIN_GENERAL, "bindip")) {
-            myParser.setBindIP(getConfigManager().getOption(DOMAIN_GENERAL, "bindip"));
+            if (getConfigManager().hasOptionString(DOMAIN_GENERAL, "bindip")) {
+                myParser.setBindIP(getConfigManager().getOption(DOMAIN_GENERAL, "bindip"));
+            }
         }
 
         return myParser;
@@ -727,7 +746,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      */
     private void updateIcon() {
         final String icon = myState.getState() == ServerState.CONNECTED
-                    ? address.isSSL() ? "secure-server" : "server"
+                    ? address.getScheme().endsWith("s") ? "secure-server" : "server"
                     : "server-disconnected";
         setIcon(icon);
     }
@@ -755,7 +774,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param key The key for the channel
      */
     public void join(final String channel, final String key) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CONNECTED) {
                 removeInvites(channel);
 
@@ -768,7 +787,7 @@ public class Server extends WritableFrameContainer implements Serializable {
                 }
             } else {
                 // TODO: Need to pass key
-                address.getChannels().add(channel);
+                // TODO (uris): address.getChannels().add(channel);
             }
         }
     }
@@ -780,7 +799,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @param channel The channel to be joined
      */
     public void join(final String channel) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CONNECTED) {
                 removeInvites(channel);
 
@@ -791,7 +810,7 @@ public class Server extends WritableFrameContainer implements Serializable {
                     parser.joinChannel(channel);
                 }
             } else {
-                address.getChannels().add(channel);
+                // TODO(uris): address.getChannels().add(channel);
             }
         }
     }
@@ -799,10 +818,12 @@ public class Server extends WritableFrameContainer implements Serializable {
     /** {@inheritDoc} */
     @Override
     public void sendLine(final String line) {
-        synchronized (myState) {
-            if (parser != null && myState.getState() == ServerState.CONNECTED) {
-                if (!line.isEmpty()) {
-                    parser.sendRawMessage(window.getTranscoder().encode(line));
+        synchronized (myStateLock) {
+            synchronized (parserLock) {
+                if (parser != null && myState.getState() == ServerState.CONNECTED) {
+                    if (!line.isEmpty()) {
+                        parser.sendRawMessage(window.getTranscoder().encode(line));
+                    }
                 }
             }
         }
@@ -811,7 +832,9 @@ public class Server extends WritableFrameContainer implements Serializable {
     /** {@inheritDoc} */
     @Override
     public int getMaxLineLength() {
-        return parser == null ? -1 : parser.getMaxLength();
+        synchronized (parserLock) {
+            return parser == null ? -1 : parser.getMaxLength();
+        }
     }
 
     /**
@@ -847,13 +870,15 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @return The name of this server's network
      */
     public String getNetwork() {
-        if (parser == null) {
-            throw new IllegalStateException("getNetwork called when "
-                    + "parser is null (state: " + getState() + ")");
-        } else if (parser.getNetworkName().isEmpty()) {
-            return getNetworkFromServerName(parser.getServerName());
-        } else {
-            return parser.getNetworkName();
+        synchronized (parserLock) {
+            if (parser == null) {
+                throw new IllegalStateException("getNetwork called when "
+                        + "parser is null (state: " + getState() + ")");
+            } else if (parser.getNetworkName().isEmpty()) {
+                return getNetworkFromServerName(parser.getServerName());
+            } else {
+                return parser.getNetworkName();
+            }
         }
     }
 
@@ -866,11 +891,13 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @since 0.6.3m1rc3
      */
     public boolean isNetwork(String target) {
-        synchronized (myState) {
-            if (parser == null) {
-                return false;
-            } else {
-                return getNetwork().equalsIgnoreCase(target);
+        synchronized (myStateLock) {
+            synchronized (parserLock) {
+                if (parser == null) {
+                    return false;
+                } else {
+                    return getNetwork().equalsIgnoreCase(target);
+                }
             }
         }
     }
@@ -978,7 +1005,7 @@ public class Server extends WritableFrameContainer implements Serializable {
     /** {@inheritDoc} */
     @Override
     public void windowClosing() {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             // 1: Make the window non-visible
             window.setVisible(false);
 
@@ -1073,8 +1100,10 @@ public class Server extends WritableFrameContainer implements Serializable {
      * @return True if the channel name is valid, false otherwise
      */
     public boolean isValidChannelName(final String channelName) {
-        return hasChannel(channelName)
-                || (parser != null && parser.isValidChannelName(channelName));
+        synchronized (parserLock) {
+            return hasChannel(channelName)
+                    || (parser != null && parser.isValidChannelName(channelName));
+        }
     }
 
     /**
@@ -1105,14 +1134,18 @@ public class Server extends WritableFrameContainer implements Serializable {
      * Updates the name and title of this window.
      */
     public void updateTitle() {
-        final Object[] arguments = new Object[]{
-            address.getServer(), parser == null ? "Unknown" : parser.getServerName(),
-            address.getPort(), parser == null ? "Unknown" : getNetwork(),
-            parser == null ? "Unknown" : parser.getLocalClient().getNickname()
-        };
+        synchronized (parserLock) {
+            final Object[] arguments = new Object[]{
+                address.getHost(), parser == null ? "Unknown" : parser.getServerName(),
+                address.getPort(), parser == null ? "Unknown" : getNetwork(),
+                parser == null ? "Unknown" : parser.getLocalClient().getNickname()
+            };
         
-        setName(Formatter.formatMessage(getConfigManager(), "serverName", arguments));
-        window.setTitle(Formatter.formatMessage(getConfigManager(), "serverTitle", arguments));
+            setName(Formatter.formatMessage(getConfigManager(),
+                    "serverName", arguments));
+            window.setTitle(Formatter.formatMessage(getConfigManager(),
+                    "serverTitle", arguments));
+        }
     }
 
     // </editor-fold>
@@ -1133,7 +1166,7 @@ public class Server extends WritableFrameContainer implements Serializable {
             return;
         }
 
-        String newNick = lastNick + (int) (Math.random() * 10);
+        String newNick = lastNick + new Random().nextInt(10);
 
         final List<String> alts = profile.getOptionList(DOMAIN_PROFILE, "nicknames");
         int offset = 0;
@@ -1209,7 +1242,7 @@ public class Server extends WritableFrameContainer implements Serializable {
 
         eventHandler.unregisterCallbacks();
 
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING
                     || myState.getState() == ServerState.DISCONNECTED) {
                 // This has been triggered via .disconect()
@@ -1224,7 +1257,9 @@ public class Server extends WritableFrameContainer implements Serializable {
 
             clearChannels();
 
-            parser = null;
+            synchronized (parserLock) {
+                parser = null;
+            }
 
             updateIcon();
 
@@ -1256,7 +1291,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      */
     @Precondition("The current server state is CONNECTING")
     public void onConnectError(final ParserError errorInfo) {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() == ServerState.CLOSING
                     || myState.getState() == ServerState.DISCONNECTING) {
                 // Do nothing
@@ -1268,7 +1303,10 @@ public class Server extends WritableFrameContainer implements Serializable {
             }
 
             myState.transition(ServerState.TRANSIENTLY_DISCONNECTED);
-            parser = null;
+
+            synchronized (parserLock) {
+                parser = null;
+            }
 
             updateIcon();
 
@@ -1328,7 +1366,7 @@ public class Server extends WritableFrameContainer implements Serializable {
      */
     @Precondition("State is CONNECTING")
     public void onPost005() {
-        synchronized (myState) {
+        synchronized (myStateLock) {
             if (myState.getState() != ServerState.CONNECTING) {
                 // Shouldn't happen
                 throw new IllegalStateException("Received onPost005 while not "
@@ -1354,10 +1392,6 @@ public class Server extends WritableFrameContainer implements Serializable {
                 for (Channel chan : channels.values()) {
                     chan.join();
                 }
-            }
-
-            for (String channel : address.getChannels()) {
-                parser.joinChannel(channel);
             }
 
             checkModeAliases();

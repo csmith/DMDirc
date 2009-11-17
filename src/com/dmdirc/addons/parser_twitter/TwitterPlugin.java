@@ -25,7 +25,7 @@ package com.dmdirc.addons.parser_twitter;
 import com.dmdirc.parser.common.MyInfo;
 import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.plugins.Plugin;
-import com.dmdirc.util.IrcAddress;
+import java.net.URI;
 import java.util.ArrayList;
 
 /**
@@ -60,7 +60,7 @@ public class TwitterPlugin extends Plugin  {
      * @param address The address of the server to connect to
      * @return An appropriately configured parser
      */
-    public Parser getParser(final MyInfo myInfo, final IrcAddress address) {
+    public Parser getParser(final MyInfo myInfo, final URI address) {
         return (unloading) ? null : new Twitter(myInfo, address, this);
     }
 }

@@ -58,7 +58,6 @@ import com.dmdirc.parser.interfaces.callbacks.ServerReadyListener;
 import com.dmdirc.parser.interfaces.callbacks.UserModeDiscoveryListener;
 import com.dmdirc.parser.interfaces.callbacks.SocketCloseListener;
 import com.dmdirc.ui.messages.Styliser;
-import com.dmdirc.util.IrcAddress;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -74,6 +73,7 @@ import com.dmdirc.logger.ErrorManager;
 import com.dmdirc.parser.interfaces.callbacks.ChannelJoinListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelKickListener;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.Calendar;
 
 /**
@@ -128,7 +128,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
     final String myServerName;
 
     /** Address that created us. */
-    final IrcAddress myAddress;
+    final URI myAddress;
     
     /** Main Channel Name */
     final String mainChannelName;
@@ -140,13 +140,13 @@ public class Twitter implements Parser, TwitterErrorHandler {
      * @param address The address of the server to connect to
      * @param myPlugin Plugin that created this parser
      */
-    protected Twitter(final MyInfo myInfo, final IrcAddress address, final TwitterPlugin myPlugin) {
-        final String[] bits = address.getPassword().split(":");
+    protected Twitter(final MyInfo myInfo, final URI address, final TwitterPlugin myPlugin) {
+        final String[] bits = address.getUserInfo().split(":");
         this.myUsername = bits[0];
         this.myPassword = (bits.length > 1) ? bits[1] : "";
 
         this.myPlugin = myPlugin;
-        this.myServerName = address.getServer().toLowerCase();
+        this.myServerName = address.getHost().toLowerCase();
         this.myAddress = address;
 
         this.mainChannelName = "&twitter";
@@ -290,14 +290,14 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 final TwitterUser user = (forced) ? api.getUser(bits[1], true) : api.getCachedUser(bits[1]);
                 
                 if (user == null) {
-                    final String reason = (forced) ? "No such user found, see http://"+myAddress.getServer()+"/"+user.getScreenName() : "No such user found in cache, try /WHOIS "+bits[1]+" "+bits[1]+" to poll twitter (uses 1 API call) or try http://"+myAddress.getServer()+"/"+user.getScreenName();
+                    final String reason = (forced) ? "No such user found, see http://"+myAddress.getHost()+"/"+user.getScreenName() : "No such user found in cache, try /WHOIS "+bits[1]+" "+bits[1]+" to poll twitter (uses 1 API call) or try http://"+myAddress.getHost()+"/"+user.getScreenName();
                     getCallbackManager().getCallbackType(NumericListener.class).call(401, new String[]{":"+myServerName, "401", myself.getNickname(), bits[1], reason});
                 } else {
                     // Time since last update
                     final long secondsIdle = ((user.getStatus() != null) ? System.currentTimeMillis() - user.getStatus().getTime() : user.getRegisteredTime()) / 1000;
                     final long signonTime = user.getRegisteredTime() / 1000;
 
-                    getCallbackManager().getCallbackType(NumericListener.class).call(311, new String[]{":"+myServerName, "311", myself.getNickname(), bits[1], "user", myServerName, "*", user.getRealName()+" (http://"+myAddress.getServer()+"/"+user.getScreenName()+")"});
+                    getCallbackManager().getCallbackType(NumericListener.class).call(311, new String[]{":"+myServerName, "311", myself.getNickname(), bits[1], "user", myServerName, "*", user.getRealName()+" (http://"+myAddress.getHost()+"/"+user.getScreenName()+")"});
 
                     final TwitterClientInfo client = (TwitterClientInfo)getClient(bits[1]);
                     if (client != null) {
@@ -716,13 +716,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
             tokenSecret = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "tokenSecret-"+myServerName+"-"+myUsername);
         } else { tokenSecret = ""; }
 
-        final StringBuilder serverExtra = new StringBuilder("/");
-        for (String addressChannel : myAddress.getChannels()) {
-            if (serverExtra.length() > 1) { serverExtra.append(","); }
-            serverExtra.append(addressChannel);
-        }
-
-        api = new TwitterAPI(myUsername, myPassword, myServerName+serverExtra.toString(), consumerKey, consumerSecret, token, tokenSecret);
+        api = new TwitterAPI(myUsername, myPassword, myServerName+myAddress.getPath(), consumerKey, consumerSecret, token, tokenSecret);
         api.setSource("DMDirc");
         currentParsers.add(this);
         connected = true;
@@ -769,7 +763,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 sendChannelMessage(channel, "");
                 sendChannelMessage(channel, "Before you can use DMDirc with "+myServerName+" you need to provide a password.");
                 sendChannelMessage(channel, "");
-                sendChannelMessage(channel, "To do this, please type the password here, or set it correctly in the URL (twitter://" + myUsername + ":your_password@"+myServerName+serverExtra.toString()+").");
+                sendChannelMessage(channel, "To do this, please type the password here, or set it correctly in the URL (twitter://" + myUsername + ":your_password@"+myServerName+myAddress.getPath()+").");
             }
         } else {
             sendChannelMessage(channel, "DMDirc has been authorised to use the account \""+api.getUsername()+"\"");

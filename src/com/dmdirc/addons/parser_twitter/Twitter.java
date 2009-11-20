@@ -806,6 +806,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
         getCallbackManager().getCallbackType(MotdLineListener.class).call("- All messages sent to this channel (or topics set) will cause the status to be set.");
         getCallbackManager().getCallbackType(MotdLineListener.class).call("- ");
         getCallbackManager().getCallbackType(MotdLineListener.class).call("- Messages can be replied to using /msg &<messageid> <reply>");
+        getCallbackManager().getCallbackType(MotdLineListener.class).call("- Messages can be retweeted by using /ctcp &<messageid> RT or /ctcp &<messageid> RETWEET");
         getCallbackManager().getCallbackType(MotdLineListener.class).call("- ");
         getCallbackManager().getCallbackType(MotdEndListener.class).call(false, "End of /MOTD command");
         // Fake some more on-connect crap

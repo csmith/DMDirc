@@ -115,6 +115,9 @@ public class TwitterAPI {
     /** List of TwitterErrorHandlers */
     private final List<TwitterErrorHandler> errorHandlers = new LinkedList<TwitterErrorHandler>();
 
+    /** List of TwitterRawHandlers */
+    private final List<TwitterRawHandler> rawHandlers = new LinkedList<TwitterRawHandler>();
+
     /** What server name should we connect to?. */
     private final String myServerName;
 
@@ -272,6 +275,63 @@ public class TwitterAPI {
         synchronized (errorHandlers) {
             for (TwitterErrorHandler eh : errorHandlers) {
                 eh.handleTwitterError(this, t, source, twitterInput, twitterOutput, message);
+            }
+        }
+    }
+
+    /**
+     * Add a new raw handler.
+     *
+     * @param raw handler to add.
+     */
+    public void addRawHandler(final TwitterRawHandler handler) {
+        synchronized (rawHandlers) {
+            rawHandlers.add(handler);
+        }
+    }
+
+    /**
+     * Remove a raw handler.
+     *
+     * @param raw handler to remove.
+     */
+    public void delRawHandler(final TwitterRawHandler handler) {
+        synchronized (rawHandlers) {
+            rawHandlers.remove(handler);
+        }
+    }
+
+    /**
+     * Clear raw handlers.
+     */
+    public void clearRawHandlers() {
+        synchronized (rawHandlers) {
+            rawHandlers.clear();
+        }
+    }
+
+    /**
+     * Handle input from twitter.
+     *
+     * @param raw The raw input from twitter.
+     */
+    private void handleRawInput(final String raw) {
+        synchronized (rawHandlers) {
+            for (TwitterRawHandler rh : rawHandlers) {
+                rh.handleRawTwitterInput(this, raw);
+            }
+        }
+    }
+
+    /**
+     * Handle output to twitter.
+     *
+     * @param raw The raw output to twitter
+     */
+    private void handleRawOutput(final String raw) {
+        synchronized (rawHandlers) {
+            for (TwitterRawHandler rh : rawHandlers) {
+                rh.handleRawTwitterOutput(this, raw);
             }
         }
     }
@@ -539,10 +599,8 @@ public class TwitterAPI {
         usedCalls++;
         
         apiInput = request.getURL().toString();
-
+        handleRawOutput(apiInput);
         BufferedReader in = null;
-        // boolean dumpOutput = false;
-        boolean dumpOutput = true;
         try {
             signURL(request);
             
@@ -551,7 +609,6 @@ public class TwitterAPI {
         } catch (IOException ex) {
             handleError(ex, "getXML: "+request.getURL(), apiInput, apiOutput);
             ex.printStackTrace();
-            dumpOutput = true;
             if (request.getErrorStream() != null) {
                 in = new BufferedReader(new InputStreamReader(request.getErrorStream()));
             } else {
@@ -560,25 +617,31 @@ public class TwitterAPI {
         }
 
         final StringBuilder xml = new StringBuilder();
+        boolean incomplete = false;
         String line;
 
         synchronized (this) {
             try {
                 do {
                     line = in.readLine();
-                    if (line != null) { xml.append(line); }
-                    if (dumpOutput) { System.out.println(line); }
+                    if (line != null) {
+                        xml.append("\n");
+                        xml.append(line);
+                    }
                 } while (line != null);
 
-                apiOutput = xml.toString();
+                apiOutput = xml.toString().trim();
             } catch (IOException ex) {
-                apiOutput = xml.toString() + "\n ... Incomplete!";
+                apiOutput = xml.toString().trim() + "\n ... Incomplete!";
+                incomplete = true;
 
                 handleError(ex, "getXML", apiInput, apiOutput);
             } finally {
                 try { in.close(); } catch (IOException ex) { }
             }
         }
+
+        handleRawInput(xml.toString() + (incomplete ? "\n ... Incomplete!" : ""));
 
         try {
             if (request.getResponseCode() != 200) {
@@ -944,7 +1007,7 @@ public class TwitterAPI {
     public List<TwitterStatus> getFriendsTimeline(final long lastTimelineId, final int count) {
         final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
 
-        final Document doc = getXML(getURL("statuses/friends_timeline")+"?since_id="+lastTimelineId+"&count="+count);
+        final Document doc = getXML(getURL("statuses/home_timeline")+"?since_id="+lastTimelineId+"&count="+count);
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("status");
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -1052,6 +1115,37 @@ public class TwitterAPI {
             ex.printStackTrace();
         } catch (IOException ex) {
             handleError(ex, "setStatus: "+status+" | "+id, apiInput, apiOutput);
+            ex.printStackTrace();
+        }
+
+        return false;
+    }
+
+    /**
+     * Retweet the given status
+     *
+     * @param status Status to retweet
+     * @return True if status was retweeted ok.
+     */
+    public boolean retweetStatus(final TwitterStatus status) {
+        try {
+            final URL url = new URL(getURL("statuses/retweet/"+status.getID()));
+            final HttpURLConnection request = (HttpURLConnection) url.openConnection();
+            final Document doc = postXML(request);
+            if (request.getResponseCode() == 200) {
+                if (doc != null) {
+                    new TwitterStatus(this, doc.getDocumentElement());
+                }
+                return true;
+            }
+        } catch (UnsupportedEncodingException ex) {
+            handleError(ex, "retweetStatus: "+status, apiInput, apiOutput);
+            ex.printStackTrace();
+        } catch (MalformedURLException ex) {
+            handleError(ex, "retweetStatus: "+status, apiInput, apiOutput);
+            ex.printStackTrace();
+        } catch (IOException ex) {
+            handleError(ex, "retweetStatus: "+status, apiInput, apiOutput);
             ex.printStackTrace();
         }
 

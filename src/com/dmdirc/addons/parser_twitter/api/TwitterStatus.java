@@ -22,8 +22,6 @@
 
 package com.dmdirc.addons.parser_twitter.api;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -43,14 +41,25 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
     /** The time of this message */
     private final long time;
 
-    /** The user who owns this message. */
+    /** The user who owns this message
+     * (In the case of a retweet, this will be the retweeter)
+     */
     private final String user;
 
-    /** The contents of this message. */
+    /**
+     * The contents of this message.
+     * (In the case of a retweet, this will be the retweeted message)
+     */
     private final String message;
 
     /** API Object that owns this. */
     private final TwitterAPI myAPI;
+
+    /** Is this a retweet? */
+    private final boolean retweet;
+
+    /** The original tweet of this message */
+    private final TwitterStatus originalStatus;
 
     /**
      * Create a new TwitterStatus.
@@ -81,6 +90,8 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
         this.user = user;
         this.message = message;
         this.time = time;
+        this.retweet = false;
+        this.originalStatus = null;
 
         api.updateStatus(this);
     }
@@ -106,6 +117,17 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
         if (!(node instanceof Element)) { throw new TwitterRuntimeException("Can only use Element type nodes for status creation."); }
         this.myAPI = api;
         final Element element = (Element) node;
+
+        // Get retweet status if it exists
+        final NodeList retweetNodes = element.getElementsByTagName("retweeted_status");
+        if (retweetNodes != null && retweetNodes.getLength() > 0) {
+            this.retweet = true;
+            this.originalStatus = new TwitterStatus(api, retweetNodes.item(0));
+            element.removeChild(retweetNodes.item(0));
+        } else {
+            this.retweet = false;
+            this.originalStatus = null;
+        }
 
         this.message = TwitterAPI.getElementContents(element, "text", "");
 
@@ -139,7 +161,7 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
      * @return ID of this message. (-1 if not known)
      */
     public long getID() {
-        return this.id;
+        return (this.retweet) ? this.originalStatus.getID() : this.id;
     }
 
     /**
@@ -148,7 +170,7 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
      * @return owner of this message. (null if not known)
      */
     public TwitterUser getUser() {
-        return myAPI.getUser(this.user);
+        return (this.retweet) ? this.originalStatus.getUser() : myAPI.getUser(this.user);
     }
 
     /**
@@ -157,13 +179,13 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
      * @return contents of this message.
      */
     public String getText() {
-        return this.message;
+        return (this.retweet) ? this.originalStatus.getText() : this.message;
     }
 
     /**
      * What message is this in reply to?
      *
-     * @return reply ID or 01 if this message isn't replying to anything.
+     * @return reply ID or -1 if this message isn't replying to anything.
      */
     public long getReplyTo() {
         return this.replyID;
@@ -176,6 +198,48 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
      */
     public long getTime() {
         return this.time;
+    }
+
+    /**
+     * Is this status a retweet?
+     *
+     * @return true is this is a retweet.
+     */
+    public boolean isRetweet() {
+        return this.retweet;
+    }
+
+    /**
+     * Get the user who retweeted this message.
+     * If this is not a retweet, this will return the same as getUser();
+     *
+     * @return user who retweeted this message. (null if not known)
+     *         If this is not a retweet, this will return the same as getUser();
+     */
+    public TwitterUser getRetweetUser() {
+        return myAPI.getUser(this.user);
+    }
+
+    /**
+     * Get the retweed version of this message
+     * If this is not a retweet, this will return the same as getText();
+     *
+     * @return retweeted version of this message.
+     *         If this is not a retweet, this will return the same as getText();
+     */
+    public String getRetweetText() {
+        return this.message;
+    }
+
+    /**
+     * Get the retweed ID of this message.
+     * If this is not a retweet, this will return the same as getID();
+     *
+     * @return retweeted ID of this message.
+     *         If this is not a retweet, this will return the same as getID();
+     */
+    public long getRetweetId() {
+        return this.id;
     }
 
     /**

@@ -168,7 +168,7 @@ public class TwitterUser {
             // Keep the status from the old version of this user if it has a
             // higher ID, regardless of the fact we were given a specific
             // status to use.
-            if (oldUser == null || oldUser.getStatus() == null || oldUser.getStatus().getID() < status.getID()) {
+            if (oldUser == null || oldUser.getStatus() == null || oldUser.getStatus().getRetweetId() < status.getRetweetId()) {
                 useOldStatus = false;
                 newStatus = status;
             }

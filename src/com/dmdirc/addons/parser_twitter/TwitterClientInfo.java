@@ -139,31 +139,6 @@ public class TwitterClientInfo implements LocalClientInfo {
         return this;
     }
 
-    /**
-     * Change the user object for this client.
-     *
-     * @param newUser new User object for this client.
-     */
-    /* private void setUser(final TwitterUser newUser) {
-        final TwitterUser oldUser = myParser.getApi().getCachedUser(myUser);
-        myUser = newUser.getScreenName();
-
-        // Check if user nickname changed.
-        if (!newUser.getScreenName().equalsIgnoreCase(oldUser.getScreenName())) {
-            myParser.renameClient(this, newUser.getScreenName());
-            for (TwitterChannelInfo ci : channels) {
-                myParser.getCallbackManager().getCallbackType(ChannelNickChangeListener.class).call(ci, ci.getChannelClient(this), oldUser.getScreenName());
-            }
-        }
-        // Check if friendship status changed.
-        if (newUser.isFollowing() != oldUser.isFollowing()) {
-            for (TwitterChannelInfo ci : channels) {
-                final char type = newUser.isFollowing() ? '+' : '-';
-                myParser.getCallbackManager().getCallbackType(ChannelUserModeChangeListener.class).call(ci, ci.getChannelClient(this), null, "twitter.com", type+"v");
-            }
-        }
-    }*/
-
     /** {@inheritDoc} */
     @Override
     public String getModes() {
@@ -210,6 +185,12 @@ public class TwitterClientInfo implements LocalClientInfo {
     @Override
     public String getHostname() {
         return "twitter.com";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String toString() {
+        return getNickname() + "!" + getUsername() + "@" + getHostname();
     }
 
     /** {@inheritDoc} */

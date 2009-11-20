@@ -75,6 +75,12 @@ public class TwitterChannelInfo implements ChannelInfo {
 
     /** {@inheritDoc} */
     @Override
+    public String toString() {
+        return getName();
+    }
+
+    /** {@inheritDoc} */
+    @Override
     public void setTopic(final String topic) {
         myParser.setStatus(topic);
     }

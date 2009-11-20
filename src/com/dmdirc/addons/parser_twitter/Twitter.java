@@ -68,10 +68,14 @@ import java.util.List;
 import java.util.Map;
 
 import com.dmdirc.addons.parser_twitter.api.TwitterException;
+import com.dmdirc.addons.parser_twitter.api.TwitterRawHandler;
 import com.dmdirc.config.IdentityManager;
 import com.dmdirc.logger.ErrorManager;
 import com.dmdirc.parser.interfaces.callbacks.ChannelJoinListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelKickListener;
+import com.dmdirc.parser.interfaces.callbacks.DataInListener;
+import com.dmdirc.parser.interfaces.callbacks.DataOutListener;
+import com.dmdirc.parser.interfaces.callbacks.DebugInfoListener;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Calendar;
@@ -81,7 +85,7 @@ import java.util.Calendar;
  *
  * @author shane
  */
-public class Twitter implements Parser, TwitterErrorHandler {
+public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
     /** Are we connected? */
     private boolean connected = false;
 
@@ -199,7 +203,7 @@ public class Twitter implements Parser, TwitterErrorHandler {
             }
             doJoinChannel(newChannel);
         } else {
-            getCallbackManager().getCallbackType(NumericListener.class).call(474, new String[]{":"+myServerName, "474", myself.getNickname(), channel, "Cannot join channel - name is not valid, or you are already there."});
+            sendNumericOutput(474, new String[]{":"+myServerName, "474", myself.getNickname(), channel, "Cannot join channel - name is not valid, or you are already there."});
         }
     }
 
@@ -283,8 +287,8 @@ public class Twitter implements Parser, TwitterErrorHandler {
             joinChannel(bits[1]);
         } else if (bits[0].equalsIgnoreCase("WHOIS") && bits.length > 1) {
             if (bits[1].equalsIgnoreCase(myServerName)) {
-                getCallbackManager().getCallbackType(NumericListener.class).call(311, new String[]{":"+myServerName, "311", myself.getNickname(), bits[1], "user", myServerName, "*", "Psuedo-User for DMDirc "+myServerName+" plugin"});
-                getCallbackManager().getCallbackType(NumericListener.class).call(312, new String[]{":"+myServerName, "312", myself.getNickname(), bits[1], myServerName, "DMDirc "+myServerName+" plugin"});
+                sendNumericOutput(311, new String[]{":"+myServerName, "311", myself.getNickname(), bits[1], "user", myServerName, "*", "Psuedo-User for DMDirc "+myServerName+" plugin"});
+                sendNumericOutput(312, new String[]{":"+myServerName, "312", myself.getNickname(), bits[1], myServerName, "DMDirc "+myServerName+" plugin"});
             } else {
                 final boolean forced = (bits.length > 2 && bits[1].equalsIgnoreCase(bits[2]));
                 final TwitterUser user = (forced) ? api.getUser(bits[1], true) : api.getCachedUser(bits[1]);
@@ -467,7 +471,30 @@ public class Twitter implements Parser, TwitterErrorHandler {
     /** {@inheritDoc} */
     @Override
     public void sendCTCP(final String target, final String type, final String message) {
-        sendPrivateNotice("This parser does not support CTCPs.");
+        if (wantAuth) {
+            sendPrivateNotice("DMDirc has not been authorised to use this account yet.");
+        } else if (target.matches("^&[0-9]+$")) {
+            try {
+                long id = Long.parseLong(target.substring(1));
+                if (type.equalsIgnoreCase("retweet") || type.equalsIgnoreCase("rt")) {
+                    final TwitterStatus status = api.getStatus(id);
+                    if (status != null) {
+                        sendPrivateNotice("Retweeting: <"+status.getUser().getScreenName()+"> "+status.getText());
+                        api.retweetStatus(status);
+                        final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(mainChannelName);
+                        if (channel != null) {
+                            checkTopic(channel);
+                        }
+                    } else {
+                        sendPrivateNotice("Invalid Tweet ID.");
+                    }
+                }
+            } catch (NumberFormatException nfe) {
+                sendPrivateNotice("Invalid Tweet ID.");
+            }
+        } else {
+            sendPrivateNotice("This parser does not support CTCPs.");
+        }
     }
 
     /** {@inheritDoc} */
@@ -688,6 +715,44 @@ public class Twitter implements Parser, TwitterErrorHandler {
         sendPrivateNotice(""+Styliser.CODE_FIXED+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V"+Styliser.CODE_HEXCOLOUR+"FFFFFF,71C5C5V"+Styliser.CODE_HEXCOLOUR+"EB5405,71C5C5V");
     }
 
+
+    /**
+     * Check if the given user is known on the channel, and add them if they
+     * are not.
+     *
+     * @param user User to check
+     * @return true if user was already on the channel, false if they were added.
+     */
+    private boolean checkUserOnChannel(final TwitterUser user) {
+        final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(mainChannelName);
+
+        if (channel.getChannelClient(user.getScreenName()) == null) {
+            final TwitterClientInfo ci = new TwitterClientInfo(user.getScreenName(), this);
+            clients.put(ci.getNickname().toLowerCase(), ci);
+            final TwitterChannelClientInfo cci = new TwitterChannelClientInfo(channel, ci);
+
+            channel.addChannelClient(cci);
+            getCallbackManager().getCallbackType(ChannelJoinListener.class).call(channel, cci);
+
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    /**
+     * Send a Debug Message using the parser debug api.
+     * 
+     * @param code Debug Code for the message.
+     * @param message Content of the message.
+     */
+    private void doDebug(final Debug code, final String message) {
+        final boolean debug = IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "debugEnabled");
+        if (debug) {
+            getCallbackManager().getCallbackType(DebugInfoListener.class).call(code.ordinal(), message);
+        }
+    }
+
     /**
      * Run the twitter parser.
      */
@@ -720,6 +785,8 @@ public class Twitter implements Parser, TwitterErrorHandler {
         api.setSource("DMDirc");
         currentParsers.add(this);
         connected = true;
+        api.addErrorHandler(this);
+        api.addRawHandler(this);
         
         final TwitterChannelInfo channel = new TwitterChannelInfo(mainChannelName, this);
         channels.put(mainChannelName, channel);
@@ -808,14 +875,12 @@ public class Twitter implements Parser, TwitterErrorHandler {
                         statuses.add(status);
                     }
                     // Add new friends that may have been added elsewhere.
-                    if (channel.getChannelClient(status.getUser().getScreenName()) == null) {
-                        final TwitterClientInfo ci = new TwitterClientInfo(status.getUser().getScreenName(), this);
-                        clients.put(ci.getNickname().toLowerCase(), ci);
-                        final TwitterChannelClientInfo cci = new TwitterChannelClientInfo(channel, ci);
-
-                        channel.addChannelClient(cci);
-                        getCallbackManager().getCallbackType(ChannelJoinListener.class).call(channel, cci);
+                    if (status.isRetweet()) {
+                        checkUserOnChannel(status.getRetweetUser());
+                    } else {
+                        checkUserOnChannel(status.getUser());
                     }
+
                     if (status.getID() > lastTimelineId) { lastTimelineId = status.getID(); }
                 }
 
@@ -823,12 +888,14 @@ public class Twitter implements Parser, TwitterErrorHandler {
 
                 for (TwitterStatus status : statuses) {
                     final ChannelClientInfo cci = channel.getChannelClient(status.getUser().getScreenName());
-                    final String message;
+                    String message = String.format("%s    %c15 &%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
                     if (status.getReplyTo() > 0) {
-                        message = String.format("%s   %c15 &%d %cin reply to%4$c &%d", status.getText(), Styliser.CODE_COLOUR, status.getID(), Styliser.CODE_ITALIC, status.getReplyTo());
-                    } else {
-                        message = String.format("%s    %c15 &%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
+                        message += String.format(" %cin reply to &%d %1$c", Styliser.CODE_ITALIC, status.getReplyTo());
                     }
+                    if (status.isRetweet()) {
+                        message += String.format("    %c%c15[Retweet by %s]%1$c", Styliser.CODE_BOLD, Styliser.CODE_COLOUR, status.getRetweetUser().getScreenName());
+                    }
+                    
                     final String hostname = status.getUser().getScreenName();
                     sendChannelMessage(channel, message, cci, hostname);
                 }
@@ -848,7 +915,6 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 Collections.sort(directMessages);
 
                 for (TwitterMessage dm : directMessages) {
-                    System.out.println("<"+dm.getSenderScreenName()+" - "+dm.getTargetScreenName()+" > "+dm.getText());
                     sendPrivateMessage(dm.getText(), dm.getSenderScreenName(), dm.getTargetScreenName());
                 }
 
@@ -861,12 +927,10 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername, Long.toString(lastDirectMessageId));
             }
 
-            final boolean debug = IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "debugEnabled");
-
             final int apiLimit = IdentityManager.getGlobalConfig().getOptionInt(myPlugin.getDomain(), "apicalls");
             final int endCalls = (wantAuth) ? 0 : api.getUsedCalls();
             final Long[] apiCalls = api.getRemainingApiCalls();
-            if (debug) { System.out.println("Twitter calls Remaining: "+apiCalls[0]); }
+            doDebug(Debug.apiCalls, "Twitter calls Remaining: "+apiCalls[0]);
             // laconica doesn't rate limit, so time to reset is always 0, in this case
             // we will assume the time of the next hour.
             final Calendar cal = Calendar.getInstance();
@@ -906,25 +970,21 @@ public class Twitter implements Parser, TwitterErrorHandler {
                 // calculating the start and end calls used) then assume 3.
                 final long callsPerTime = (endCalls - startCalls) > 0 ? (endCalls - startCalls) : 3;
 
-                if (debug) {
-                    System.out.println("\tCalls Remaining: "+callsLeft);
-                    System.out.println("\tCalls per time: "+callsPerTime);
-                }
+                doDebug(Debug.apiCalls, "\tCalls Remaining: "+callsLeft);
+                doDebug(Debug.apiCalls, "\tCalls per time: "+callsPerTime);
 
                 // And divide this by the number of calls we make each time to
                 // see how many times we have to sleep this hour.
                 final long sleepsRequired = callsLeft / callsPerTime;
 
-                if (debug) {
-                    System.out.println("\tSleeps Required: "+sleepsRequired);
-                    System.out.println("\tTime Left: "+timeLeft);
-                }
+                doDebug(Debug.sleepTime, "\tSleeps Required: "+sleepsRequired);
+                doDebug(Debug.sleepTime, "\tTime Left: "+timeLeft);
 
                 // Then finally discover how long we need to sleep for.
                 sleepTime = (sleepsRequired > 0) ? timeLeft / sleepsRequired : timeLeft;
             }
 
-            if (debug) { System.out.println("Sleeping for: "+sleepTime); }
+            doDebug(Debug.sleepTime, "Sleeping for: "+sleepTime);
 
             // Sleep for sleep time, 
             // If we have a negative sleep time, use 5 minutes.
@@ -1064,8 +1124,9 @@ public class Twitter implements Parser, TwitterErrorHandler {
      */
     private void checkTopic(final TwitterChannelInfo channel) {
         final String oldStatus = channel.getTopic();
-        if (myself.getUser().getStatus() == null) { return; }
-        final String newStatus = myself.getUser().getStatus().getText();
+        final TwitterStatus status = myself.getUser().getStatus();
+        if (status == null) { return; }
+        final String newStatus = (status.isRetweet()) ? status.getRetweetText() : status.getText();
 
         if (!newStatus.equalsIgnoreCase(oldStatus)) {
             channel.setTopicSetter(myUsername);
@@ -1080,53 +1141,91 @@ public class Twitter implements Parser, TwitterErrorHandler {
     public void handleTwitterError(final TwitterAPI api, final Throwable t, final String source, final String twitterInput, final String twitterOutput, final String message) {
         try {
             if (!message.isEmpty()) {
+                doDebug(Debug.twitterError, "Error: "+message);
                 sendPrivateNotice("Error: "+message);
             }
+            doDebug(Debug.twitterError, t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage());
             sendPrivateNotice(t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage());
         
-            // If debugging is enabled, also let the user know all this and more in PM.
-            if (IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "debugEnabled")) {
-                if (!message.isEmpty()) {
-                    sendPrivateMessage("Error: "+message);
-                }
-                sendPrivateMessage(t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage());
-
-                // And give more information:
-                sendPrivateMessage("Source: "+source);
-                sendPrivateMessage("Input: "+twitterInput);
-                sendPrivateMessage("Output: ");
-                for (String out : twitterOutput.split("\n")) {
-                    sendPrivateMessage("                "+out);
-                }
-                sendPrivateMessage("");
-                sendPrivateMessage("Exception:");
-
-                // Hax the error manager to get a nice String[] representing the stack trace and output it.
-                try {
-                    final Method gt = ErrorManager.class.getDeclaredMethod("getTrace");
-                    gt.setAccessible(true);
-                    final String[] trace = (String[]) gt.invoke(ErrorManager.getErrorManager(), t);
-
-                    for (String out : trace) {
-                        sendPrivateMessage("                "+out);
-                    }
-                } catch (NoSuchMethodException ex) {
-                    sendPrivateMessage("    ... Unable to get StackTrace (nsme)");
-                } catch (SecurityException ex) {
-                    sendPrivateMessage("    ... Unable to get StackTrace (se)");
-                } catch (IllegalAccessException ex) {
-                    sendPrivateMessage("    ... Unable to get StackTrace (iae)");
-                } catch (IllegalArgumentException ex) {
-                    sendPrivateMessage("    ... Unable to get StackTrace (iae2)");
-                } catch (InvocationTargetException ex) {
-                    sendPrivateMessage("    ... Unable to get StackTrace (ite)");
-                }
-
-                sendPrivateMessage("==================================");
+            if (!message.isEmpty()) {
+                doDebug(Debug.twitterErrorMore, "Error: "+message);
             }
+            doDebug(Debug.twitterErrorMore, t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage());
+
+            // And give more information:
+            doDebug(Debug.twitterErrorMore, "Source: "+source);
+            doDebug(Debug.twitterErrorMore, "Input: "+twitterInput);
+            doDebug(Debug.twitterErrorMore, "Output: ");
+            for (String out : twitterOutput.split("\n")) {
+                doDebug(Debug.twitterErrorMore, "                "+out);
+            }
+            doDebug(Debug.twitterErrorMore, "");
+            doDebug(Debug.twitterErrorMore, "Exception:");
+
+            // Hax the error manager to get a nice String[] representing the stack trace and output it.
+            try {
+                final Method gt = ErrorManager.class.getDeclaredMethod("getTrace");
+                gt.setAccessible(true);
+                final String[] trace = (String[]) gt.invoke(ErrorManager.getErrorManager(), t);
+
+                for (String out : trace) {
+                    doDebug(Debug.twitterErrorMore, "                "+out);
+                }
+            } catch (NoSuchMethodException ex) {
+                doDebug(Debug.twitterErrorMore, "    ... Unable to get StackTrace (nsme: "+ex+")");
+            } catch (SecurityException ex) {
+                doDebug(Debug.twitterErrorMore, "    ... Unable to get StackTrace (se: "+ex+")");
+            } catch (IllegalAccessException ex) {
+                doDebug(Debug.twitterErrorMore, "    ... Unable to get StackTrace (iae: "+ex+")");
+            } catch (IllegalArgumentException ex) {
+                doDebug(Debug.twitterErrorMore, "    ... Unable to get StackTrace (iae2: "+ex+")");
+            } catch (InvocationTargetException ex) {
+                doDebug(Debug.twitterErrorMore, "    ... Unable to get StackTrace (ite: "+ex+")");
+            }
+
+            doDebug(Debug.twitterErrorMore, "==================================");
         } catch (Throwable t2) {
+            doDebug(Debug.twitterError, "wtf? (See Console for stack trace) "+t2);
             System.out.println("wtf? "+t2);
             t2.printStackTrace();
+        }
+    }
+
+    /**
+     * This method will send data to the NumericListener and the DataInListener
+     * 
+     * @param numeric Numeric
+     * @param token Tokenised Representation.
+     */
+    private void sendNumericOutput(final int numeric, final String[] token) {
+        getCallbackManager().getCallbackType(NumericListener.class).call(numeric, token);
+        final StringBuffer output = new StringBuffer();
+        for (String bit : token) {
+            output.append(" ");
+            output.append(bit);
+        }
+        getCallbackManager().getCallbackType(DataInListener.class).call(output.toString().trim());
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void handleRawTwitterInput(final TwitterAPI api, final String data) {
+        doDebug(Debug.dataIn, "-------------------------");
+        getCallbackManager().getCallbackType(DataInListener.class).call("-------------------------");
+        for (String line : data.split("\n")) {
+            doDebug(Debug.dataIn, line);
+            getCallbackManager().getCallbackType(DataInListener.class).call(line);
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void handleRawTwitterOutput(final TwitterAPI api, final String data) {
+        doDebug(Debug.dataOut, "-------------------------");
+        getCallbackManager().getCallbackType(DataOutListener.class).call("-------------------------", true);
+        for (String line : data.split("\n")) {
+            doDebug(Debug.dataOut, line);
+            getCallbackManager().getCallbackType(DataOutListener.class).call(line, true);
         }
     }
 }

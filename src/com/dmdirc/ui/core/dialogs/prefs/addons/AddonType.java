@@ -23,14 +23,18 @@
 package com.dmdirc.ui.core.dialogs.prefs.addons;
 
 /**
+ * Enumeration of the possible types of addons.
  *
  * @since 0.6.3
  * @author chris
  */
 public enum AddonType {
 
+    /** A pack of actions. */
     ACTIONPACK,
+    /** A UI theme. */
     THEME,
+    /** A plugin. */
     PLUGIN;
 
 }

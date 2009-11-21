@@ -30,6 +30,8 @@ package com.dmdirc.ui.core.dialogs.prefs.addons;
  */
 public enum AddonStatus {
 
+    /** The addon is not installed. */
+    NOTINSTALLED,
     /** The addon is enabled. */
     ENABLED,
     /** The addon is disabled. */

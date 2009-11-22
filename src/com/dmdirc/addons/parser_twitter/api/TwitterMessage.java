@@ -85,7 +85,6 @@ public class TwitterMessage implements Comparable<TwitterMessage> {
      *
      * @param api API that owns this.
      * @param node Node to use.
-     * @param user User who this status belongs to.
      */
     protected TwitterMessage(final TwitterAPI api, final Node node) {
         if (!(node instanceof Element)) { throw new TwitterRuntimeException("Can only use Element type nodes for message creation."); }

@@ -66,9 +66,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import com.dmdirc.interfaces.ConfigChangeListener;
 import com.dmdirc.addons.parser_twitter.api.TwitterException;
 import com.dmdirc.addons.parser_twitter.api.TwitterRawHandler;
+import com.dmdirc.config.ConfigManager;
 import com.dmdirc.config.IdentityManager;
 import com.dmdirc.logger.ErrorManager;
 import com.dmdirc.parser.interfaces.callbacks.ChannelJoinListener;
@@ -85,7 +86,7 @@ import java.util.Calendar;
  *
  * @author shane
  */
-public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
+public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, ConfigChangeListener {
     /** Are we connected? */
     private boolean connected = false;
 
@@ -93,7 +94,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
     private TwitterPlugin myPlugin = null;
 
     /** Twitter API. */
-    private TwitterAPI api = new TwitterAPI("", "", "");
+    private TwitterAPI api = new TwitterAPI("", "", "", false, -1);
 
     /** Channels we are in. */
     private final Map<String, TwitterChannelInfo> channels = new HashMap<String, TwitterChannelInfo>();
@@ -129,13 +130,25 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
     private boolean wantAuth = false;
 
     /** Server we are connecting to. */
-    final String myServerName;
+    private final String myServerName;
+
+    /** API Address to use. */
+    private final String apiAddress;
+
+    /** Are we using API Versioning? */
+    private boolean apiVersioning = false;
+
+    /** What API Version do we want? */
+    private int apiVersion = -1;
 
     /** Address that created us. */
-    final URI myAddress;
+    private final URI myAddress;
     
     /** Main Channel Name */
-    final String mainChannelName;
+    private final String mainChannelName;
+
+    /** Config Manager for this parser. */
+    private ConfigManager myConfigManager = null;
 
     /**
      * Create a new Twitter Parser!
@@ -151,6 +164,20 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
 
         this.myPlugin = myPlugin;
         this.myServerName = address.getHost().toLowerCase();
+
+        if (getConfigManager().hasOptionString(myPlugin.getDomain(), "api.address."+myServerName)) {
+            this.apiAddress = getConfigManager().getOption(myPlugin.getDomain(), "api.address."+myServerName);
+        } else {
+            this.apiAddress = this.myServerName + address.getPath();
+        }
+
+        if (getConfigManager().hasOptionBool(myPlugin.getDomain(), "api.versioned."+myServerName)) {
+            this.apiVersioning = getConfigManager().getOptionBool(myPlugin.getDomain(), "api.versioned."+myServerName);
+            if (getConfigManager().hasOptionInt(myPlugin.getDomain(), "api.version."+myServerName)) {
+                this.apiVersion = getConfigManager().getOptionInt(myPlugin.getDomain(), "api.version."+myServerName);
+            }
+        }
+
         this.myAddress = address;
 
         this.mainChannelName = "&twitter";
@@ -161,7 +188,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
     public void disconnect(final String message) {
         connected = false;
         currentParsers.remove(this);
-        api = new TwitterAPI("", "", "");
+        api = new TwitterAPI("", "", "", false, -1);
 
         getCallbackManager().getCallbackType(SocketCloseListener.class).call();
     }
@@ -441,7 +468,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
     /** {@inheritDoc} */
     @Override
     public String getDoubleParameterChannelModes() {
-        return "b";
+        return "";
     }
 
     /** {@inheritDoc} */
@@ -480,10 +507,30 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
                     final TwitterStatus status = api.getStatus(id);
                     if (status != null) {
                         sendPrivateNotice("Retweeting: <"+status.getUser().getScreenName()+"> "+status.getText());
-                        api.retweetStatus(status);
-                        final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(mainChannelName);
-                        if (channel != null) {
-                            checkTopic(channel);
+                        if (api.retweetStatus(status)) {
+                            sendPrivateNotice("Retweet was successful.");
+                            final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(mainChannelName);
+                            if (channel != null) {
+                                checkTopic(channel);
+                            }
+                        } else {
+                            sendPrivateNotice("Retweeting Failed.");
+                        }
+                    } else {
+                        sendPrivateNotice("Invalid Tweet ID.");
+                    }
+                } else if (type.equalsIgnoreCase("delete") || type.equalsIgnoreCase("del")) {
+                    final TwitterStatus status = api.getStatus(id);
+                    if (status != null) {
+                        sendPrivateNotice("Deleting: <"+status.getUser().getScreenName()+"> "+status.getText());
+                        if (api.deleteStatus(status)) {
+                            sendPrivateNotice("Deleting was successful, deleted tweets will still be accessible for some time.");
+                            final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(mainChannelName);
+                            if (channel != null) {
+                                checkTopic(channel);
+                            }
+                        } else {
+                            sendPrivateNotice("Deleting Failed.");
                         }
                     } else {
                         sendPrivateNotice("Invalid Tweet ID.");
@@ -588,7 +635,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
     /** {@inheritDoc} */
     @Override
     public String[] parseHostmask(final String hostmask) {
-        return TwitterClientInfo.parseHostFull(hostmask);
+        return TwitterClientInfo.parseHostFull(hostmask, myPlugin, this);
     }
 
     /** {@inheritDoc} */
@@ -747,7 +794,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
      * @param message Content of the message.
      */
     private void doDebug(final Debug code, final String message) {
-        final boolean debug = IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "debugEnabled");
+        final boolean debug = getConfigManager().getOptionBool(myPlugin.getDomain(), "debugEnabled");
         if (debug) {
             getCallbackManager().getCallbackType(DebugInfoListener.class).call(code.ordinal(), message);
         }
@@ -764,30 +811,40 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
         // else default to our twitter key and secret
         final String consumerKey;
         final String consumerSecret;
-        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "consumerKey-"+myServerName)) { 
-            consumerKey = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "consumerKey-"+myServerName);
+        if (getConfigManager().hasOptionString(myPlugin.getDomain(), "consumerKey-"+myServerName)) {
+            consumerKey = getConfigManager().getOption(myPlugin.getDomain(), "consumerKey-"+myServerName);
         } else { consumerKey = "qftK3mAbLfbWWHf8shiyjw"; }
-        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "consumerSecret-"+myServerName)) { 
-            consumerSecret = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "consumerSecret-"+myServerName);
+        if (getConfigManager().hasOptionString(myPlugin.getDomain(), "consumerSecret-"+myServerName)) {
+            consumerSecret = getConfigManager().getOption(myPlugin.getDomain(), "consumerSecret-"+myServerName);
         } else { consumerSecret = "flPr2TJGp4795DeTu4VkUlNLX8g25SpXWXZ7SKW0Bg"; }
 
         final String token;
         final String tokenSecret;
 
-        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "token-"+myServerName+"-"+myUsername)) {
-            token = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "token-"+myServerName+"-"+myUsername);
+        if (getConfigManager().hasOptionString(myPlugin.getDomain(), "token-"+myServerName+"-"+myUsername)) {
+            token = getConfigManager().getOption(myPlugin.getDomain(), "token-"+myServerName+"-"+myUsername);
         } else { token = ""; }
-        if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "tokenSecret-"+myServerName+"-"+myUsername)) {
-            tokenSecret = IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "tokenSecret-"+myServerName+"-"+myUsername);
+        if (getConfigManager().hasOptionString(myPlugin.getDomain(), "tokenSecret-"+myServerName+"-"+myUsername)) {
+            tokenSecret = getConfigManager().getOption(myPlugin.getDomain(), "tokenSecret-"+myServerName+"-"+myUsername);
         } else { tokenSecret = ""; }
 
-        api = new TwitterAPI(myUsername, myPassword, myServerName+myAddress.getPath(), consumerKey, consumerSecret, token, tokenSecret);
+        api = new TwitterAPI(myUsername, myPassword, apiAddress, "", consumerKey, consumerSecret, token, tokenSecret, apiVersioning, this.apiVersion);
         api.setSource("DMDirc");
         currentParsers.add(this);
-        connected = true;
         api.addErrorHandler(this);
         api.addRawHandler(this);
-        
+        api.setAutoAt(getConfigManager().getOptionBool(myPlugin.getDomain(), "autoAt"));
+        api.setDebug(getConfigManager().getOptionBool(myPlugin.getDomain(), "debugEnabled"));
+
+        getConfigManager().addChangeListener(myPlugin.getDomain(), this);
+
+        connected = api.checkConnection();
+        if (!connected) {
+            sendPrivateNotice("Unable to connect to "+myServerName+". Disconnecting.");
+            getCallbackManager().getCallbackType(SocketCloseListener.class).call();
+            return;
+        }
+
         final TwitterChannelInfo channel = new TwitterChannelInfo(mainChannelName, this);
         channels.put(mainChannelName, channel);
         channel.addChannelClient(new TwitterChannelClientInfo(channel, myself));
@@ -817,7 +874,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
 
         sendChannelMessage(channel, "Checking to see if we have been authorised to use the account \""+api.getUsername()+"\"...");
 
-        if (!api.isAllowed()) {
+        if (!api.isAllowed(false)) {
             wantAuth = true;
             if (api.useOAuth()) {
                 sendChannelMessage(channel, "Sorry, DMDirc has not been authorised to use the account \""+api.getUsername()+"\"");
@@ -842,15 +899,15 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
         long lastTimelineId = -1;
         long lastDirectMessageId = -1;
 
-        if (IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "saveLastIDs")) {
-            if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername)) {
-                lastReplyId = TwitterAPI.parseLong(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername), -1);
+        if (getConfigManager().getOptionBool(myPlugin.getDomain(), "saveLastIDs")) {
+            if (getConfigManager().hasOptionString(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername)) {
+                lastReplyId = TwitterAPI.parseLong(getConfigManager().getOption(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername), -1);
             }
-            if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "lastRlastTimelineIdeplyId-"+myServerName+"-"+myUsername)) {
-                lastTimelineId = TwitterAPI.parseLong(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "lastTimelineId-"+myServerName+"-"+myUsername), -1);
+            if (getConfigManager().hasOptionString(myPlugin.getDomain(), "lastRlastTimelineIdeplyId-"+myServerName+"-"+myUsername)) {
+                lastTimelineId = TwitterAPI.parseLong(getConfigManager().getOption(myPlugin.getDomain(), "lastTimelineId-"+myServerName+"-"+myUsername), -1);
             }
-            if (IdentityManager.getGlobalConfig().hasOptionString(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername)) {
-                lastDirectMessageId = TwitterAPI.parseLong(IdentityManager.getGlobalConfig().getOption(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername), -1);
+            if (getConfigManager().hasOptionString(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername)) {
+                lastDirectMessageId = TwitterAPI.parseLong(getConfigManager().getOption(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername), -1);
             }
         }
 
@@ -863,12 +920,12 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
             if (!wantAuth && api.isAllowed()) {
                 lastQueryTime = System.currentTimeMillis();
 
-                final int statusesPerAttempt = Math.min(200, IdentityManager.getGlobalConfig().getOptionInt(myPlugin.getDomain(), "statuscount"));
+                final int statusesPerAttempt = Math.min(200, getConfigManager().getOptionInt(myPlugin.getDomain(), "statuscount"));
 
                 final List<TwitterStatus> statuses = new ArrayList<TwitterStatus>();
                 for (TwitterStatus status : api.getReplies(lastReplyId, statusesPerAttempt)) {
                     statuses.add(status);
-                    if (status.getID() > lastReplyId) { lastReplyId = status.getID(); }
+                    if (status.getRetweetId() > lastReplyId) { lastReplyId = status.getRetweetId(); }
                 }
 
                 for (TwitterStatus status : api.getFriendsTimeline(lastTimelineId, statusesPerAttempt)) {
@@ -882,7 +939,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
                         checkUserOnChannel(status.getUser());
                     }
 
-                    if (status.getID() > lastTimelineId) { lastTimelineId = status.getID(); }
+                    if (status.getRetweetId() > lastTimelineId) { lastTimelineId = status.getRetweetId(); }
                 }
 
                 Collections.sort(statuses);
@@ -907,7 +964,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
                     if (directMessage.getID() > lastDirectMessageId) { lastDirectMessageId = directMessage.getID(); }
                 }
 
-                if (IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "getSentMessages")) {
+                if (getConfigManager().getOptionBool(myPlugin.getDomain(), "getSentMessages")) {
                     for (TwitterMessage directMessage : api.getSentDirectMessages(lastDirectMessageId)) {
                         directMessages.add(directMessage);
                         if (directMessage.getID() > lastDirectMessageId) { lastDirectMessageId = directMessage.getID(); }
@@ -922,13 +979,13 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
                 checkTopic(channel);
             }
 
-            if (IdentityManager.getGlobalConfig().getOptionBool(myPlugin.getDomain(), "saveLastIDs")) {
+            if (getConfigManager().getOptionBool(myPlugin.getDomain(), "saveLastIDs")) {
                 IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername, Long.toString(lastReplyId));
                 IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastTimelineId-"+myServerName+"-"+myUsername, Long.toString(lastTimelineId));
                 IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername, Long.toString(lastDirectMessageId));
             }
 
-            final int apiLimit = IdentityManager.getGlobalConfig().getOptionInt(myPlugin.getDomain(), "apicalls");
+            final int apiLimit = getConfigManager().getOptionInt(myPlugin.getDomain(), "apicalls");
             final int endCalls = (wantAuth) ? 0 : api.getUsedCalls();
             final Long[] apiCalls = api.getRemainingApiCalls();
             doDebug(Debug.apiCalls, "Twitter calls Remaining: "+apiCalls[0]);
@@ -953,11 +1010,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
                 // (This will also happen if twitter didn't respond for some reason)
                 sleepTime = 10 * 60 * 1000;
                 // Also alert the user.
-                if (Math.random() <= 0.25) {
-                    showFailWhale();
-                } else {
-                    sendPrivateNotice("Unable to communicate with twitter, or no API calls allowed at all, retrying in 10 minutes.");
-                }
+                twitterFail("Unable to communicate with twitter, or no API calls allowed at all, retrying in 10 minutes.");
             } else if (api.getUsedCalls() > apiLimit) {
                 // Sleep for the rest of the hour, we have done too much!
                 sleepTime = timeLeft;
@@ -1053,8 +1106,32 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
      * @return True if status was updated, else false.
      */
     private boolean setStatus(final String message, final long id) {
-        if (api.setStatus(message, id)) {
-            final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(mainChannelName);
+        final StringBuffer newStatus = new StringBuffer(message);
+        final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(mainChannelName);
+        
+        if (channel != null && getConfigManager().getOptionBool(myPlugin.getDomain(), "replaceOpeningNickname")) {
+            final String[] bits = message.split(" ");
+            if (bits[0].charAt(bits[0].length() - 1) == ':') {
+                final String name = bits[0].substring(0, bits[0].length() - 1);
+                
+                final ChannelClientInfo cci = channel.getChannelClient(name);
+                if (cci != null) {
+                    if (cci.getClient().getNickname().charAt(0) != '@') {
+                        bits[0] = "@" + cci.getClient().getNickname();
+                    } else {
+                        bits[0] = cci.getClient().getNickname();
+                    }
+
+                    newStatus.setLength(0);
+                    for (String bit : bits) {
+                        if (newStatus.length() > 0) { newStatus.append(" "); }
+                        newStatus.append(bit);
+                    }
+                }
+            }
+        }
+
+        if (api.setStatus(newStatus.toString(), id)) {
             if (channel != null) {
                 checkTopic(channel);
             }
@@ -1100,7 +1177,6 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
      */
     private void updateTwitterChannel() {
         final TwitterChannelInfo channel = (TwitterChannelInfo) getChannel(mainChannelName);
-        final TwitterStatus myStatus = ((TwitterClientInfo)getLocalClient()).getUser().getStatus();
         checkTopic(channel);
 
         channel.clearChannelClients();
@@ -1141,17 +1217,13 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
     @Override
     public void handleTwitterError(final TwitterAPI api, final Throwable t, final String source, final String twitterInput, final String twitterOutput, final String message) {
         try {
+            final boolean debug = getConfigManager().getOptionBool(myPlugin.getDomain(), "debugEnabled");
             if (!message.isEmpty()) {
-                doDebug(Debug.twitterError, "Error: "+message);
-                sendPrivateNotice("Error: "+message);
+                twitterFail("Recieved an error from twitter: " + message + (debug ? " [" + source + "]" : ""));
+            } else if (debug) {
+                twitterFail("Recieved an error: " + source);
             }
             doDebug(Debug.twitterError, t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage());
-            sendPrivateNotice(t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage());
-        
-            if (!message.isEmpty()) {
-                doDebug(Debug.twitterErrorMore, "Error: "+message);
-            }
-            doDebug(Debug.twitterErrorMore, t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage());
 
             // And give more information:
             doDebug(Debug.twitterErrorMore, "Source: "+source);
@@ -1187,7 +1259,6 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
             doDebug(Debug.twitterErrorMore, "==================================");
         } catch (Throwable t2) {
             doDebug(Debug.twitterError, "wtf? (See Console for stack trace) "+t2);
-            System.out.println("wtf? "+t2);
             t2.printStackTrace();
         }
     }
@@ -1228,5 +1299,53 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler {
             doDebug(Debug.dataOut, line);
             getCallbackManager().getCallbackType(DataOutListener.class).call(line, true);
         }
+    }
+
+    /**
+     * Let the user know twitter failed in some way.
+     * 
+     * @param message Message to send to the user
+     */
+    private void twitterFail(final String message) {
+        if (Math.random() <= 0.25) {
+            showFailWhale();
+        }
+        doDebug(Debug.twitterError, message);
+        sendPrivateNotice(message);
+    }
+
+    /**
+     * Returns the TwitterPlugin that owns us.
+     *
+     * @return The TwitterPlugin that owns us.
+     */
+    public TwitterPlugin getMyPlugin() {
+        return myPlugin;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void configChanged(final String domain, final String key) {
+        if (domain.equalsIgnoreCase(myPlugin.getDomain())) {
+            if (key.equalsIgnoreCase("debugEnabled")) {
+                api.setDebug(getConfigManager().getOptionBool(myPlugin.getDomain(), "debugEnabled"));
+            } else if (key.equalsIgnoreCase("autoAt")) {
+                sendPrivateNotice("'autoAt' setting was changed, reconnect needed.");
+                disconnect("'autoAt' setting was changed, reconnect needed.");
+            }
+        }
+    }
+
+    /**
+     * Get the config manager for this parser instance.
+     *
+     * @return the ConfigManager for this parser.
+     */
+    protected ConfigManager getConfigManager() {
+        if (myConfigManager == null) {
+            new ConfigManager(getServerSoftwareType(), getNetworkName(), getServerName());
+        }
+
+        return myConfigManager;
     }
 }

@@ -22,8 +22,6 @@
 
 package com.dmdirc.addons.parser_twitter.api;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -126,7 +124,7 @@ public class TwitterUser {
         this.myAPI = api;
 
         this.realName = TwitterAPI.getElementContents(element, "name", "");
-        this.screenName = TwitterAPI.getElementContents(element, "screen_name", "");
+        this.screenName = (api.autoAt() ? "@" : "") + TwitterAPI.getElementContents(element, "screen_name", "");
         
         this.myProfilePicture = TwitterAPI.getElementContents(element, "profile_image_url", "");
         this.myURL = TwitterAPI.getElementContents(element, "url", "");

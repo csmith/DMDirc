@@ -47,6 +47,7 @@ import java.io.ByteArrayInputStream;
 
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.net.NoRouteToHostException;
 import java.net.URLEncoder;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -118,55 +119,75 @@ public class TwitterAPI {
     /** List of TwitterRawHandlers */
     private final List<TwitterRawHandler> rawHandlers = new LinkedList<TwitterRawHandler>();
 
-    /** What server name should we connect to?. */
-    private final String myServerName;
+    /** What address should API calls be made to? */
+    private final String apiAddress;
 
     /** Should we use OAuth? */
     private boolean useOAuth = true;
 
     /** Should we use ssl? */
     private boolean useSSL = false;
+    
+    /** Should we enable debug? */
+    private boolean debug = false;
+
+    /** Should we use the versioned API? */
+    private boolean useAPIVersion = false;
+
+    /** 
+     * What version of the API should we try to use?
+     * If useAPIVersion is false this is irrelevent, otherwise method calls will
+     * try to use this version of the API, otherwise falling back to any lower
+     * version they know how to use.
+     */
+    private int apiVersion = 1;
 
     /** Source to try and use for non-oauth status updates. */
     private String mySource = "web";
 
+    /** Should we prepend an @ to all user names? */
+    private boolean autoAt = false;
+
     /**
      * Create a non-OAuth using TwitterAPI.
      *
-     * @param username
-     * @param password
-     * @param serverName
+     * @param username Username to use.
+     * @param password Password to use.
+     * @param apiAddress 
+     * @param useAPIVersion
+     * @param apiVersion
      */
-    public TwitterAPI(final String username, final String password, final String serverName) {
-        this(username, password, serverName, "", "", "", "");
+    public TwitterAPI(final String username, final String password, final String apiAddress, final boolean useAPIVersion, final int apiVersion) {
+        this(username, password, apiAddress, "", "", "", "", "", useAPIVersion, apiVersion);
         useOAuth = false;
     }
 
     /**
      * Create a new Twitter API for the given user.
      *
-     * @param username
-     * @param password
-     * @param serverName
-     * @param consumerKey
-     * @param consumerSecret
-     * @param token
-     * @param tokenSecret
+     * @param username Username to use.
+     * @param password Password to use. (if using OAuth then "" is sufficient, if specified then it will be used as a fallback if OAuth is unavailable)
+     * @param apiAddress Address to send API Requests to. (No protocol, eg "api.twitter.com")
+     * @param oauthAddress Path to OAuth. (default: apiAddress+"/oauth");
+     * @param consumerKey If using OAuth, the consumerKey to use.
+     * @param consumerSecret If using OAuth, the consumerSecret to use.
+     * @param token If using OAuth, the token to use.
+     * @param tokenSecret If using OAuth, the tokenSecret to use.
+     * @param useAPIVersion Should we use the versioned api?
+     * @param apiVersion What version of the api should we use? (0 == Unversioned, -1 == maximum version known)
      */
-    public TwitterAPI(final String username, final String password, final String serverName, final String consumerKey, final String consumerSecret, final String token, final String tokenSecret) {
+    public TwitterAPI(final String username, final String password, final String apiAddress, final String oauthAddress, final String consumerKey, final String consumerSecret, final String token, final String tokenSecret, final boolean useAPIVersion, final int apiVersion) {
         this.myUsername = username;
-        this.myServerName = serverName.replaceAll("/+$", ""); // Remove trailing / which break OAuth
+        this.apiAddress = apiAddress.replaceAll("/+$", "");
         this.myPassword = password;
 
-        if (myServerName.isEmpty() && myUsername.isEmpty()) { return; }
+        if (this.apiAddress.isEmpty() && myUsername.isEmpty()) { return; }
 
         if (!consumerKey.isEmpty() && !consumerSecret.isEmpty()) {
             consumer = new DefaultOAuthConsumer(consumerKey, consumerSecret, SignatureMethod.HMAC_SHA1);
-            if (useSSL) {
-                provider = new DefaultOAuthProvider(consumer, "https://"+myServerName+"/oauth/request_token", "https://"+myServerName+"/oauth/access_token", "https://"+myServerName+"/oauth/authorize");
-            } else {
-                provider = new DefaultOAuthProvider(consumer, "http://"+myServerName+"/oauth/request_token", "http://"+myServerName+"/oauth/access_token", "http://"+myServerName+"/oauth/authorize");
-            }
+            final String thisOauthAddress = ((useSSL) ? "https" : "http") + "://" + ((oauthAddress == null || oauthAddress.isEmpty()) ? apiAddress.replaceAll("/+$", "") + "/oauth" : oauthAddress.replaceAll("/+$", ""));
+            
+            provider = new DefaultOAuthProvider(consumer, thisOauthAddress+"/request_token", thisOauthAddress+"/access_token", thisOauthAddress+"/authorize");
 
             this.token = token;
             this.tokenSecret = tokenSecret;
@@ -174,16 +195,20 @@ public class TwitterAPI {
             try {
                 useOAuth = !(getOAuthURL().isEmpty());
             } catch (TwitterRuntimeException tre) {
-                System.out.println("tre :( "+tre);
                 useOAuth = false;
             }
         } else {
             useOAuth = false;
         }
 
+        this.useAPIVersion = useAPIVersion && (apiVersion > 0);
+        if (apiVersion > 0) {
+            this.apiVersion = apiVersion;
+        }
+
         // if we are allowed, isAllowed will automatically call getUser() to
         // update the cache with our own user object.
-        if (!isAllowed()) {
+        if (!isAllowed(true)) {
             // If not, add a temporary one.
             // It will be replaced as soon as the allowed status is changed to
             // true by isAlowed().
@@ -210,13 +235,28 @@ public class TwitterAPI {
     }
 
     /**
-     * Get the address to send API Calls to.
+     * Get the address to send API Calls to, assuming version 1 of the API.
      *
      * @param apiCall call we want to make
      * @return URL To use!
      */
     private String getURL(final String apiCall) {
-        return (useSSL ? "https" : "http") + "://" + myServerName + "/" + apiCall + ".xml";
+        return getURL(apiCall, 1);
+    }
+
+    /**
+     * Get the address to send API Calls to.
+     *
+     * @param apiCall call we want to make
+     * @param version API Version to use. (or 0 to make an unversioned call)
+     * @return URL To use!
+     */
+    private String getURL(final String apiCall, final int version) {
+        if (!useAPIVersion || version == 0) {
+            return (useSSL ? "https" : "http") + "://" + apiAddress + "/" + apiCall + ".xml";
+        } else {
+            return (useSSL ? "https" : "http") + "://" + apiAddress + "/" + version + "/" + apiCall + ".xml";
+        }
     }
 
     /**
@@ -282,7 +322,7 @@ public class TwitterAPI {
     /**
      * Add a new raw handler.
      *
-     * @param raw handler to add.
+     * @param handler handler to add.
      */
     public void addRawHandler(final TwitterRawHandler handler) {
         synchronized (rawHandlers) {
@@ -293,7 +333,7 @@ public class TwitterAPI {
     /**
      * Remove a raw handler.
      *
-     * @param raw handler to remove.
+     * @param handler handler to remove.
      */
     public void delRawHandler(final TwitterRawHandler handler) {
         synchronized (rawHandlers) {
@@ -336,6 +376,42 @@ public class TwitterAPI {
         }
     }
 
+    /**
+     * Are we using autoAt?
+     *
+     * @return are we using autoAt?
+     */
+    public boolean autoAt() {
+        return autoAt;
+    }
+
+    /**
+     * Set if we should use autoAt or not.
+     *
+     * @param autoAt Should we use autoAt?
+     */
+    public void setAutoAt(final boolean autoAt) {
+        this.autoAt = autoAt;
+    }
+
+    /**
+     * Is debugging enabled?
+     *
+     * @return Is debugging enabled?
+     */
+    public boolean isDebug() {
+        return debug;
+    }
+
+    /**
+     * Set if debugging is enabled.
+     *
+     * @param debug if debugging is enabled.
+     */
+    public void setDebug(final boolean debug) {
+        this.debug = debug;
+    }
+
     /** 
      * Are we using oauth?
      * 
@@ -352,6 +428,62 @@ public class TwitterAPI {
      */
     public void setUseOAuth(final boolean useOAuth) {
         this.useOAuth = useOAuth;
+    }
+
+    /**
+     * Are we using the versioned API?
+     *
+     * @return are we using the versioned API?
+     */
+    public boolean useAPIVersion() {
+        return useAPIVersion;
+    }
+
+    /**
+     * Set if we should use the versioned API or not.
+     *
+     * This should be called after setApiVersion
+     *
+     * @param useAPIVersion Should we use the versioned API or not?
+     */
+    public void setUseAPIVersion(final boolean useAPIVersion) {
+        this.useAPIVersion = useAPIVersion;
+        setApiVersion(apiVersion()); // Reset the API Version
+    }
+
+    /**
+     * What version of the API are we using?
+     *
+     * @return The version of the API we are using (0 for none)
+     */
+    public int apiVersion() {
+        return apiVersion;
+    }
+
+    /**
+     * Set the api version to try and use.
+     * Methods will use the given api if support has been added, or the latest
+     * version below that they know.
+     * If this method is not called, then the latest version is assumed
+     *
+     * Changing this causes us to force a check to isAllowed() if apiversioning
+     * is enabled
+     *
+     * @param apiVersion What API Version to use.
+     */
+    public void setApiVersion(final int apiVersion) {
+        this.apiVersion = apiVersion;
+
+        if (useAPIVersion) {
+            // if we are allowed, isAllowed will automatically call getUser() to
+            // update the cache with our own user object.
+            if (!isAllowed(true)) {
+                // If not, add a temporary one.
+                // It will be replaced as soon as the allowed status is changed to
+                // true by isAlowed().
+                updateUser(new TwitterUser(this, myUsername));
+            }
+        }
     }
 
     /**
@@ -399,11 +531,9 @@ public class TwitterAPI {
             try {
                 consumer.sign(connection);
             } catch (OAuthMessageSignerException ex) {
-                handleError(ex, "signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
-                ex.printStackTrace();
+                handleError(ex, "(1) signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
             } catch (OAuthExpectationFailedException ex) {
-                handleError(ex, "signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
-                ex.printStackTrace();
+                handleError(ex, "(2) signURL", apiInput, apiOutput, "Unable to sign URL, are we authorised to use this account?");
             }
         } else {
           // final String userpassword = myUsername + ":" + myPassword;
@@ -533,11 +663,13 @@ public class TwitterAPI {
             final URL url = new URL(address);
             return getXML((HttpURLConnection) url.openConnection());
         } catch (MalformedURLException ex) {
-            handleError(ex, "getXML: "+address, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (1) getXML: "+address, apiInput, apiOutput);
+            }
         } catch (IOException ex) {
-            handleError(ex, "getXML: "+address, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (2) getXML: "+address, apiInput, apiOutput);
+            }
         }
 
         return null;
@@ -555,11 +687,13 @@ public class TwitterAPI {
             final URL url = new URL(address + "?" + params);
             return postXML((HttpURLConnection) url.openConnection());
         } catch (MalformedURLException ex) {
-            handleError(ex, "postXML: "+address+" | "+params, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (1) postXML: "+address+" | "+params, apiInput, apiOutput);
+            }
         } catch (IOException ex) {
-            handleError(ex, "postXML: "+address+" | "+params, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (2) postXML: "+address+" | "+params, apiInput, apiOutput);
+            }
         }
 
         return null;
@@ -578,12 +712,45 @@ public class TwitterAPI {
             request.setRequestProperty("Content-Length", "0");
             request.setUseCaches(false);
         } catch (ProtocolException ex) {
-            handleError(ex, "postXML: "+request.getURL(), apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (3) postXML: "+request.getURL(), apiInput, apiOutput);
+            }
         }
         return getXML(request);
     }
 
+    /**
+     * Check if a connection can be made to the api.
+     *
+     * MalformedURLException or NoRouteToHostException cause this to return
+     * false, otherwise true is sent.
+     *
+     * If any other IOException is thrown this is consided a success and true is
+     * returned.
+     *
+     * If an IOException is thrown this will be sent via handleError when
+     * debugigng is enabled.
+     * 
+     * @return True if connecting to the api works, else false.
+     */
+    public boolean checkConnection() {
+        try {
+            final URL url = new URL(getURL("account/verify_credentials"));
+            final HttpURLConnection request = (HttpURLConnection) url.openConnection();
+            signURL(request);
+            request.connect();
+            return true;
+        } catch (MalformedURLException ex) {
+            return false;
+        } catch (NoRouteToHostException ex) {
+            return false;
+        } catch (IOException ex) {
+            if (isDebug()) {
+                handleError(ex, "* (1) checkConnection", "", "");
+            }
+            return true;
+        }
+    }
 
     /**
      * Get the XML for the given UNSIGNED HttpURLConnection object.
@@ -607,8 +774,9 @@ public class TwitterAPI {
             request.connect();
             in = new BufferedReader(new InputStreamReader(request.getInputStream()));
         } catch (IOException ex) {
-            handleError(ex, "getXML: "+request.getURL(), apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (4) getXML: "+request.getURL(), apiInput, apiOutput);
+            }
             if (request.getErrorStream() != null) {
                 in = new BufferedReader(new InputStreamReader(request.getErrorStream()));
             } else {
@@ -634,8 +802,9 @@ public class TwitterAPI {
             } catch (IOException ex) {
                 apiOutput = xml.toString().trim() + "\n ... Incomplete!";
                 incomplete = true;
-
-                handleError(ex, "getXML", apiInput, apiOutput);
+                if (isDebug()) {
+                    handleError(ex, "* (5) getXML", apiInput, apiOutput);
+                }
             } finally {
                 try { in.close(); } catch (IOException ex) { }
             }
@@ -643,12 +812,18 @@ public class TwitterAPI {
 
         handleRawInput(xml.toString() + (incomplete ? "\n ... Incomplete!" : ""));
 
+        int responseCode;
+
         try {
-            if (request.getResponseCode() != 200) {
-                handleError(null, "getXML", apiInput, apiOutput, "("+request.getResponseCode()+") "+request.getResponseMessage());
+            responseCode = request.getResponseCode();
+            if (responseCode != 200 && isDebug()) {
+                handleError(null, "* (6) getXML", apiInput, apiOutput, "("+request.getResponseCode()+") "+request.getResponseMessage());
             }
         } catch (IOException ioe) {
-            handleError(ioe, "getXML", apiInput, apiOutput, "Unable to get response code.");
+            responseCode = 0;
+            if (isDebug()) {
+                handleError(ioe, "* (7) getXML", apiInput, apiOutput, "Unable to get response code.");
+            }
         }
 
         try {
@@ -658,25 +833,38 @@ public class TwitterAPI {
 
             final NodeList nl = doc.getElementsByTagName("error");
             if (nl.getLength() > 0) {
-                handleError(null, "getXML", apiInput, apiOutput, nl.item(0).getTextContent());
+                handleError(null, "(8) getXML", apiInput, apiOutput, nl.item(0).getTextContent());
             }
 
             return doc;
         } catch (SAXException ex) {
-            handleError(ex, "getXML", apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (9) getXML", apiInput, apiOutput);
+            }
         } catch (ParserConfigurationException ex) {
-            handleError(ex, "getXML", apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (10) getXML", apiInput, apiOutput);
+            }
         } catch (IOException ex) {
-            handleError(ex, "getXML", apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (11) getXML", apiInput, apiOutput);
+            }
         }
 
         return null;
     }
 
-
+    /**
+     * Remove the cache of the status object for the given status.
+     *
+     * @param status
+     */
+    protected void uncacheStatus(final TwitterStatus status) {
+        if (status == null) { return; }
+        synchronized (statusCache) {
+            statusCache.remove(status.getID());
+        }
+    }
 
     /**
      * Remove the cache of the user object for the given user.
@@ -872,8 +1060,9 @@ public class TwitterAPI {
         try {
             postXML(getURL("direct_messages/new"), "screen_name=" + target + "&text=" + URLEncoder.encode(message, "utf-8"));
         } catch (UnsupportedEncodingException ex) {
-            handleError(ex, "newDirectMessage: "+target+" | "+message, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (1) newDirectMessage: "+target+" | "+message, apiInput, apiOutput);
+            }
         }
     }
 
@@ -914,13 +1103,39 @@ public class TwitterAPI {
     public List<TwitterUser> getFriends() {
         final List<TwitterUser> result = new ArrayList<TwitterUser>();
 
-        // TODO: support more than 100 friends.
-        final Document doc = getXML(getURL("statuses/friends"));
+        long cursor = -1;
+        while (cursor != 0) {
+            final Document doc = getXML(getURL("statuses/friends") + "?cursor=" + cursor);
+            if (doc != null) {
+                final NodeList nodes = doc.getElementsByTagName("user");
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    final TwitterUser user = new TwitterUser(this, nodes.item(i));
+                    updateUser(user);
+                    result.add(user);
+                }
+
+                cursor = parseLong(getElementContents(doc.getDocumentElement(), "next_cursor", "0"), 0);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Get a list of people we have blocked..
+     *
+     * @return A list of people we have blocked.
+     */
+    public List<TwitterUser> getBlocked() {
+        final List<TwitterUser> result = new ArrayList<TwitterUser>();
+
+
+        final Document doc = getXML(getURL("blocks/blocking"));
         if (doc != null) {
             final NodeList nodes = doc.getElementsByTagName("user");
             for (int i = 0; i < nodes.getLength(); i++) {
                 final TwitterUser user = new TwitterUser(this, nodes.item(i));
-                updateUser(user);
+                uncacheUser(user);
                 result.add(user);
             }
         }
@@ -936,19 +1151,23 @@ public class TwitterAPI {
     public List<Long> getFollowers() {
         final List<Long> result = new ArrayList<Long>();
 
-        // TODO: support more than 100 friends.
-        final Document doc = getXML(getURL("followers/ids"));
-        if (doc != null) {
-            final NodeList nodes = doc.getElementsByTagName("id");
-            for (int i = 0; i < nodes.getLength(); i++) {
-                final Element element = (Element)nodes.item(i);
-                final Long id = parseLong(element.getTextContent(), -1);
-                result.add(id);
+        long cursor = -1;
+        while (cursor != 0) {
+            final Document doc = getXML(getURL("followers/ids") + "?cursor=" + cursor);
+            if (doc != null) {
+                final NodeList nodes = doc.getElementsByTagName("id");
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    final Element element = (Element)nodes.item(i);
+                    final Long id = parseLong(element.getTextContent(), -1);
+                    result.add(id);
 
-                if (userIDMap.containsKey(id)) {
-                    final TwitterUser user = getCachedUser(userIDMap.get(id));
-                    user.setFollowingUs(true);
+                    if (userIDMap.containsKey(id)) {
+                        final TwitterUser user = getCachedUser(userIDMap.get(id));
+                        user.setFollowingUs(true);
+                    }
                 }
+
+                cursor = parseLong(getElementContents(doc.getDocumentElement(), "next_cursor", "0"), 0);
             }
         }
 
@@ -1108,14 +1327,17 @@ public class TwitterAPI {
                 return true;
             }
         } catch (UnsupportedEncodingException ex) {
-            handleError(ex, "setStatus: "+status+" | "+id, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (1) setStatus: "+status+" | "+id, apiInput, apiOutput);
+            }
         } catch (MalformedURLException ex) {
-            handleError(ex, "setStatus: "+status+" | "+id, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (2) setStatus: "+status+" | "+id, apiInput, apiOutput);
+            }
         } catch (IOException ex) {
-            handleError(ex, "setStatus: "+status+" | "+id, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (3) setStatus: "+status+" | "+id, apiInput, apiOutput);
+            }
         }
 
         return false;
@@ -1139,14 +1361,55 @@ public class TwitterAPI {
                 return true;
             }
         } catch (UnsupportedEncodingException ex) {
-            handleError(ex, "retweetStatus: "+status, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (1) retweetStatus: "+status, apiInput, apiOutput);
+            }
         } catch (MalformedURLException ex) {
-            handleError(ex, "retweetStatus: "+status, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (2) retweetStatus: "+status, apiInput, apiOutput);
+            }
         } catch (IOException ex) {
-            handleError(ex, "retweetStatus: "+status, apiInput, apiOutput);
-            ex.printStackTrace();
+            if (isDebug()) {
+                handleError(ex, "* (3) retweetStatus: "+status, apiInput, apiOutput);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Delete the given status
+     *
+     * @param status Status to delete
+     * @return True if status was deleted ok.
+     */
+    public boolean deleteStatus(final TwitterStatus status) {
+        try {
+            final URL url = new URL(getURL("statuses/destroy/"+status.getID()));
+            final HttpURLConnection request = (HttpURLConnection) url.openConnection();
+            final Document doc = postXML(request);
+            if (request.getResponseCode() == 200) {
+                if (doc != null) {
+                    final TwitterStatus deletedStatus = new TwitterStatus(this, doc.getDocumentElement());
+                    uncacheStatus(deletedStatus);
+
+                    // Get our previous tweet.
+                    getUser(myUsername, true);
+                }
+                return true;
+            }
+        } catch (UnsupportedEncodingException ex) {
+            if (isDebug()) {
+                handleError(ex, "* (1) deleteStatus: "+status, apiInput, apiOutput);
+            }
+        } catch (MalformedURLException ex) {
+            if (isDebug()) {
+                handleError(ex, "* (2) deleteStatus: "+status, apiInput, apiOutput);
+            }
+        } catch (IOException ex) {
+            if (isDebug()) {
+                handleError(ex, "* (3) deleteStatus: "+status, apiInput, apiOutput);
+            }
         }
 
         return false;
@@ -1202,22 +1465,30 @@ public class TwitterAPI {
             return provider.retrieveRequestToken(OAuth.OUT_OF_BAND);
         } catch (OAuthMessageSignerException ex) {
             if (myPassword.isEmpty()) {
-                handleError(ex, "getOAuthURL", apiInput, apiOutput);
+                if (isDebug()) {
+                    handleError(ex, "* (1) getOAuthURL", apiInput, apiOutput);
+                }
                 throw new TwitterRuntimeException(ex.getMessage(), ex);
             }
         } catch (OAuthNotAuthorizedException ex) {
             if (myPassword.isEmpty()) {
-                handleError(ex, "getOAuthURL", apiInput, apiOutput);
+                if (isDebug()) {
+                    handleError(ex, "* (2) getOAuthURL", apiInput, apiOutput);
+                }
                 throw new TwitterRuntimeException(ex.getMessage(), ex);
             }
         } catch (OAuthExpectationFailedException ex) {
             if (myPassword.isEmpty()) {
-                handleError(ex, "getOAuthURL", apiInput, apiOutput);
+                if (isDebug()) {
+                    handleError(ex, "* (3) getOAuthURL", apiInput, apiOutput);
+                }
                 throw new TwitterRuntimeException(ex.getMessage(), ex);
             }
         } catch (OAuthCommunicationException ex) {
             if (myPassword.isEmpty()) {
-                handleError(ex, "getOAuthURL", apiInput, apiOutput);
+                if (isDebug()) {
+                    handleError(ex, "* (4) getOAuthURL", apiInput, apiOutput);
+                }
                 throw new TwitterRuntimeException(ex.getMessage(), ex);
             }
         }
@@ -1239,16 +1510,24 @@ public class TwitterAPI {
             token = consumer.getToken();
             tokenSecret = consumer.getTokenSecret();
         } catch (OAuthMessageSignerException ex) {
-            handleError(ex, "setAccessPin: "+pin, apiInput, apiOutput);
+            if (isDebug()) {
+                handleError(ex, "* (1) setAccessPin: "+pin, apiInput, apiOutput);
+            }
             throw new TwitterException(ex.getMessage(), ex);
         } catch (OAuthNotAuthorizedException ex) {
-            handleError(ex, "setAccessPin: "+pin, apiInput, apiOutput);
+            if (isDebug()) {
+                handleError(ex, "* (2) setAccessPin: "+pin, apiInput, apiOutput);
+            }
             throw new TwitterException(ex.getMessage(), ex);
         } catch (OAuthExpectationFailedException ex) {
-            handleError(ex, "setAccessPin: "+pin, apiInput, apiOutput);
+            if (isDebug()) {
+                handleError(ex, "* (3) setAccessPin: "+pin, apiInput, apiOutput);
+            }
             throw new TwitterException(ex.getMessage(), ex);
         } catch (OAuthCommunicationException ex) {
-            handleError(ex, "setAccessPin: "+pin, apiInput, apiOutput);
+            if (isDebug()) {
+                handleError(ex, "* (4) setAccessPin: "+pin, apiInput, apiOutput);
+            }
             throw new TwitterException(ex.getMessage(), ex);
         }
     }
@@ -1297,7 +1576,9 @@ public class TwitterAPI {
                     getRemainingApiCalls();
                 }
             } catch (IOException ex) {
-                handleError(ex, "isAllowed", apiInput, apiOutput);
+                if (isDebug()) {
+                    handleError(ex, "* (1) isAllowed", apiInput, apiOutput);
+                }
                 allowed = allowed.FALSE;
             }
         }
@@ -1320,7 +1601,9 @@ public class TwitterAPI {
                 return user;
             }
         } catch (UnsupportedEncodingException ex) {
-            handleError(ex, "addFriend: "+name, apiInput, apiOutput);
+            if (isDebug()) {
+                handleError(ex, "* (1) addFriend: "+name, apiInput, apiOutput);
+            }
         }
 
         return null;
@@ -1342,7 +1625,57 @@ public class TwitterAPI {
                 return user;
             }
         } catch (UnsupportedEncodingException ex) {
-            handleError(ex, "delFriend: "+name, apiInput, apiOutput);
+            if (isDebug()) {
+                handleError(ex, "* (1) delFriend: "+name, apiInput, apiOutput);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Block a user on twitter.
+     * 
+     * @param name Username to block.
+     * @return The user just blocked.
+     */
+    public TwitterUser blockUser(final String name) {
+        try {
+            final Document doc = postXML(getURL("blocks/create"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            if (doc != null) {
+                final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
+                uncacheUser(user);
+
+                return user;
+            }
+        } catch (UnsupportedEncodingException ex) {
+            if (isDebug()) {
+                handleError(ex, "*(1) blockUser: "+name, apiInput, apiOutput);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Unblock a user on twitter.
+     * 
+     * @param name Username to unblock.
+     * @return The user just unblocked.
+     */
+    public TwitterUser unblockUser(final String name) {
+        try {
+            final Document doc = postXML(getURL("blocks/destroy"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            if (doc != null) {
+                final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
+                uncacheUser(user);
+
+                return user;
+            }
+        } catch (UnsupportedEncodingException ex) {
+            if (isDebug()) {
+                handleError(ex, "* (1) unblockUser: "+name, apiInput, apiOutput);
+            }
         }
 
         return null;

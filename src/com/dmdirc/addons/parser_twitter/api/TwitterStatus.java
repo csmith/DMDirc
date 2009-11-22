@@ -22,6 +22,7 @@
 
 package com.dmdirc.addons.parser_twitter.api;
 
+import com.dmdirc.addons.parser_twitter.api.commons.StringEscapeUtils;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -129,7 +130,12 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
             this.originalStatus = null;
         }
 
-        this.message = TwitterAPI.getElementContents(element, "text", "");
+        this.message = StringEscapeUtils.unescapeHtml(TwitterAPI.getElementContents(element, "text", "").replace('\n', ' '));
+
+        this.id = TwitterAPI.parseLong(TwitterAPI.getElementContents(element, "id", ""), -1);
+        this.replyID = TwitterAPI.parseLong(TwitterAPI.getElementContents(element, "in_reply_to_status_id", ""), -1);
+        
+        this.time = TwitterAPI.timeStringToLong(TwitterAPI.getElementContents(element, "created_at", ""), 0);
 
         final TwitterUser userUser;
         if (user == null) {
@@ -145,11 +151,6 @@ public class TwitterStatus implements Comparable<TwitterStatus> {
         } else {
             this.user = user;
         }
-
-        this.id = TwitterAPI.parseLong(TwitterAPI.getElementContents(element, "id", ""), -1);
-        this.replyID = TwitterAPI.parseLong(TwitterAPI.getElementContents(element, "in_reply_to_status_id", ""), -1);
-        
-        this.time = TwitterAPI.timeStringToLong(TwitterAPI.getElementContents(element, "created_at", ""), 0);
 
         api.updateStatus(this);
     }

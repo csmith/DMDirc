@@ -23,11 +23,13 @@
 package com.dmdirc.addons.parser_twitter;
 
 import com.dmdirc.addons.parser_twitter.api.TwitterUser;
+import com.dmdirc.config.IdentityManager;
 import com.dmdirc.parser.interfaces.ChannelClientInfo;
 import com.dmdirc.parser.interfaces.LocalClientInfo;
 import com.dmdirc.parser.interfaces.Parser;
 import com.dmdirc.parser.interfaces.callbacks.ChannelNickChangeListener;
 import com.dmdirc.parser.interfaces.callbacks.ChannelUserModeChangeListener;
+import com.dmdirc.plugins.Plugin;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,7 +62,26 @@ public class TwitterClientInfo implements LocalClientInfo {
      * @param hostname Hostname to parse
      * @return String array of nick, ident and host.
      */
-    static String[] parseHostFull(String hostname) {
+    static String[] parseHostFull(final String hostname) {
+        return parseHostFull(hostname, null, null);
+    }
+
+    /**
+     * Parse an IRC Hostname into its separate parts.
+     *
+     * @param hostname Hostname to parse.
+     * @param plugin Plugin to use to get domain from.
+     * @return String array of nick, ident and host.
+     */
+    static String[] parseHostFull(String hostname, final Plugin plugin, final Twitter parser) {
+        boolean hadAt = false;
+        if (plugin != null && parser != null && parser.getConfigManager().getOptionBool(plugin.getDomain(), "autoAt")) {
+            if (hostname.charAt(0) == '@') {
+                hostname = hostname.substring(1);
+                hadAt = true;
+            }
+        }
+
         String[] temp = null;
         final String[] result = new String[3];
         if (!hostname.isEmpty() && hostname.charAt(0) == ':') { hostname = hostname.substring(1); }
@@ -68,7 +89,7 @@ public class TwitterClientInfo implements LocalClientInfo {
         if (temp.length == 1) { result[2] = ""; } else { result[2] = temp[1]; }
         temp = temp[0].split("!", 2);
         if (temp.length == 1) { result[1] = ""; } else { result[1] = temp[1]; }
-        result[0] = temp[0];
+        result[0] = (hadAt ? "@" : "") + temp[0];
 
         return result;
     }

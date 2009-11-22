@@ -22,6 +22,7 @@
 
 package com.dmdirc.addons.parser_twitter;
 
+import com.dmdirc.addons.parser_twitter.api.TwitterUser;
 import com.dmdirc.parser.common.ChannelListModeItem;
 import com.dmdirc.parser.interfaces.ChannelClientInfo;
 import com.dmdirc.parser.interfaces.ChannelInfo;
@@ -142,6 +143,14 @@ public class TwitterChannelInfo implements ChannelInfo {
     /** {@inheritDoc} */
     @Override
     public void alterMode(final boolean add, final Character mode, final String parameter) {
+        if (mode == 'b') {
+            final String[] bits = parameter.split(" ");
+            if (add) {
+                myParser.getApi().blockUser(bits[0]);
+            } else {
+                myParser.getApi().unblockUser(bits[0]);
+            }
+        }
         return;
     }
 
@@ -221,7 +230,17 @@ public class TwitterChannelInfo implements ChannelInfo {
     /** {@inheritDoc} */
     @Override
     public Collection<ChannelListModeItem> getListMode(final char mode) {
-        return new ArrayList<ChannelListModeItem>();
+        final ArrayList<ChannelListModeItem> items = new ArrayList<ChannelListModeItem>();
+
+        // Ideally this should be cached somewhere, but for now this will do.
+        if (mode == 'b') {
+            final long time = System.currentTimeMillis() / 1000;
+            for (TwitterUser user : myParser.getApi().getBlocked()) {
+                items.add(new ChannelListModeItem(user.getScreenName(), myParser.getApi().getUsername(), time));
+            }
+        }
+
+        return items;
     }
 
     /**

@@ -1000,7 +1000,10 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
                     sendPrivateMessage(dm.getText(), dm.getSenderScreenName(), dm.getTargetScreenName());
                 }
 
-                checkTopic(channel, myself.getUser().getStatus());
+                if (myself != null && myself.getUser() != null) {
+                    checkTopic(channel, myself.getUser().getStatus());
+                }
+
                 if (first) {
                     first = false;
                     if (!foundItems) {
@@ -1015,7 +1018,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
 
             final int apiLimit = getConfigManager().getOptionInt(myPlugin.getDomain(), "apicalls");
             final int endCalls = (wantAuth) ? 0 : api.getUsedCalls();
-            final Long[] apiCalls = api.getRemainingApiCalls();
+            final Long[] apiCalls = (wantAuth) ? new Long[]{0L, 0L, System.currentTimeMillis(), (long)api.getUsedCalls()} : api.getRemainingApiCalls();
             doDebug(Debug.apiCalls, "Twitter calls Remaining: "+apiCalls[0]);
             // laconica doesn't rate limit, so time to reset is always 0, in this case
             // we will assume the time of the next hour.

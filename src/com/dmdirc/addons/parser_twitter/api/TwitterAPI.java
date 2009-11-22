@@ -1113,6 +1113,7 @@ public class TwitterAPI {
         final List<TwitterUser> result = new ArrayList<TwitterUser>();
 
         long cursor = -1;
+        int count = 0;
         while (cursor != 0) {
             final XMLResponse doc = getXML(getURL("statuses/friends") + "?cursor=" + cursor);
 
@@ -1125,6 +1126,9 @@ public class TwitterAPI {
                 }
 
                 cursor = parseLong(getElementContents(doc.getDocumentElement(), "next_cursor", "0"), 0);
+                count = 0;
+            } else if (count++ > 1) {
+                break; // If we get an error twice in a row, abort.
             }
         }
 
@@ -1163,6 +1167,7 @@ public class TwitterAPI {
         final List<Long> result = new ArrayList<Long>();
 
         long cursor = -1;
+        int count = 0;
         while (cursor != 0) {
             final XMLResponse doc = getXML(getURL("followers/ids") + "?cursor=" + cursor);
             if (doc.isGood()) {
@@ -1179,6 +1184,9 @@ public class TwitterAPI {
                 }
 
                 cursor = parseLong(getElementContents(doc.getDocumentElement(), "next_cursor", "0"), 0);
+                count = 0;
+            } else if (count++ > 1) {
+                break; // If we get an error twice in a row, abort.
             }
         }
 
@@ -1394,7 +1402,7 @@ public class TwitterAPI {
      * @return Long[4] containting API calls limit information.
      *          - 0 is remaning calls
      *          - 1 is total calls per hour
-     *          - 2 is the time (in milliseconds) untill reset.
+     *          - 2 is the time (in milliseconds) that the limit is reset.
      *          - 3 is the estimated number of api calls we have made since
      *            the last reset.
      */

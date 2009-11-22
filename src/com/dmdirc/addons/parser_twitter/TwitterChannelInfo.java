@@ -131,7 +131,7 @@ public class TwitterChannelInfo implements ChannelInfo {
     /** {@inheritDoc} */
     @Override
     public void part(final String reason) {
-        // TODO: throw new UnsupportedOperationException("Not supported yet.");
+        myParser.partChannel(this);
     }
 
     /** {@inheritDoc} */

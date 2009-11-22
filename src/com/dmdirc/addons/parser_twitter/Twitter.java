@@ -164,6 +164,8 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
 
         this.myPlugin = myPlugin;
         this.myServerName = address.getHost().toLowerCase();
+        
+        resetState();
 
         if (getConfigManager().hasOptionString(myPlugin.getDomain(), "api.address."+myServerName)) {
             this.apiAddress = getConfigManager().getOption(myPlugin.getDomain(), "api.address."+myServerName);
@@ -226,6 +228,9 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
                     } else {
                         newChannel.setLocalTopic("Unknown status, or you do not have access to see it.");
                     }
+                    synchronized (channels) {
+                        channels.put(channel, newChannel);
+                    }
                 } catch (NumberFormatException nfe) { }
             }
             doJoinChannel(newChannel);
@@ -234,10 +239,23 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
         }
     }
 
+    /**
+     * Remove a channel from the known channels list.
+     * 
+     * @param channel
+     */
+    protected void partChannel(final TwitterChannelInfo channel) {
+        synchronized (channels) {
+            channels.remove(channel.getName());
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
     public ChannelInfo getChannel(final String channel) {
-        return channels.containsKey(channel.toLowerCase()) ? channels.get(channel.toLowerCase()) : null;
+        synchronized (channels) {
+            return channels.containsKey(channel.toLowerCase()) ? channels.get(channel.toLowerCase()) : null;
+        }
     }
 
     /** {@inheritDoc} */
@@ -510,9 +528,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
                         if (api.retweetStatus(status)) {
                             sendPrivateNotice("Retweet was successful.");
                             final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(mainChannelName);
-                            if (channel != null) {
-                                checkTopic(channel);
-                            }
+                            checkTopic(channel, myself.getUser().getStatus());
                         } else {
                             sendPrivateNotice("Retweeting Failed.");
                         }
@@ -526,9 +542,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
                         if (api.deleteStatus(status)) {
                             sendPrivateNotice("Deleting was successful, deleted tweets will still be accessible for some time.");
                             final TwitterChannelInfo channel = (TwitterChannelInfo) this.getChannel(mainChannelName);
-                            if (channel != null) {
-                                checkTopic(channel);
-                            }
+                            checkTopic(channel, myself.getUser().getStatus());
                         } else {
                             sendPrivateNotice("Deleting Failed.");
                         }
@@ -608,7 +622,11 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
                 }
             } catch (NumberFormatException nfe) { }
         } else if (!target.matches("^#.+$")) {
-            api.newDirectMessage(target, message);
+            if (api.newDirectMessage(target, message)) {
+                sendPrivateNotice("Sending Direct Message to '"+target+"' was successful.");
+            } else {
+                sendPrivateNotice("Sending Direct Message to '"+target+"' failed.");
+            }
         } else {
             sendPrivateNotice("Messages to '"+target+"' are not currently supported.");
         }
@@ -675,7 +693,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
      *
      * @param message Message to send.
      */
-    private void sendPrivateNotice(final String message) {
+    protected void sendPrivateNotice(final String message) {
         getCallbackManager().getCallbackType(PrivateNoticeListener.class).call(message, myServerName);
     }
 
@@ -846,7 +864,9 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
         }
 
         final TwitterChannelInfo channel = new TwitterChannelInfo(mainChannelName, this);
-        channels.put(mainChannelName, channel);
+        synchronized (channels) {
+            channels.put(mainChannelName, channel);
+        }
         channel.addChannelClient(new TwitterChannelClientInfo(channel, myself));
 
         // Fake 001
@@ -903,13 +923,16 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
             if (getConfigManager().hasOptionString(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername)) {
                 lastReplyId = TwitterAPI.parseLong(getConfigManager().getOption(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername), -1);
             }
-            if (getConfigManager().hasOptionString(myPlugin.getDomain(), "lastRlastTimelineIdeplyId-"+myServerName+"-"+myUsername)) {
+            if (getConfigManager().hasOptionString(myPlugin.getDomain(), "lastTimelineId-"+myServerName+"-"+myUsername)) {
                 lastTimelineId = TwitterAPI.parseLong(getConfigManager().getOption(myPlugin.getDomain(), "lastTimelineId-"+myServerName+"-"+myUsername), -1);
             }
             if (getConfigManager().hasOptionString(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername)) {
                 lastDirectMessageId = TwitterAPI.parseLong(getConfigManager().getOption(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername), -1);
             }
         }
+
+        boolean first = true; // Used to let used know if there was no new items.
+        boolean foundItems = false; // Same as above.
 
         int count = 0;
         final long pruneCount = 20; // Every 20 loops, clear the status cache of
@@ -945,6 +968,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
                 Collections.sort(statuses);
 
                 for (TwitterStatus status : statuses) {
+                    foundItems = true;
                     final ChannelClientInfo cci = channel.getChannelClient(status.getUser().getScreenName());
                     String message = String.format("%s    %c15 &%d", status.getText(), Styliser.CODE_COLOUR, status.getID());
                     if (status.getReplyTo() > 0) {
@@ -976,14 +1000,18 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
                     sendPrivateMessage(dm.getText(), dm.getSenderScreenName(), dm.getTargetScreenName());
                 }
 
-                checkTopic(channel);
+                checkTopic(channel, myself.getUser().getStatus());
+                if (first) {
+                    first = false;
+                    if (!foundItems) {
+                        sendChannelMessage(channel, "No new items found.");
+                    }
+                }
             }
 
-            if (getConfigManager().getOptionBool(myPlugin.getDomain(), "saveLastIDs")) {
-                IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername, Long.toString(lastReplyId));
-                IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastTimelineId-"+myServerName+"-"+myUsername, Long.toString(lastTimelineId));
-                IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername, Long.toString(lastDirectMessageId));
-            }
+            IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername, Long.toString(lastReplyId));
+            IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastTimelineId-"+myServerName+"-"+myUsername, Long.toString(lastTimelineId));
+            IdentityManager.getConfigIdentity().setOption(myPlugin.getDomain(), "lastDirectMessageId-"+myServerName+"-"+myUsername, Long.toString(lastDirectMessageId));
 
             final int apiLimit = getConfigManager().getOptionInt(myPlugin.getDomain(), "apicalls");
             final int endCalls = (wantAuth) ? 0 : api.getUsedCalls();
@@ -1055,7 +1083,9 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
      */
     private void resetState() {
         connected = false;
-        channels.clear();
+        synchronized (channels) {
+            channels.clear();
+        }
         clients.clear();
         
         myself = new TwitterClientInfo(myUsername, this);
@@ -1132,9 +1162,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
         }
 
         if (api.setStatus(newStatus.toString(), id)) {
-            if (channel != null) {
-                checkTopic(channel);
-            }
+            checkTopic(channel, myself.getUser().getStatus());
             return true;
         }
 
@@ -1177,7 +1205,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
      */
     private void updateTwitterChannel() {
         final TwitterChannelInfo channel = (TwitterChannelInfo) getChannel(mainChannelName);
-        checkTopic(channel);
+        checkTopic(channel, myself.getUser().getStatus());
 
         channel.clearChannelClients();
         channel.addChannelClient(new TwitterChannelClientInfo(channel, myself));
@@ -1196,18 +1224,18 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
     /**
      * Check if the topic in the given channel has been changed, and if it has
      * fire the callback.
-     * 
+     *
      * @param channel channel to check.
+     * @param status Status to use to update the topic with.
      */
-    private void checkTopic(final TwitterChannelInfo channel) {
+    private void checkTopic(final TwitterChannelInfo channel, final TwitterStatus status) {
+        if (channel == null || status == null) { return; }
         final String oldStatus = channel.getTopic();
-        final TwitterStatus status = myself.getUser().getStatus();
-        if (status == null) { return; }
         final String newStatus = (status.isRetweet()) ? status.getRetweetText() : status.getText();
 
         if (!newStatus.equalsIgnoreCase(oldStatus)) {
-            channel.setTopicSetter(myUsername);
-            channel.setTopicTime(System.currentTimeMillis());
+            channel.setTopicSetter(status.getUser().getScreenName());
+            channel.setTopicTime(status.getTime() / 1000);
             channel.setLocalTopic(newStatus);
             getCallbackManager().getCallbackType(ChannelTopicListener.class).call(channel, false);
         }
@@ -1343,7 +1371,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
      */
     protected ConfigManager getConfigManager() {
         if (myConfigManager == null) {
-            new ConfigManager(getServerSoftwareType(), getNetworkName(), getServerName());
+            myConfigManager = new ConfigManager(getServerSoftwareType(), getNetworkName(), getServerName());
         }
 
         return myConfigManager;

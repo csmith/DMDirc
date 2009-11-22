@@ -643,22 +643,12 @@ public class TwitterAPI {
     }
 
     /**
-     * Does this document represent an error?
-     *
-     * @param doc Document
-     * @return true of <error> element exists.
-     */
-    private boolean isError(final Document doc) {
-        return !(getElementContents(doc.getDocumentElement(), "error", "").isEmpty());
-    }
-
-    /**
      * Get the XML for the given address.
      *
      * @param address Address to get XML for.
      * @return Document object for this xml.
      */
-    private Document getXML(final String address) {
+    private XMLResponse getXML(final String address) {
         try {
             final URL url = new URL(address);
             return getXML((HttpURLConnection) url.openConnection());
@@ -679,12 +669,22 @@ public class TwitterAPI {
      * Get the XML for the given address, using a POST request.
      *
      * @param address Address to get XML for.
+     * @return Document object for this xml.
+     */
+    private XMLResponse postXML(final String address) {
+        return postXML(address, "");
+    }
+
+    /**
+     * Get the XML for the given address, using a POST request.
+     *
+     * @param address Address to get XML for.
      * @param params Params to post.
      * @return Document object for this xml.
      */
-    private Document postXML(final String address, final String params) {
+    private XMLResponse postXML(final String address, final String params) {
         try {
-            final URL url = new URL(address + "?" + params);
+            final URL url = new URL(address + (params.isEmpty() ? "" : "?" + params));
             return postXML((HttpURLConnection) url.openConnection());
         } catch (MalformedURLException ex) {
             if (isDebug()) {
@@ -706,7 +706,7 @@ public class TwitterAPI {
      * @param request HttpURLConnection to get XML for.
      * @return Document object for this xml.
      */
-    private Document postXML(final HttpURLConnection request) {
+    private XMLResponse postXML(final HttpURLConnection request) {
         try {
             request.setRequestMethod("POST");
             request.setRequestProperty("Content-Length", "0");
@@ -758,7 +758,7 @@ public class TwitterAPI {
      * @param request HttpURLConnection to get XML for.
      * @return Document object for this xml.
      */
-    private Document getXML(final HttpURLConnection request) {
+    private XMLResponse getXML(final HttpURLConnection request) {
         if (resetTime > 0 && resetTime <= System.currentTimeMillis()) {
             usedCalls = 0;
             resetTime = System.currentTimeMillis() + 3600000;
@@ -836,7 +836,7 @@ public class TwitterAPI {
                 handleError(null, "(8) getXML", apiInput, apiOutput, nl.item(0).getTextContent());
             }
 
-            return doc;
+            return new XMLResponse(request, doc);
         } catch (SAXException ex) {
             if (isDebug()) {
                 handleError(ex, "* (9) getXML", apiInput, apiOutput);
@@ -851,7 +851,7 @@ public class TwitterAPI {
             }
         }
 
-        return null;
+        return new XMLResponse(request, null);
     }
 
     /**
@@ -954,9 +954,9 @@ public class TwitterAPI {
             if (username.equalsIgnoreCase(myUsername) && !isAllowed()) {
                  user = new TwitterUser(this, myUsername, -1, "", true);
             } else {
-                final Document doc = getXML(getURL("users/show")+"?screen_name="+username);
+                final XMLResponse doc = getXML(getURL("users/show")+"?screen_name="+username);
 
-                if (doc != null && !isError(doc)) {
+                if (doc.isGood()) {
                     user = new TwitterUser(this, doc.getDocumentElement());
                 } else {
                     user = null;
@@ -1018,9 +1018,9 @@ public class TwitterAPI {
     public TwitterStatus getStatus(final long id, final boolean force) {
         TwitterStatus status = getCachedStatus(id);
         if (status == null || force) {
-            final Document doc = getXML(getURL("statuses/show/"+id));
+            final XMLResponse doc = getXML(getURL("statuses/show/"+id));
 
-            if (doc != null) {
+            if (doc.isGood()) {
                 status = new TwitterStatus(this, doc.getDocumentElement());
             } else {
                 status = null;
@@ -1055,15 +1055,23 @@ public class TwitterAPI {
      *
      * @param target Target user.
      * @param message Message to send.
+     * @return true if the message was sent, else false.
      */
-    public void newDirectMessage(final String target, final String message) {
+    public boolean newDirectMessage(final String target, final String message) {
         try {
-            postXML(getURL("direct_messages/new"), "screen_name=" + target + "&text=" + URLEncoder.encode(message, "utf-8"));
+            final XMLResponse doc = postXML(getURL("direct_messages/new"), "screen_name=" + target + "&text=" + URLEncoder.encode(message, "utf-8"));
+
+            if (doc.isGood()) {
+                new TwitterMessage(this, doc.getDocumentElement());
+                return true;
+            }
         } catch (UnsupportedEncodingException ex) {
             if (isDebug()) {
                 handleError(ex, "* (1) newDirectMessage: "+target+" | "+message, apiInput, apiOutput);
             }
         }
+        
+        return false;
     }
 
     /**
@@ -1084,8 +1092,9 @@ public class TwitterAPI {
     public List<TwitterStatus> getUserTimeline(final long lastUserTimelineId) {
         final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
 
-        final Document doc = getXML(getURL("statuses/user_timeline")+"?since_id="+lastUserTimelineId+"&count=20");
-        if (doc != null) {
+        final XMLResponse doc = getXML(getURL("statuses/user_timeline")+"?since_id="+lastUserTimelineId+"&count=20");
+
+        if (doc.isGood()) {
             final NodeList nodes = doc.getElementsByTagName("status");
             for (int i = 0; i < nodes.getLength(); i++) {
                 result.add(new TwitterStatus(this, nodes.item(i)));
@@ -1105,8 +1114,9 @@ public class TwitterAPI {
 
         long cursor = -1;
         while (cursor != 0) {
-            final Document doc = getXML(getURL("statuses/friends") + "?cursor=" + cursor);
-            if (doc != null) {
+            final XMLResponse doc = getXML(getURL("statuses/friends") + "?cursor=" + cursor);
+
+            if (doc.isGood()) {
                 final NodeList nodes = doc.getElementsByTagName("user");
                 for (int i = 0; i < nodes.getLength(); i++) {
                     final TwitterUser user = new TwitterUser(this, nodes.item(i));
@@ -1130,8 +1140,9 @@ public class TwitterAPI {
         final List<TwitterUser> result = new ArrayList<TwitterUser>();
 
 
-        final Document doc = getXML(getURL("blocks/blocking"));
-        if (doc != null) {
+        final XMLResponse doc = getXML(getURL("blocks/blocking"));
+
+        if (doc.isGood()) {
             final NodeList nodes = doc.getElementsByTagName("user");
             for (int i = 0; i < nodes.getLength(); i++) {
                 final TwitterUser user = new TwitterUser(this, nodes.item(i));
@@ -1153,8 +1164,8 @@ public class TwitterAPI {
 
         long cursor = -1;
         while (cursor != 0) {
-            final Document doc = getXML(getURL("followers/ids") + "?cursor=" + cursor);
-            if (doc != null) {
+            final XMLResponse doc = getXML(getURL("followers/ids") + "?cursor=" + cursor);
+            if (doc.isGood()) {
                 final NodeList nodes = doc.getElementsByTagName("id");
                 for (int i = 0; i < nodes.getLength(); i++) {
                     final Element element = (Element)nodes.item(i);
@@ -1194,8 +1205,8 @@ public class TwitterAPI {
     public List<TwitterStatus> getReplies(final long lastReplyId, final int count) {
         final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
 
-        final Document doc = getXML(getURL("statuses/mentions")+"?since_id="+lastReplyId+"&count="+count);
-        if (doc != null) {
+        final XMLResponse doc = getXML(getURL("statuses/mentions")+"?since_id="+lastReplyId+"&count="+count);
+        if (doc.isGood()) {
             final NodeList nodes = doc.getElementsByTagName("status");
 
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -1226,8 +1237,8 @@ public class TwitterAPI {
     public List<TwitterStatus> getFriendsTimeline(final long lastTimelineId, final int count) {
         final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
 
-        final Document doc = getXML(getURL("statuses/home_timeline")+"?since_id="+lastTimelineId+"&count="+count);
-        if (doc != null) {
+        final XMLResponse doc = getXML(getURL("statuses/home_timeline")+"?since_id="+lastTimelineId+"&count="+count);
+        if (doc.isGood()) {
             final NodeList nodes = doc.getElementsByTagName("status");
             for (int i = 0; i < nodes.getLength(); i++) {
                 result.add(new TwitterStatus(this, nodes.item(i)));
@@ -1257,8 +1268,8 @@ public class TwitterAPI {
     public List<TwitterMessage> getDirectMessages(final long lastDirectMessageId, final int count) {
         final List<TwitterMessage> result = new ArrayList<TwitterMessage>();
 
-        final Document doc = getXML(getURL("direct_messages")+"?since_id="+lastDirectMessageId+"&count="+count);
-        if (doc != null) {
+        final XMLResponse doc = getXML(getURL("direct_messages")+"?since_id="+lastDirectMessageId+"&count="+count);
+        if (doc.isGood()) {
             final NodeList nodes = doc.getElementsByTagName("direct_message");
             for (int i = 0; i < nodes.getLength(); i++) {
                 result.add(new TwitterMessage(this, nodes.item(i)));
@@ -1288,8 +1299,8 @@ public class TwitterAPI {
     public List<TwitterMessage> getSentDirectMessages(final long lastDirectMessageId, final int count) {
         final List<TwitterMessage> result = new ArrayList<TwitterMessage>();
 
-        final Document doc = getXML(getURL("direct_messages/sent")+"?since_id="+lastDirectMessageId+"&count="+count);
-        if (doc != null) {
+        final XMLResponse doc = getXML(getURL("direct_messages/sent")+"?since_id="+lastDirectMessageId+"&count="+count);
+        if (doc.isGood()) {
             final NodeList nodes = doc.getElementsByTagName("direct_message");
             for (int i = 0; i < nodes.getLength(); i++) {
                 result.add(new TwitterMessage(this, nodes.item(i)));
@@ -1314,14 +1325,12 @@ public class TwitterAPI {
                 params.append("&in_reply_to_status_id="+Long.toString(id));
             }
             if (!useOAuth) {
-                params.append("&source="+mySource);
+                params.append("&source="+URLEncoder.encode(mySource, "utf-8"));
             }
 
-            final URL url = new URL(getURL("statuses/update")+"?" + params.toString());
-            final HttpURLConnection request = (HttpURLConnection) url.openConnection();
-            final Document doc = postXML(request);
-            if (request.getResponseCode() == 200) {
-                if (doc != null) {
+            final XMLResponse doc = postXML(getURL("statuses/update"), params.toString());
+            if (doc.getResponseCode() == 200) {
+                if (doc.isGood()) {
                     new TwitterStatus(this, doc.getDocumentElement());
                 }
                 return true;
@@ -1330,13 +1339,9 @@ public class TwitterAPI {
             if (isDebug()) {
                 handleError(ex, "* (1) setStatus: "+status+" | "+id, apiInput, apiOutput);
             }
-        } catch (MalformedURLException ex) {
-            if (isDebug()) {
-                handleError(ex, "* (2) setStatus: "+status+" | "+id, apiInput, apiOutput);
-            }
         } catch (IOException ex) {
             if (isDebug()) {
-                handleError(ex, "* (3) setStatus: "+status+" | "+id, apiInput, apiOutput);
+                handleError(ex, "* (2) setStatus: "+status+" | "+id, apiInput, apiOutput);
             }
         }
 
@@ -1350,28 +1355,12 @@ public class TwitterAPI {
      * @return True if status was retweeted ok.
      */
     public boolean retweetStatus(final TwitterStatus status) {
-        try {
-            final URL url = new URL(getURL("statuses/retweet/"+status.getID()));
-            final HttpURLConnection request = (HttpURLConnection) url.openConnection();
-            final Document doc = postXML(request);
-            if (request.getResponseCode() == 200) {
-                if (doc != null) {
-                    new TwitterStatus(this, doc.getDocumentElement());
-                }
-                return true;
+        final XMLResponse doc = postXML(getURL("statuses/retweet/"+status.getID()));
+        if (doc.getResponseCode() == 200) {
+            if (doc.isGood()) {
+                new TwitterStatus(this, doc.getDocumentElement());
             }
-        } catch (UnsupportedEncodingException ex) {
-            if (isDebug()) {
-                handleError(ex, "* (1) retweetStatus: "+status, apiInput, apiOutput);
-            }
-        } catch (MalformedURLException ex) {
-            if (isDebug()) {
-                handleError(ex, "* (2) retweetStatus: "+status, apiInput, apiOutput);
-            }
-        } catch (IOException ex) {
-            if (isDebug()) {
-                handleError(ex, "* (3) retweetStatus: "+status, apiInput, apiOutput);
-            }
+            return true;
         }
 
         return false;
@@ -1384,32 +1373,16 @@ public class TwitterAPI {
      * @return True if status was deleted ok.
      */
     public boolean deleteStatus(final TwitterStatus status) {
-        try {
-            final URL url = new URL(getURL("statuses/destroy/"+status.getID()));
-            final HttpURLConnection request = (HttpURLConnection) url.openConnection();
-            final Document doc = postXML(request);
-            if (request.getResponseCode() == 200) {
-                if (doc != null) {
-                    final TwitterStatus deletedStatus = new TwitterStatus(this, doc.getDocumentElement());
-                    uncacheStatus(deletedStatus);
+        final XMLResponse doc = postXML(getURL("statuses/destroy/"+status.getID()));
+        if (doc.getResponseCode() == 200) {
+            if (doc.isGood()) {
+                final TwitterStatus deletedStatus = new TwitterStatus(this, doc.getDocumentElement());
+                uncacheStatus(deletedStatus);
 
-                    // Get our previous tweet.
-                    getUser(myUsername, true);
-                }
-                return true;
+                // Get our previous tweet.
+                getUser(myUsername, true);
             }
-        } catch (UnsupportedEncodingException ex) {
-            if (isDebug()) {
-                handleError(ex, "* (1) deleteStatus: "+status, apiInput, apiOutput);
-            }
-        } catch (MalformedURLException ex) {
-            if (isDebug()) {
-                handleError(ex, "* (2) deleteStatus: "+status, apiInput, apiOutput);
-            }
-        } catch (IOException ex) {
-            if (isDebug()) {
-                handleError(ex, "* (3) deleteStatus: "+status, apiInput, apiOutput);
-            }
+            return true;
         }
 
         return false;
@@ -1426,10 +1399,10 @@ public class TwitterAPI {
      *            the last reset.
      */
     public Long[] getRemainingApiCalls() {
-        final Document doc = getXML(getURL("account/rate_limit_status"));
+        final XMLResponse doc = getXML(getURL("account/rate_limit_status"));
         // The call we just made doesn't count, so remove it from the count.
         usedCalls--;
-        if (doc != null) {
+        if (doc.isGood()) {
             final Element element = doc.getDocumentElement();
 
             final long remaining = parseLong(getElementContents(element, "remaining-hits", ""), -1);
@@ -1567,10 +1540,10 @@ public class TwitterAPI {
             try {
                 final URL url = new URL(getURL("account/verify_credentials"));
                 final HttpURLConnection request = (HttpURLConnection) url.openConnection();
-                final Document doc = getXML(request);
+                final XMLResponse doc = getXML(request);
                 allowed = (request.getResponseCode() == 200) ? allowed.TRUE : allowed.FALSE;
 
-                if (doc != null && allowed.getBooleanValue()) {
+                if (doc.isGood() && allowed.getBooleanValue()) {
                     final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
                     updateUser(user);
                     getRemainingApiCalls();
@@ -1594,8 +1567,8 @@ public class TwitterAPI {
      */
     public TwitterUser addFriend(final String name) {
         try {
-            final Document doc = postXML(getURL("friendships/create"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
-            if (doc != null) {
+            final XMLResponse doc = postXML(getURL("friendships/create"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            if (doc.isGood()) {
                 final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
                 updateUser(user);
                 return user;
@@ -1617,8 +1590,8 @@ public class TwitterAPI {
      */
     public TwitterUser delFriend(final String name) {
         try {
-            final Document doc = postXML(getURL("friendships/destroy"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
-            if (doc != null) {
+            final XMLResponse doc = postXML(getURL("friendships/destroy"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            if (doc.isGood()) {
                 final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
                 uncacheUser(user);
 
@@ -1641,8 +1614,8 @@ public class TwitterAPI {
      */
     public TwitterUser blockUser(final String name) {
         try {
-            final Document doc = postXML(getURL("blocks/create"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
-            if (doc != null) {
+            final XMLResponse doc = postXML(getURL("blocks/create"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            if (doc.isGood()) {
                 final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
                 uncacheUser(user);
 
@@ -1665,8 +1638,8 @@ public class TwitterAPI {
      */
     public TwitterUser unblockUser(final String name) {
         try {
-            final Document doc = postXML(getURL("blocks/destroy"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
-            if (doc != null) {
+            final XMLResponse doc = postXML(getURL("blocks/destroy"), "screen_name=" + URLEncoder.encode(name, "utf-8"));
+            if (doc.isGood()) {
                 final TwitterUser user = new TwitterUser(this, doc.getDocumentElement());
                 uncacheUser(user);
 

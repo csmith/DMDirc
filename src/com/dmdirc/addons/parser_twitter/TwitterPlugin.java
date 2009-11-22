@@ -76,11 +76,11 @@ public class TwitterPlugin extends Plugin  {
 
         category.addSetting(new PreferencesSetting(PreferencesType.INTEGER, getDomain(), "statuscount", "Statuses to request", "How many statuses to request at a time.?"));
         category.addSetting(new PreferencesSetting(PreferencesType.INTEGER, getDomain(), "apicalls", "API Calls", "Aim to only use how many API Calls per hour? (Twitter has a max of 150)"));
-        category.addSetting(new PreferencesSetting(PreferencesType.BOOLEAN, getDomain(), "saveLastIDs", "Remember shown items", "Should previously shown items be shown agian next time?"));
+        category.addSetting(new PreferencesSetting(PreferencesType.BOOLEAN, getDomain(), "saveLastIDs", "Remember shown items", "Should previously shown items not be shown again next time?"));
         category.addSetting(new PreferencesSetting(PreferencesType.BOOLEAN, getDomain(), "getSentMessages", "Show own Direct Messages", "Should we try to show our own direct messages to people not just ones to us?"));
 
         advanced.addSetting(new PreferencesSetting(PreferencesType.BOOLEAN, getDomain(), "autoAt", "Prepend nickanmes with @", "Should all nicknmaes be shown with an @ infront of them? (Makes tab competion easier)"));
-        advanced.addSetting(new PreferencesSetting(PreferencesType.BOOLEAN, getDomain(), "replaceOpeningNickname", "Replace openign nickame?", "Should nicknames at the start of the message be replaced? (eg Replace foo: with @foo)"));
+        advanced.addSetting(new PreferencesSetting(PreferencesType.BOOLEAN, getDomain(), "replaceOpeningNickname", "Replace opening nickame?", "Should nicknames at the start of the message be replaced? (eg Replace foo: with @foo)"));
         advanced.addSetting(new PreferencesSetting(PreferencesType.BOOLEAN, getDomain(), "debugEnabled", "Debugging Enabled?", "Should more debugging be enabled on the twitter plugin?"));
 
         category.addSubCategory(advanced);

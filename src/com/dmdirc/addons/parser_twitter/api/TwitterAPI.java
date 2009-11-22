@@ -201,7 +201,7 @@ public class TwitterAPI {
             useOAuth = false;
         }
 
-        this.useAPIVersion = useAPIVersion && (apiVersion > 0);
+        this.useAPIVersion = useAPIVersion && (apiVersion != 0);
         if (apiVersion > 0) {
             this.apiVersion = apiVersion;
         }

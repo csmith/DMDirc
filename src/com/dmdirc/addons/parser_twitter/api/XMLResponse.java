@@ -71,10 +71,15 @@ public class XMLResponse {
     /**
      * Was this an error?
      * 
-     * @return True if an error element exists in the document.
+     * @return True if an error element exists in the document, or there is no
+     *         document.
      */
     public boolean isError() {
-        return !(TwitterAPI.getElementContents(getDocumentElement(), "error", "").isEmpty());
+        if (document == null) {
+            return true;
+        } else {
+            return !(TwitterAPI.getElementContents(getDocumentElement(), "error", "").isEmpty());
+        }
     }
 
     /**

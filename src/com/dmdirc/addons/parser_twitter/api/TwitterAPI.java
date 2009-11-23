@@ -634,12 +634,13 @@ public class TwitterAPI {
      * @return Long from string
      */
     public static String getElementContents(final Element element, final String string, final String fallback) {
-        final NodeList nl = element.getElementsByTagName(string);
-        if (nl != null && nl.getLength() > 0) {
-            return nl.item(0).getTextContent();
-        } else {
-            return fallback;
+        if (element != null) {
+            final NodeList nl = element.getElementsByTagName(string);
+            if (nl != null && nl.getLength() > 0) {
+                return nl.item(0).getTextContent();
+            }
         }
+        return fallback;
     }
 
     /**
@@ -662,7 +663,7 @@ public class TwitterAPI {
             }
         }
 
-        return null;
+        return new XMLResponse(null, null);
     }
 
     /**
@@ -696,7 +697,7 @@ public class TwitterAPI {
             }
         }
 
-        return null;
+        return new XMLResponse(null, null);
     }
 
     /**

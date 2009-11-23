@@ -1254,7 +1254,9 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
             } else if (debug) {
                 twitterFail("Recieved an error: " + source);
             }
-            doDebug(Debug.twitterError, t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage());
+            if (t != null) {
+                doDebug(Debug.twitterError, t.getClass().getSimpleName()+": "+t+" -> "+t.getMessage());
+            }
 
             // And give more information:
             doDebug(Debug.twitterErrorMore, "Source: "+source);
@@ -1268,7 +1270,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
 
             // Hax the error manager to get a nice String[] representing the stack trace and output it.
             try {
-                final Method gt = ErrorManager.class.getDeclaredMethod("getTrace");
+                final Method gt = ErrorManager.class.getDeclaredMethod("getTrace", Throwable.class);
                 gt.setAccessible(true);
                 final String[] trace = (String[]) gt.invoke(ErrorManager.getErrorManager(), t);
 

@@ -820,8 +820,12 @@ public class TwitterAPI {
 
         try {
             responseCode = request.getResponseCode();
-            if (responseCode != 200 && isDebug()) {
-                handleError(null, "* (6) getXML", apiInput, apiOutput, "("+request.getResponseCode()+") "+request.getResponseMessage());
+            if (responseCode != 200) {
+                if (isDebug()) {
+                    handleError(null, "* (6) getXML", apiInput, apiOutput, "("+request.getResponseCode()+") "+request.getResponseMessage());
+                } else if (responseCode >= 500 && responseCode < 600) {
+                    handleError(null, "(6) getXML", apiInput, apiOutput, "("+request.getResponseCode()+") "+request.getResponseMessage());
+                }
             }
         } catch (IOException ioe) {
             responseCode = 0;
@@ -835,12 +839,12 @@ public class TwitterAPI {
             
             final Document doc = db.parse(new ByteArrayInputStream(apiOutput.getBytes()));
 
-            final NodeList nl = doc.getElementsByTagName("error");
-            if (nl.getLength() > 0) {
-                handleError(null, "(8) getXML", apiInput, apiOutput, nl.item(0).getTextContent());
+            final XMLResponse response = new XMLResponse(request, doc);
+            if (response.isError()) {
+                handleError(null, "(8) getXML", apiInput, apiOutput, response.getError());
             }
 
-            return new XMLResponse(request, doc);
+            return response;
         } catch (SAXException ex) {
             if (isDebug()) {
                 handleError(ex, "* (9) getXML", apiInput, apiOutput);

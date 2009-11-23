@@ -70,16 +70,40 @@ public class XMLResponse {
 
     /**
      * Was this an error?
-     * 
-     * @return True if an error element exists in the document, or there is no
-     *         document.
+     *
+     * @return True if an error element exists in the document, there is no
+     *         document, or a non-200 status code was returned.
      */
     public boolean isError() {
-        if (document == null) {
-            return true;
+        return !(getError().isEmpty());
+    }
+
+    /**
+     * Get the contents of this error.
+     * If an error element is found then the contents will be returned, else
+     * a description of the status code if non-200, or "" if no error.
+     *
+     * @return The contents of this error.
+     */
+    public String getError() {
+        if (document == null || request == null) {
+            return "No document or request found.";
         } else {
-            return !(TwitterAPI.getElementContents(getDocumentElement(), "error", "").isEmpty());
+            final String error = TwitterAPI.getElementContents(getDocumentElement(), "error", "");
+            if (error.isEmpty()) {
+                try {
+                    if (request.getResponseCode() != 200) {
+                        return "(" + request.getResponseCode() + ") " + request.getResponseMessage();
+                    }
+                } catch (IOException ex) {
+                    return "Error obtaining response code: "+ex;
+                }
+            } else {
+                return error;
+            }
         }
+
+        return "";
     }
 
     /**

@@ -760,6 +760,9 @@ public class TwitterAPI {
      * @return Document object for this xml.
      */
     private XMLResponse getXML(final HttpURLConnection request) {
+        if (request.getURL().getHost().isEmpty()) {
+            return new XMLResponse(request, null);
+        }
         if (resetTime > 0 && resetTime <= System.currentTimeMillis()) {
             usedCalls = 0;
             resetTime = System.currentTimeMillis() + 3600000;

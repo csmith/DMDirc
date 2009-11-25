@@ -22,6 +22,8 @@
 
 package com.dmdirc.logger;
 
+import java.util.Arrays;
+
 /**
  * Logger class for the application.
  */
@@ -54,7 +56,7 @@ public final class Logger {
      */
     public static void userError(final ErrorLevel level, final String message,
             final String details) {
-        manager.addError(level, message, new String[]{details}, false);
+        manager.addError(level, message, Arrays.asList(new String[]{details}), false);
     }
     
     /**

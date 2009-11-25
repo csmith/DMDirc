@@ -30,6 +30,7 @@ import com.dmdirc.util.ListenerList;
 
 import java.awt.GraphicsEnvironment;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -115,7 +116,7 @@ public final class ErrorManager implements Serializable, ConfigChangeListener {
      * @since 0.6.3m1
      */
     protected void addError(final ErrorLevel level, final String message) {
-        addError(level, message, new String[0], false);
+        addError(level, message, new ArrayList<String>(), false);
     }
 
     /**
@@ -142,7 +143,7 @@ public final class ErrorManager implements Serializable, ConfigChangeListener {
      * @since 0.6.3m1
      */
     protected void addError(final ErrorLevel level, final String message,
-            final String[] details, final boolean appError) {
+            final List<String> details, final boolean appError) {
         addError(level, message, details, appError, true);
     }
 
@@ -157,7 +158,7 @@ public final class ErrorManager implements Serializable, ConfigChangeListener {
      * @since 0.6.3m1
      */
     protected void addError(final ErrorLevel level, final String message,
-            final String[] details, final boolean appError, final boolean canReport) {
+            final List<String> details, final boolean appError, final boolean canReport) {
         final ProgramError error = getError(level, message, details, appError);
 
         final boolean dupe = addError(error);
@@ -221,7 +222,7 @@ public final class ErrorManager implements Serializable, ConfigChangeListener {
      * @return A corresponding ProgramError
      */
     protected ProgramError getError(final ErrorLevel level, final String message,
-            final String[] details, final boolean appError) {
+            final List<String> details, final boolean appError) {
         return new ProgramError(nextErrorID.getAndIncrement(), level, message,
                 details, new Date());
     }
@@ -254,33 +255,26 @@ public final class ErrorManager implements Serializable, ConfigChangeListener {
      * Converts an exception into a string array.
      *
      * @param throwable Exception to convert
-     * @since 0.6.3m1
-     * @return Exception string array
+     * @return Exception string list
+     * @since 0.6.3
      */
-    protected String[] getTrace(final Throwable throwable) {
-        String[] trace;
+    protected List<String> getTrace(final Throwable throwable) {
+        final List<String> trace = new LinkedList<String>();
 
-        if (throwable == null) {
-            trace = new String[0];
-        } else {
+        if (throwable != null) {
             final StackTraceElement[] traceElements = throwable.getStackTrace();
-            trace = new String[traceElements.length + 1];
 
-            trace[0] = throwable.toString();
+            trace.add(throwable.toString());
 
             for (int i = 0; i < traceElements.length; i++) {
-                trace[i + 1] = traceElements[i].toString();
+                trace.add(traceElements[i].toString());
             }
 
             if (throwable.getCause() != null) {
-                final String[] causeTrace = getTrace(throwable.getCause());
-                final String[] newTrace = new String[trace.length + causeTrace.length];
-                trace[0] = "\nWhich caused: " + trace[0];
+                final List<String> causeTrace = getTrace(throwable.getCause());
+                trace.add(0, "\nWhich caused: " + trace.remove(0));
 
-                System.arraycopy(causeTrace, 0, newTrace, 0, causeTrace.length);
-                System.arraycopy(trace, 0, newTrace, causeTrace.length, trace.length);
-
-                trace = newTrace;
+                trace.addAll(0, causeTrace);
             }
         }
 

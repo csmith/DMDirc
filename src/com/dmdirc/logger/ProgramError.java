@@ -24,6 +24,8 @@ package com.dmdirc.logger;
 
 import com.dmdirc.Main;
 import com.dmdirc.config.IdentityManager;
+import com.dmdirc.plugins.PluginInfo;
+import com.dmdirc.plugins.PluginManager;
 import com.dmdirc.util.Downloader;
 
 import java.io.File;
@@ -36,13 +38,16 @@ import java.net.MalformedURLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Stores a program error.
@@ -72,7 +77,7 @@ public final class ProgramError implements Serializable {
     private final String message;
     
     /** Error trace. */
-    private final String[] trace;
+    private final List<String> trace;
     
     /** Date/time error first occurred. */
     private final Date firstDate;
@@ -99,7 +104,7 @@ public final class ProgramError implements Serializable {
      * @param date Error time and date
      */
     public ProgramError(final long id, final ErrorLevel level,
-            final String message, final String[] trace, final Date date) {
+            final String message, final List<String> trace, final Date date) {
         
         if (id < 0) {
             throw new IllegalArgumentException("ID must be a positive integer: " + id);
@@ -120,11 +125,24 @@ public final class ProgramError implements Serializable {
         if (date == null) {
             throw new IllegalArgumentException("date cannot be null");
         }
+
+        List<String> decoratedTrace;
+
+        try {
+            decoratedTrace = decorateTrace(trace);
+        } catch (Exception ex) {
+            decoratedTrace = trace;
+
+            if (!"Error when decorating stacktrace".equals(message)) {
+                // Just in case...
+                Logger.appError(ErrorLevel.LOW, "Error when decorating stacktrace", ex);
+            }
+        }
         
         this.id = id;
         this.level = level;
         this.message = message;
-        this.trace = Arrays.copyOf(trace, trace.length);
+        this.trace = Collections.unmodifiableList(decoratedTrace);
         this.firstDate = (Date) date.clone();
         this.lastDate = (Date) date.clone();
         this.count = new AtomicInteger(1);
@@ -155,8 +173,8 @@ public final class ProgramError implements Serializable {
      *
      * @return Error trace
      */
-    public String[] getTrace() {
-        return Arrays.copyOf(trace, trace.length);
+    public List<String> getTrace() {
+        return trace;
     }
     
     /**
@@ -312,7 +330,7 @@ public final class ProgramError implements Serializable {
         int tries = 0;
 
         postData.put("message", getMessage());
-        postData.put("trace", Arrays.toString(getTrace()));
+        postData.put("trace", getTrace().toString());
         postData.put("version", IdentityManager.getGlobalConfig().getOption("version", "version"));
 
         setReportStatus(ErrorReportStatus.SENDING);
@@ -339,6 +357,40 @@ public final class ProgramError implements Serializable {
                 && tries <= 5);
 
         checkResponses(response);
+    }
+
+    /**
+     * Decorates the specified stacktrace with additional information.
+     *
+     * @since 0.6.3
+     * @param trace The trace to be decorated
+     * @return A replacement stacktrace containing additional information
+     */
+    protected List<String> decorateTrace(final List<String> trace) {
+        // TODO: This should ideally be abstracted so plugins etc
+        //       can add decorators.
+
+        final List<String> res = new LinkedList<String>();
+        final Pattern pattern = Pattern.compile("^([^\\s]*?\\.[A-Z].*?)(\\$.+)?(\\.).*?\\(.*$");
+
+        for (String line : trace) {
+            res.add(line);
+
+            final Matcher matcher = pattern.matcher(line);
+            if (matcher.matches()) {
+                final String className = matcher.group(1);
+
+                for (PluginInfo info : PluginManager.getPluginManager().getPluginInfos()) {
+                    if (info.getClassList().contains(className)) {
+                        res.add("  ^-- Defined in plugin " + info.getName()
+                                + " version " + info.getVersion()
+                                + " (" + info.getFriendlyVersion() + ")");
+                    }
+                }
+            }
+        }
+
+        return res;
     }
 
     /**
@@ -403,7 +455,7 @@ public final class ProgramError implements Serializable {
             }
         }
 
-        return trace[0];
+        return trace.get(0);
     }
 
     /**
@@ -471,7 +523,7 @@ public final class ProgramError implements Serializable {
             return false;
         }
         
-        if (!Arrays.equals(this.trace, other.trace)) {
+        if (!this.trace.equals(other.trace)) {
             return false;
         }
         
@@ -484,7 +536,7 @@ public final class ProgramError implements Serializable {
         int hash = 7;
         hash = 67 * hash + this.level.hashCode();
         hash = 67 * hash + this.message.hashCode();
-        hash = 67 * hash + Arrays.hashCode(this.trace);
+        hash = 67 * hash + this.trace.hashCode();
         return hash;
     }
 }

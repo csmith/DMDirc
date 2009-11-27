@@ -43,11 +43,7 @@ public class DCCSend extends DCC {
     private static final List<DCCSend> SENDS = new ArrayList<DCCSend>();
 
     /** File Transfer Types. */
-    public enum TransferType {
-
-        SEND, RECEIVE;
-
-    }
+    public enum TransferType { SEND, RECEIVE; }
 
     /** The File transfer type for this file. */
     private TransferType transferType = TransferType.RECEIVE;
@@ -91,18 +87,23 @@ public class DCCSend extends DCC {
     /** Is this a turbo dcc? */
     private boolean turbo = false;
 
-    /** Creates a new instance of DCCSend with a default block size. */
-    public DCCSend() {
-        this(1024);
+    /**
+     * Creates a new instance of DCCSend with a default block size.
+     *
+     * @param isSSL is this an SSL Send?
+     */
+    public DCCSend(final boolean isSSL) {
+        this(1024, isSSL);
     }
 
     /**
      * Creates a new instance of DCCSend.
      *
      * @param blockSize Block size to use
+     * @param isSSL is this an SSL Send?
      */
-    public DCCSend(final int blockSize) {
-        super();
+    public DCCSend(final int blockSize, final boolean isSSL) {
+        super(isSSL);
         this.blockSize = blockSize;
         synchronized (SENDS) {
             SENDS.add(this);

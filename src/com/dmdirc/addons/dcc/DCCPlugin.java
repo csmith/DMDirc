@@ -158,7 +158,7 @@ public final class DCCPlugin extends Plugin implements ActionListener {
                         }
                     }
                     if (reverse && !token.isEmpty()) {
-                        new DCCSendWindow(DCCPlugin.this, send, "*Receive: " + nickname, nickname, null);
+                        new DCCSendWindow(DCCPlugin.this, send, "*Receive: " + (send.isSSL() ? "+" : "") + nickname, nickname, null);
                         send.setToken(token);
                         if (resume) {
                             if (IdentityManager.getGlobalConfig().getOptionBool(getDomain(), "receive.reverse.sendtoken")) {
@@ -168,13 +168,13 @@ public final class DCCPlugin extends Plugin implements ActionListener {
                             }
                         } else {
                             if (listen(send)) {
-                                parser.sendCTCP(nickname, "DCC", "SEND " + sendFilename + " " + DCC.ipToLong(getListenIP(parser)) + " " + send.getPort() + " " + send.getFileSize() + " " + token);
+                                parser.sendCTCP(nickname, "DCC", (send.isSSL() ? "S" : "") + "SEND " + sendFilename + " " + DCC.ipToLong(getListenIP(parser)) + " " + send.getPort() + " " + send.getFileSize() + " " + token);
                             } else {
                                 // Listen failed.
                             }
                         }
                     } else {
-                        new DCCSendWindow(DCCPlugin.this, send, "Receive: " + nickname, nickname, null);
+                        new DCCSendWindow(DCCPlugin.this, send, "Receive: " + (send.isSSL() ? "+" : "") + nickname, nickname, null);
                         if (resume) {
                             parser.sendCTCP(nickname, "DCC", "RESUME " + sendFilename + " " + send.getPort() + " " + jc.getSelectedFile().length());
                         } else {
@@ -245,17 +245,17 @@ public final class DCCPlugin extends Plugin implements ActionListener {
             final String ctcpType = (String) arguments[2];
             final String[] ctcpData = ((String) arguments[3]).split(" ");
             if (ctcpType.equalsIgnoreCase("DCC")) {
-                if (ctcpData[0].equalsIgnoreCase("chat") && ctcpData.length > 3) {
+                if ((ctcpData[0].equalsIgnoreCase("chat") || ctcpData[0].equalsIgnoreCase("schat")) && ctcpData.length > 3) {
                     final String nickname = ((ClientInfo) arguments[1]).getNickname();
                     if (dontAsk) {
-                        final DCCChat chat = new DCCChat();
+                        final DCCChat chat = new DCCChat(ctcpData[0].equalsIgnoreCase("schat"));
                         try {
                             chat.setAddress(Long.parseLong(ctcpData[2]), Integer.parseInt(ctcpData[3]));
                         } catch (NumberFormatException nfe) {
                             return;
                         }
                         final String myNickname = ((Server) arguments[0]).getParser().getLocalClient().getNickname();
-                        final DCCFrame f = new DCCChatWindow(this, chat, "Chat: " + nickname, myNickname, nickname);
+                        final DCCFrame f = new DCCChatWindow(this, chat, "Chat: " + (chat.isSSL() ? "+" : "") + nickname, myNickname, nickname);
                         f.getFrame().addLine("DCCChatStarting", nickname, chat.getHost(), chat.getPort());
                         chat.connect();
                     } else {
@@ -263,7 +263,7 @@ public final class DCCPlugin extends Plugin implements ActionListener {
                         askQuestion("User " + nickname + " on " + ((Server) arguments[0]).toString() + " would like to start a DCC Chat with you.\n\nDo you want to continue?", "DCC Chat Request", JOptionPane.YES_OPTION, type, format, arguments);
                         return;
                     }
-                } else if (ctcpData[0].equalsIgnoreCase("send") && ctcpData.length > 3) {
+                } else if ((ctcpData[0].equalsIgnoreCase("send") || ctcpData[0].equalsIgnoreCase("ssend")) && ctcpData.length > 3) {
                     final String nickname = ((ClientInfo) arguments[1]).getNickname();
                     final String filename;
                     String tmpFilename;
@@ -339,7 +339,7 @@ public final class DCCPlugin extends Plugin implements ActionListener {
                     } else {
                         final boolean newSend = send == null;
                         if (newSend) {
-                            send = new DCCSend(IdentityManager.getGlobalConfig().getOptionInt(getDomain(), "send.blocksize"));
+                            send = new DCCSend(IdentityManager.getGlobalConfig().getOptionInt(getDomain(), "send.blocksize"), ctcpData[0].equalsIgnoreCase("ssend"));
                             send.setTurbo(IdentityManager.getGlobalConfig().getOptionBool(getDomain(), "send.forceturbo"));
                         }
                         try {
@@ -402,9 +402,9 @@ public final class DCCPlugin extends Plugin implements ActionListener {
                                         // Reverse dcc
                                         if (listen(send)) {
                                             if (send.getToken().isEmpty()) {
-                                                parser.sendCTCP(nickname, "DCC", "SEND " + ((quoted) ? "\"" + filename + "\"" : filename) + " " + DCC.ipToLong(send.getHost()) + " " + send.getPort() + " " + send.getFileSize());
+                                                parser.sendCTCP(nickname, "DCC", (send.isSSL() ? "S" : "") + "SEND " + ((quoted) ? "\"" + filename + "\"" : filename) + " " + DCC.ipToLong(send.getHost()) + " " + send.getPort() + " " + send.getFileSize());
                                             } else {
-                                                parser.sendCTCP(nickname, "DCC", "SEND " + ((quoted) ? "\"" + filename + "\"" : filename) + " " + DCC.ipToLong(send.getHost()) + " " + send.getPort() + " " + send.getFileSize() + " " + send.getToken());
+                                                parser.sendCTCP(nickname, "DCC", (send.isSSL() ? "S" : "") + "SEND " + ((quoted) ? "\"" + filename + "\"" : filename) + " " + DCC.ipToLong(send.getHost()) + " " + send.getPort() + " " + send.getFileSize() + " " + send.getToken());
                                             }
                                         } else {
                                             // Listen failed.

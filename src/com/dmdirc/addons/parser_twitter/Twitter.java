@@ -918,6 +918,7 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
         long lastReplyId = -1;
         long lastTimelineId = -1;
         long lastDirectMessageId = -1;
+        final Map<TwitterChannelInfo, Long> lastSearchIds = new HashMap<TwitterChannelInfo, Long>();
 
         if (getConfigManager().getOptionBool(myPlugin.getDomain(), "saveLastIDs")) {
             if (getConfigManager().hasOptionString(myPlugin.getDomain(), "lastReplyId-"+myServerName+"-"+myUsername)) {
@@ -1008,6 +1009,19 @@ public class Twitter implements Parser, TwitterErrorHandler, TwitterRawHandler, 
                     first = false;
                     if (!foundItems) {
                         sendChannelMessage(channel, "No new items found.");
+                    }
+                }
+            }
+
+            for (TwitterChannelInfo searchChannel : channels.values()) {
+                if (searchChannel.getName().startsWith("#")) {
+                    final long lastId = lastSearchIds.containsKey(searchChannel)
+                            ? lastSearchIds.get(searchChannel) : -1;
+                    final List<TwitterStatus> statuses
+                            = api.getSearchResults(searchChannel.getName(), lastId);
+
+                    for (TwitterStatus status : statuses) {
+                        sendChannelMessage(searchChannel, status.getText());
                     }
                 }
             }

@@ -1113,6 +1113,57 @@ public class TwitterAPI {
     }
 
     /**
+     * Retrieves the search results for the specified term.
+     *
+     * @param term The term to be searched for
+     * @return A list of matching statuses
+     */
+    public List<TwitterStatus> getSearchResults(final String term) {
+        return getSearchResults(term, -1);
+    }
+
+    /**
+     * Retrieves the search results for the specified term, requesting only
+     * statuses newer than the specified lastStatusId.
+     *
+     * @param term The term to be searched for
+     * @param lastStatusId Maximum status ID to not be returned
+     * @return A list of matching statuses
+     */
+    public List<TwitterStatus> getSearchResults(final String term, final long lastStatusId) {
+        final List<TwitterStatus> result = new ArrayList<TwitterStatus>();
+
+        try {
+            final XMLResponse doc = getXML("http://search.twitter.com/search.atom?since_id="
+                    +lastStatusId + "&rpp=100&q=" + URLEncoder.encode(term, "utf-8"));
+
+            if (doc.isGood()) {
+                final NodeList nodes = doc.getElementsByTagName("entry");
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    final Element element = (Element) nodes.item(i);
+                    final String message = TwitterAPI.getElementContents(element, "title", "");
+                    final long id = Long.parseLong(TwitterAPI.getElementContents(element, "id", "::-1").split(":")[2]);
+                    final String user = TwitterAPI.getElementContents((Element) element.getElementsByTagName("author").item(0), "name", "").split(" ")[0];
+
+                    final long time = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").parse(TwitterAPI.getElementContents(element, "published", "")).getTime();
+
+                    result.add(new TwitterStatus(this, message, -1, id, user, time));
+                }
+            }
+        } catch (UnsupportedEncodingException ex) {
+            if (isDebug()) {
+                handleError(ex, "* (1) getSearchResults: "+term+" | "+lastStatusId, apiInput, apiOutput);
+            }
+        } catch (ParseException ex) {
+            if (isDebug()) {
+                handleError(ex, "* (2) getSearchResults: "+term+" | "+lastStatusId, apiInput, apiOutput);
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Get a list of TwitterUsers who we are following.
      *
      * @return A list of TwitterUsers who we are following.

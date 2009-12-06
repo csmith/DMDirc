@@ -31,16 +31,14 @@ import com.dmdirc.actions.interfaces.ActionType;
 import com.dmdirc.addons.ui_swing.Apple;
 import com.dmdirc.addons.ui_swing.MainFrame;
 import com.dmdirc.addons.ui_swing.SwingController;
-import com.dmdirc.config.IdentityManager;
 import com.dmdirc.config.prefs.validator.ActionGroupValidator;
 import com.dmdirc.config.prefs.validator.FileNameValidator;
 import com.dmdirc.config.prefs.validator.ValidatorChain;
 import com.dmdirc.addons.ui_swing.components.text.TextLabel;
-import com.dmdirc.addons.ui_swing.components.ListScroller;
-import com.dmdirc.addons.ui_swing.components.SortedListModel;
+import com.dmdirc.addons.ui_swing.components.TreeScroller;
+import com.dmdirc.addons.ui_swing.components.renderers.ActionGroupTreeCellRenderer;
 import com.dmdirc.addons.ui_swing.dialogs.StandardDialog;
 import com.dmdirc.addons.ui_swing.dialogs.StandardInputDialog;
-import com.dmdirc.addons.ui_swing.components.renderers.ActionGroupListCellRenderer;
 import com.dmdirc.addons.ui_swing.dialogs.actioneditor.ActionEditorDialog;
 
 import java.awt.Window;
@@ -54,14 +52,16 @@ import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
-import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.ListSelectionModel;
+import javax.swing.JTree;
 import javax.swing.UIManager;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.MutableTreeNode;
 
 import net.miginfocom.swing.MigLayout;
 
@@ -69,8 +69,7 @@ import net.miginfocom.swing.MigLayout;
  * Allows the user to manage actions.
  */
 public final class ActionsManagerDialog extends StandardDialog implements
-        ActionListener,
-        ListSelectionListener, com.dmdirc.interfaces.ActionListener {
+        ActionListener, TreeSelectionListener, com.dmdirc.interfaces.ActionListener {
 
     /**
      * A version number for this class. It should be changed whenever the class
@@ -82,8 +81,8 @@ public final class ActionsManagerDialog extends StandardDialog implements
     private static volatile ActionsManagerDialog me;
     /** Info label. */
     private TextLabel infoLabel;
-    /** Group list. */
-    private JList groups;
+    /** Group tree. */
+    private JTree groups;
     /** Add button. */
     private JButton add;
     /** Edit button. */
@@ -135,6 +134,7 @@ public final class ActionsManagerDialog extends StandardDialog implements
         me.setVisible(true);
         me.requestFocusInWindow();
 
+        /* TODO (trees): This needs to be a path
         final int selected = IdentityManager.getGlobalConfig().
                 getOptionInt("dialogstate", "actionsmanagerdialog");
         if (selected >= 0 && selected < me.groups.getModel().getSize()) {
@@ -142,6 +142,7 @@ public final class ActionsManagerDialog extends StandardDialog implements
             me.changeActiveGroup((ActionGroup) me.groups.getModel().getElementAt(
                     selected));
         }
+        */
     }
 
     /**
@@ -175,8 +176,7 @@ public final class ActionsManagerDialog extends StandardDialog implements
                 " intelligently respond to various events.  Action groups are " +
                 "there for you to organise groups, add or remove them " +
                 "to suit your needs.");
-        groups = new JList(new SortedListModel<ActionGroup>(
-                new ActionGroupNameComparator()));
+        groups = new JTree(new String[] { "Built-in groups", "My groups", "Other groups" });
         actions = new ActionsGroupPanel(this, null);
         info = new ActionGroupInformationPanel(null);
         settings = new HashMap<ActionGroup, ActionGroupSettingsPanel>();
@@ -198,15 +198,15 @@ public final class ActionsManagerDialog extends StandardDialog implements
                 "TitledBorder.border"),
                 "Actions"));
 
-        groups.setCellRenderer(new ActionGroupListCellRenderer());
-        groups.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        groups.setCellRenderer(new ActionGroupTreeCellRenderer());
+        //groups.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         edit.setEnabled(false);
         delete.setEnabled(false);
 
         info.setVisible(false);
         activeSettings.setVisible(false);
 
-        new ListScroller(groups);
+        new TreeScroller(groups);
 
         reloadGroups();
     }
@@ -220,7 +220,7 @@ public final class ActionsManagerDialog extends StandardDialog implements
         add.addActionListener(this);
         edit.addActionListener(this);
         delete.addActionListener(this);
-        groups.getSelectionModel().addListSelectionListener(this);
+        groups.getSelectionModel().addTreeSelectionListener(this);
         ActionManager.addListener(this, CoreActionType.ACTION_CREATED);
         ActionManager.addListener(this, CoreActionType.ACTION_UPDATED);
         ActionManager.addListener(this, CoreActionType.ACTION_DELETED);
@@ -281,11 +281,30 @@ public final class ActionsManagerDialog extends StandardDialog implements
      * @param selectedGroup Newly selected group
      */
     private void reloadGroups(final ActionGroup selectedGroup) {
-        ((DefaultListModel) groups.getModel()).clear();
+        final MutableTreeNode root = new DefaultMutableTreeNode("Root");
+        final MutableTreeNode builtIn = new DefaultMutableTreeNode("Built-in groups");
+        final MutableTreeNode thirdParty = new DefaultMutableTreeNode("Other people's groups");
+        final MutableTreeNode firstParty = new DefaultMutableTreeNode("My groups");
+
+        root.insert(builtIn, 0);
+        root.insert(thirdParty, 1);
+        root.insert(firstParty, 2);
+
+        ((DefaultTreeModel) groups.getModel()).setRoot(root);
         for (ActionGroup group : ActionManager.getGroups().values()) {
-            ((DefaultListModel) groups.getModel()).addElement(group);
+            if (group.isDelible()) {
+                if (group.getAuthor() == null) {
+                    firstParty.insert(new DefaultMutableTreeNode(group, false), 0);
+                } else {
+                    thirdParty.insert(new DefaultMutableTreeNode(group, false), 0);
+                }
+            } else {
+                builtIn.insert(new DefaultMutableTreeNode(group, false), 0);
+            }
         }
-        groups.setSelectedValue(selectedGroup, true);
+
+        // TODO (trees): This needs to be a path
+        //groups.setSelectedValue(selectedGroup, true);
     }
 
     /**
@@ -344,8 +363,12 @@ public final class ActionsManagerDialog extends StandardDialog implements
             for (ActionGroupSettingsPanel loopSettings : settings.values()) {
                 loopSettings.save();
             }
+
+            /* TODO (trees): This needs to be a path
             IdentityManager.getConfigIdentity().setOption("dialogstate",
                     "actionsmanagerdialog", groups.getSelectedIndex());
+             */
+            
             dispose();
         }
     }
@@ -398,7 +421,7 @@ public final class ActionsManagerDialog extends StandardDialog implements
     @SuppressWarnings("unchecked")
     private void editGroup() {
         final String oldName =
-                ((ActionGroup) groups.getSelectedValue()).getName();
+                ((ActionGroup) groups.getSelectionPath().getLastPathComponent()).getName();
         final StandardInputDialog inputDialog = new StandardInputDialog(this,
                 ModalityType.DOCUMENT_MODAL,
                 "Edit action group",
@@ -440,18 +463,20 @@ public final class ActionsManagerDialog extends StandardDialog implements
      */
     private void delGroup() {
         final String group =
-                ((ActionGroup) groups.getSelectedValue()).getName();
+                ((ActionGroup) groups.getSelectionPath().getLastPathComponent()).getName();
         final int response = JOptionPane.showConfirmDialog(this,
                 "Are you sure you wish to delete the '" + group +
                 "' group and all actions within it?",
                 "Confirm deletion", JOptionPane.YES_NO_OPTION);
         if (response == JOptionPane.YES_OPTION) {
-            int location =
+            /*int location =
                     ((DefaultListModel) groups.getModel()).indexOf(
-                    ActionManager.getGroup(group));
+                    ActionManager.getGroup(group));*/
             ActionManager.removeGroup(group);
             reloadGroups();
-            if (groups.getModel().getSize() == 0) {
+
+            /* TODO (trees): Blah
+             if (groups.getModel().getSize() == 0) {
                 location = -1;
             } else if (location >= groups.getModel().getSize()) {
                 location = groups.getModel().getSize();
@@ -459,12 +484,14 @@ public final class ActionsManagerDialog extends StandardDialog implements
                 location = 0;
             }
             groups.setSelectedIndex(location);
+             */
         }
     }
 
     /** {@inheritDoc} */
     @Override
-    public void valueChanged(final ListSelectionEvent e) {
+    public void valueChanged(final TreeSelectionEvent e) {
+        /* TODO (trees): Blah
         if (e.getValueIsAdjusting()) {
             return;
         }
@@ -478,24 +505,26 @@ public final class ActionsManagerDialog extends StandardDialog implements
             edit.setEnabled(true);
             delete.setEnabled(true);
         }
+        */
     }
 
     /** {@inheritDoc} */
     @Override
     public void processEvent(final ActionType type, final StringBuffer format,
             final Object... arguments) {
-        if (groups.getSelectedValue() == null) {
+        if (groups.getSelectionPath() == null) {
             return;
         }
+        
         if (type.equals(CoreActionType.ACTION_CREATED) ||
                 type.equals(CoreActionType.ACTION_UPDATED)) {
             final Action action = (Action) arguments[0];
-            if (action.getGroup().equals(((ActionGroup) groups.getSelectedValue()).
+            if (action.getGroup().equals(((ActionGroup) groups.getSelectionPath().getLastPathComponent()).
                     getName())) {
                 actions.actionChanged(action);
             }
         } else {
-            if (arguments[0].equals(((ActionGroup) groups.getSelectedValue()).
+            if (arguments[0].equals(((ActionGroup) groups.getSelectionPath().getLastPathComponent()).
                     getName())) {
                 actions.actionDeleted((String) arguments[1]);
             }
@@ -513,4 +542,5 @@ public final class ActionsManagerDialog extends StandardDialog implements
             me = null;
         }
     }
+
 }

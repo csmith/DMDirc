@@ -23,14 +23,17 @@
 package com.dmdirc.addons.ui_swing.components.renderers;
 
 import com.dmdirc.actions.ActionGroup;
+
 import java.awt.Component;
-import javax.swing.DefaultListCellRenderer;
-import javax.swing.JList;
+
+import javax.swing.JTree;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
 
 /**
- * Action group list cell renderer.
+ * Action group tree cell renderer.
  */
-public class ActionGroupListCellRenderer extends DefaultListCellRenderer {
+public class ActionGroupTreeCellRenderer extends DefaultTreeCellRenderer {
 
     /**
      * A version number for this class. It should be changed whenever the class
@@ -39,24 +42,24 @@ public class ActionGroupListCellRenderer extends DefaultListCellRenderer {
      */
     private static final long serialVersionUID = 1;
 
-    /** Creates a new instance of ActionGroupListCellRenderer. */
-    public ActionGroupListCellRenderer() {
+    /** Creates a new instance of ActionGroupTreeCellRenderer. */
+    public ActionGroupTreeCellRenderer() {
         super();
     }
 
     /** {@inheritDoc} */
     @Override
-    public Component getListCellRendererComponent(final JList list,
-            final Object value, final int index, final boolean isSelected,
-            final boolean cellHasFocus) {
+    public Component getTreeCellRendererComponent(final JTree tree, final Object value,
+            final boolean sel, final boolean expanded, final boolean leaf,
+            final int row, final boolean hasFocus) {
+        super.getTreeCellRendererComponent(tree, value, sel, expanded, leaf, row, hasFocus);
 
-        super.getListCellRendererComponent(list, value, index, isSelected,
-                cellHasFocus);
+        final Object obj = ((DefaultMutableTreeNode) value).getUserObject();
 
-        if (value instanceof ActionGroup) {
-            setText(((ActionGroup) value).getName());
+        if (obj instanceof ActionGroup) {
+            setText(((ActionGroup) obj).getName());
         } else {
-            setText(value.toString());
+            setText(obj.toString());
         }
 
         return this;

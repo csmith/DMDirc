@@ -24,8 +24,12 @@ package com.dmdirc.addons.ui_swing.components.renderers;
 
 import com.dmdirc.actions.ActionGroup;
 
+import java.awt.Color;
 import java.awt.Component;
 
+import java.awt.Dimension;
+import java.awt.Font;
+import javax.swing.BorderFactory;
 import javax.swing.JTree;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeCellRenderer;
@@ -56,10 +60,22 @@ public class ActionGroupTreeCellRenderer extends DefaultTreeCellRenderer {
 
         final Object obj = ((DefaultMutableTreeNode) value).getUserObject();
 
+        setOpaque(false);
+        setBackground(null);
+
         if (obj instanceof ActionGroup) {
             setText(((ActionGroup) obj).getName());
+            setBorder(BorderFactory.createEmptyBorder());
+            setFont(getFont().deriveFont(Font.PLAIN));
+            setMinimumSize(new Dimension(0, 0));
         } else {
             setText(obj.toString());
+            setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 0, 1, 0, Color.BLACK),
+                    BorderFactory.createEmptyBorder(5, 0, 0, 0)
+                    ));
+            setFont(getFont().deriveFont(Font.BOLD));
+            setMinimumSize(new Dimension(tree.getWidth(), 0));
         }
 
         return this;

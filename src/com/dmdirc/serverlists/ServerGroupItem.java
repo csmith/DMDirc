@@ -22,38 +22,19 @@
 
 package com.dmdirc.serverlists;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 /**
- * Maintains a list of top level {@link ServerGroup}s and handles reading and
- * writing of the lists to disk.
- * 
- * @since 0.6.3
+ * An item which is included in a server group.
+ *
  * @author chris
+ * @since 0.6.3
  */
-public class ServerList {
-
-    /** A list of all known groups. */
-    private final List<ServerGroup> groups = new ArrayList<ServerGroup>();
+public interface ServerGroupItem {
 
     /**
-     * Adds a server group to the master server list.
+     * Retrieves the name of this item.
      *
-     * @param group The group to be added
+     * @return A string containing this item's name
      */
-    public void addServerGroup(final ServerGroup group) {
-        groups.add(group);
-    }
-
-    /**
-     * Retrieves a list of all known server groups.
-     *
-     * @return An immutable list of server groups.
-     */
-    public List<ServerGroup> getServerGroups() {
-        return Collections.unmodifiableList(groups);
-    }
+    String getName();
 
 }

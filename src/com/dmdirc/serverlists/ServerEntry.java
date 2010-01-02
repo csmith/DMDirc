@@ -30,14 +30,51 @@ import java.net.URI;
  * @since 0.6.3
  * @author chris
  */
-public class ServerEntry {
+public class ServerEntry implements ServerGroupItem {
 
+    /** The address of the server in question. */
     private URI address;
+    /** The user-friendly name of the server. */
+    private String name;
+    /** The name of the profile to use. */
     private String profile;
 
-    public ServerEntry(final URI address, final String profile) {
+    /**
+     * Creates a new server entry.
+     *
+     * @param name The name of this server
+     * @param address The address of this server
+     * @param profile The name of the profile to be used by this server
+     */
+    public ServerEntry(final String name, final URI address, final String profile) {
+        this.name = name;
         this.address = address;
         this.profile = profile;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Retrieves the address used by this server.
+     *
+     * @return This server's address
+     */
+    public URI getAddress() {
+        return address;
+    }
+
+    /**
+     * Retrieves the name of the profile which should be used when connecting
+     * to this server.
+     *
+     * @return The profile name used by this entry
+     */
+    public String getProfile() {
+        return profile;
     }
 
 }

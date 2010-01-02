@@ -22,27 +22,113 @@
 
 package com.dmdirc.serverlists;
 
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
+ * A server group contains an ordered collection of server entries or other
+ * server groups.
  *
  * @since 0.6.3
  * @author chris
  */
-public class ServerGroup {
+public class ServerGroup implements ServerGroupItem {
 
+    /** The name of the group. */
     private String name;
-    private List<ServerEntry> entries;
 
+    /** A description of this group. */
+    private String description = "";
+
+    /** A set of links relevant to this group (e.g. homepages). */
+    private Map<String, URI> links = new HashMap<String, URI>();
+    
+    /** The items contained within the group. */
+    private final List<ServerGroupItem> entries = new ArrayList<ServerGroupItem>();
+
+    /**
+     * Creates a new server group with the specified name.
+     *
+     * @param name The name to be used for this group
+     */
     public ServerGroup(final String name) {
         this.name = name;
     }
 
+    /** {@inheritDoc} */
+    @Override
     public String getName() {
         return name;
     }
 
+    /**
+     * Sets the name of this group.
+     *
+     * @param name The new name for the group
+     */
     public void setName(final String name) {
         this.name = name;
+    }
+
+    /**
+     * Adds a new item to this server group.
+     *
+     * @param item The item to be added
+     */
+    public void addItem(final ServerGroupItem item) {
+        entries.add(item);
+    }
+
+    /**
+     * Retrieves a list of items belonging to this group.
+     *
+     * @return An immutable list of items contained within this group
+     */
+    public List<ServerGroupItem> getItems() {
+        return Collections.unmodifiableList(entries);
+    }
+
+    /**
+     * Retrieves the description of this group.
+     * 
+     * @return This group's description
+     */
+    public String getDescription() {
+        return description;
+    }
+
+    /**
+     * Sets the description of this group.
+     *
+     * @param description The new description for this group.
+     */
+    public void setDescription(final String description) {
+        this.description = description;
+    }
+
+    /**
+     * Retrieves a map of link titles to {@link URI}s which are associated
+     * with this server group. Links will typically include network homepages,
+     * forums, or support channels.
+     * 
+     * @return An immutable map of links
+     */
+    public Map<String, URI> getLinks() {
+        return Collections.unmodifiableMap(links);
+    }
+
+    /**
+     * Adds a new link with the specified title and address. If a link with the
+     * same title existed previously, it will be replaced.
+     *
+     * @param title The title of the new link
+     * @param address The address of the link
+     */
+    public void addLink(final String title, final URI address) {
+        links.put(title, address);
     }
 }

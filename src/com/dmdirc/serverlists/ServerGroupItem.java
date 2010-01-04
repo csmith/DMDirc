@@ -37,4 +37,9 @@ public interface ServerGroupItem {
      */
     String getName();
 
+    /**
+     * Initiates a connection attempt for this item.
+     */
+    void connect();
+
 }

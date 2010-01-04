@@ -131,4 +131,17 @@ public class ServerGroup implements ServerGroupItem {
     public void addLink(final String title, final URI address) {
         links.put(title, address);
     }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * Current implementation just selects the first item in this group and
+     * asks it to connect.
+     */
+    @Override
+    public void connect() {
+        if (!entries.isEmpty()) {
+            entries.get(0).connect();
+        }
+    }
 }

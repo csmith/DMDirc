@@ -22,6 +22,9 @@
 
 package com.dmdirc.serverlists;
 
+import com.dmdirc.Server;
+import com.dmdirc.config.Identity;
+import com.dmdirc.config.IdentityManager;
 import java.net.URI;
 
 /**
@@ -75,6 +78,29 @@ public class ServerEntry implements ServerGroupItem {
      */
     public String getProfile() {
         return profile;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void connect() {
+        final Server server = new Server(address, getProfileIdentity());
+        server.connect();
+    }
+
+    /**
+     * Returns the {@link Identity} which corresponds to this server's desired
+     * profile.
+     *
+     * @return This server's profile identity
+     */
+    protected Identity getProfileIdentity() {
+        for (Identity identity : IdentityManager.getProfiles()) {
+            if (profile.equals(identity.getName())) {
+                return identity;
+            }
+        }
+
+        return IdentityManager.getProfiles().get(0);
     }
 
 }

@@ -110,7 +110,7 @@ public class Identity extends ConfigSource implements Serializable,
         initFile(forceDefault, new FileInputStream(file));
         myTarget = getTarget(forceDefault);
 
-        if (myTarget.getType() == ConfigTarget.TYPE.PROFILE) {
+        if (myTarget.isCustom(PROFILE_DOMAIN)) {
             migrateProfile();
         }
     }
@@ -133,7 +133,7 @@ public class Identity extends ConfigSource implements Serializable,
         initFile(forceDefault, stream);
         myTarget = getTarget(forceDefault);
 
-        if (myTarget.getType() == ConfigTarget.TYPE.PROFILE) {
+        if (myTarget.isCustom(PROFILE_DOMAIN)) {
             migrateProfile();
         }
     }
@@ -151,7 +151,7 @@ public class Identity extends ConfigSource implements Serializable,
         this.file.setAutomake(true);
         this.myTarget = target;
 
-        if (myTarget.getType() == ConfigTarget.TYPE.PROFILE) {
+        if (myTarget.isCustom(PROFILE_DOMAIN)) {
             migrateProfile();
         }
     }
@@ -182,7 +182,9 @@ public class Identity extends ConfigSource implements Serializable,
         } else if (hasOption(DOMAIN, "global") || (forceDefault && !isProfile())) {
             target.setGlobal();
         } else if (isProfile()) {
-            target.setProfile();
+            target.setCustom(PROFILE_DOMAIN);
+        } else if (hasOption(DOMAIN, "type")) {
+            target.setCustom(getOption(DOMAIN, "type"));
         } else {
             throw new InvalidIdentityFileException("No target and no profile");
         }

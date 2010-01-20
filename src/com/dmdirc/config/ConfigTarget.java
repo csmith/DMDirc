@@ -41,8 +41,6 @@ public class ConfigTarget implements Comparable, Serializable {
         GLOBAL,
         /** Settings for a theme. */
         THEME,
-        /** Settings for a profile. */
-        PROFILE,
         /** Settings for an IRCd. */
         IRCD,
         /** Settings for a network. */
@@ -53,6 +51,8 @@ public class ConfigTarget implements Comparable, Serializable {
         CHANNEL,
         /** Settings for a protocol (parser). */
         PROTOCOL,
+        /** A custom identity, which doesn't contain settings to be loaded. */
+        CUSTOM,
     }
 
     /**
@@ -112,10 +112,25 @@ public class ConfigTarget implements Comparable, Serializable {
         data = "";
     }
 
-    /** Sets this target to be a profile source. */
-    public void setProfile() {
-        type = TYPE.PROFILE;
-        data = "";
+    /**
+     * Sets this target to be a custom identity.
+     * 
+     * @param customType The type of custom identity
+     * @since 0.6.3
+     */
+    public void setCustom(final String customType) {
+        type = TYPE.CUSTOM;
+        data = customType;
+    }
+
+    /**
+     * Determines if this target is the specified custom type.
+     *
+     * @param customType The type of custom identity
+     * @return True if this target is a CUSTOM type with the specified type.
+     */
+    public boolean isCustom(final String customType) {
+        return type == TYPE.CUSTOM && customType.equals(data);
     }
 
     /**
@@ -238,8 +253,8 @@ public class ConfigTarget implements Comparable, Serializable {
             return "Global defaults";
         case THEME:
             return "Theme";
-        case PROFILE:
-            return "Profile";
+        case CUSTOM:
+            return "Custom: " + data;
         case IRCD:
             return "Ircd specific: " + data;
         case NETWORK:

@@ -253,8 +253,8 @@ public class ConfigManager extends ConfigSource implements Serializable,
         case CHANNEL:
             comp = channel;
             break;
-        case PROFILE:
-            // We don't want profiles
+        case CUSTOM:
+            // We don't want custom identities
             comp = null;
             break;
         default:

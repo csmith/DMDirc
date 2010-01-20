@@ -29,6 +29,7 @@ import com.dmdirc.logger.Logger;
 import com.dmdirc.updater.Version;
 import com.dmdirc.util.ConfigFile;
 import com.dmdirc.util.InvalidConfigFileException;
+import com.dmdirc.util.MapList;
 import com.dmdirc.util.WeakList;
 import com.dmdirc.util.resourcemanager.ResourceManager;
 
@@ -49,7 +50,10 @@ import java.util.Map;
 public final class IdentityManager {
     
     /** The identities that have been loaded into this manager. */
-    private final static List<Identity> identities = new ArrayList<Identity>();
+    private static final List<Identity> identities = new ArrayList<Identity>();
+
+    private static final MapList<String, Identity> customIdentities
+            = new MapList<String, Identity>();
     
     /** The config managers that have registered with this manager. */
     private final static List<ConfigManager> managers = new WeakList<ConfigManager>();
@@ -82,6 +86,7 @@ public final class IdentityManager {
      */
     public static void load() throws InvalidIdentityFileException {
         identities.clear();
+        customIdentities.clear();
         managers.clear();
         
         if (globalconfig != null) {
@@ -356,20 +361,25 @@ public final class IdentityManager {
     @Precondition("The specified Identity is not null")
     public static void addIdentity(final Identity identity) {
         Logger.assertTrue(identity != null);
-        
-        if (identities.contains(identity)) {
-            removeIdentity(identity);
-        }
-        
-        synchronized (identities) {
-            identities.add(identity);
-        }
 
-        LOGGER.finer("Adding identity: " + identity);
-        
-        synchronized (managers) {
-            for (ConfigManager manager : managers) {
-                manager.checkIdentity(identity);
+        if (identity.getTarget().getType() == ConfigTarget.TYPE.CUSTOM) {
+            LOGGER.finer("Adding custom identity: " + identity);
+            customIdentities.add(identity.getTarget().getData(), identity);
+        } else {
+            if (identities.contains(identity)) {
+                removeIdentity(identity);
+            }
+
+            synchronized (identities) {
+                identities.add(identity);
+            }
+
+            LOGGER.finer("Adding identity: " + identity);
+
+            synchronized (managers) {
+                for (ConfigManager manager : managers) {
+                    manager.checkIdentity(identity);
+                }
             }
         }
     }
@@ -412,20 +422,25 @@ public final class IdentityManager {
     
     /**
      * Retrieves a list of identities that serve as profiles.
+     *
      * @return A list of profiles
+     * @deprecated Use {@link #getCustomIdentities(java.lang.String)} with
+     * an argument of <code>profile</code> to retrieve profiles.
      */
+    @Deprecated
     public static List<Identity> getProfiles() {
-        final List<Identity> profiles = new ArrayList<Identity>();
-        
-        synchronized (identities) {
-            for (Identity identity : identities) {
-                if (identity.isProfile()) {
-                    profiles.add(identity);
-                }
-            }
-        }
-        
-        return profiles;
+        return getCustomIdentities("profile");
+    }
+
+    /**
+     * Retrieves a list of identities that belong to the specified custom type.
+     *
+     * @param type The type of identity to search for
+     * @return A list of matching identities
+     * @since 0.6.3
+     */
+    public static List<Identity> getCustomIdentities(final String type) {
+        return Collections.unmodifiableList(customIdentities.safeGet(type));
     }
     
     /**

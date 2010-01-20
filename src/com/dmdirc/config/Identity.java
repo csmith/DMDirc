@@ -570,6 +570,17 @@ public class Identity extends ConfigSource implements Serializable,
     }
 
     /**
+     * Determines if this identity is loaded from the specified File.
+     *
+     * @param target The file to be checked
+     * @return True if this identity comes from the target file, false otherwise
+     * @since 0.6.3
+     */
+    public boolean isFile(final File target) {
+        return file != null && file.getFile() != null && file.getFile().equals(target);
+    }
+
+    /**
      * Adds a new config change listener for this identity.
      *
      * @param listener The listener to be added

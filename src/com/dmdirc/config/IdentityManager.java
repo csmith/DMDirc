@@ -30,7 +30,6 @@ import com.dmdirc.updater.Version;
 import com.dmdirc.util.ConfigFile;
 import com.dmdirc.util.InvalidConfigFileException;
 import com.dmdirc.util.MapList;
-import com.dmdirc.util.WeakList;
 import com.dmdirc.util.resourcemanager.ResourceManager;
 
 import java.io.File;
@@ -38,8 +37,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
     
 /**
  * The identity manager manages all known identities, providing easy methods
@@ -49,14 +50,23 @@ import java.util.Map;
  */
 public final class IdentityManager {
     
-    /** The identities that have been loaded into this manager. */
-    private static final List<Identity> identities = new ArrayList<Identity>();
-
-    private static final MapList<String, Identity> customIdentities
+    /**
+     * The identities that have been loaded into this manager.
+     * 
+     * Standard identities are inserted with a <code>null</code> key, custom
+     * identities use their custom type as the key.
+     */
+    private static final MapList<String, Identity> identities
             = new MapList<String, Identity>();
     
-    /** The config managers that have registered with this manager. */
-    private final static List<ConfigManager> managers = new WeakList<ConfigManager>();
+    /**
+     * The {@link IdentityListener}s that have registered with this manager.
+     * 
+     * Listeners for standard identities are inserted with a <code>null</code>
+     * key, listeners for a specific custom type use their type as the key.
+     */
+    private static final MapList<String, IdentityListener> listeners
+            = new MapList<String, IdentityListener>();
 
     /** A logger for this class. */
     private static final java.util.logging.Logger LOGGER = java.util.logging
@@ -86,13 +96,7 @@ public final class IdentityManager {
      */
     public static void load() throws InvalidIdentityFileException {
         identities.clear();
-        customIdentities.clear();
-        managers.clear();
-        
-        if (globalconfig != null) {
-            // May have been created earlier
-            managers.add(globalconfig);
-        }
+        identities.clear();
 
         loadVersion();
         loadDefaults();
@@ -246,11 +250,10 @@ public final class IdentityManager {
      * 
      * @param file The file to load the identity from.
      */
-    @SuppressWarnings("deprecation")
     private static void loadIdentity(final File file) {
         synchronized (identities) {
-            for (Identity identity : identities) {
-                if (file.equals(identity.getFile().getFile())) {
+            for (Identity identity : getAllIdentities()) {
+                if (identity.isFile(file)) {
                     try {
                         identity.reload();
                     } catch (IOException ex) {
@@ -279,6 +282,36 @@ public final class IdentityManager {
         }
     }
 
+    /**
+     * Retrieves all known identities.
+     *
+     * @return A set of all known identities
+     * @since 0.6.3
+     */
+    private static Set<Identity> getAllIdentities() {
+        final Set<Identity> res = new LinkedHashSet<Identity>();
+
+        for (Map.Entry<String, List<Identity>> entry : identities.entrySet()) {
+            res.addAll(entry.getValue());
+        }
+
+        return res;
+    }
+
+    /**
+     * Returns the "group" to which the specified identity belongs. For custom
+     * identities this is the custom identity type, otherwise this is
+     * <code>null</code>.
+     *
+     * @param identity The identity whose group is being retrieved
+     * @return The group of the specified identity
+     * @since 0.6.3
+     */
+    private static String getGroup(final Identity identity) {
+        return identity.getTarget().getType() == ConfigTarget.TYPE.CUSTOM
+                ? identity.getTarget().getData() : null;
+    }
+
     /** Loads the version information. */
     public static void loadVersion() {
         try {
@@ -295,7 +328,7 @@ public final class IdentityManager {
      * Loads the config identity.
      * 
      * @throws InvalidIdentityFileException if there is a problem with the
-     *                                      config file.
+     * config file.
      */
     private static void loadConfig() throws InvalidIdentityFileException {
         try {
@@ -348,7 +381,7 @@ public final class IdentityManager {
      */
     public static void save() {
         synchronized (identities) {
-            for (Identity identity : identities) {
+            for (Identity identity : getAllIdentities()) {
                 identity.save();
             }
         }
@@ -362,24 +395,21 @@ public final class IdentityManager {
     public static void addIdentity(final Identity identity) {
         Logger.assertTrue(identity != null);
 
-        if (identity.getTarget().getType() == ConfigTarget.TYPE.CUSTOM) {
-            LOGGER.finer("Adding custom identity: " + identity);
-            customIdentities.add(identity.getTarget().getData(), identity);
-        } else {
-            if (identities.contains(identity)) {
-                removeIdentity(identity);
-            }
+        final String target = getGroup(identity);
 
-            synchronized (identities) {
-                identities.add(identity);
-            }
+        if (identities.containsValue(target, identity)) {
+            removeIdentity(identity);
+        }
 
-            LOGGER.finer("Adding identity: " + identity);
+        synchronized (identities) {
+            identities.add(target, identity);
+        }
 
-            synchronized (managers) {
-                for (ConfigManager manager : managers) {
-                    manager.checkIdentity(identity);
-                }
+        LOGGER.finer("Adding identity: " + identity + " (group: " + target + ")");
+
+        synchronized (listeners) {
+            for (IdentityListener listener : listeners.safeGet(target)) {
+                listener.identityAdded(identity);
             }
         }
     }
@@ -394,29 +424,52 @@ public final class IdentityManager {
     })
     public static void removeIdentity(final Identity identity) {
         Logger.assertTrue(identity != null);
-        Logger.assertTrue(identities.contains(identity));
+
+        final String group = getGroup(identity);
+
+        Logger.assertTrue(identities.containsValue(group, identity));
         
         synchronized (identities) {
-            identities.remove(identity);
+            identities.remove(group, identity);
         }
         
-        synchronized (managers) {
-            for (ConfigManager manager : managers) {
-                manager.removeIdentity(identity);
+        synchronized (listeners) {
+            for (IdentityListener listener : listeners.safeGet(group)) {
+                listener.identityRemoved(identity);
             }
         }
     }
     
     /**
      * Adds a config manager to this manager.
+     *
      * @param manager The ConfigManager to add
+     * @deprecated Use {@link #addIdentityListener(com.dmdirc.config.IdentityListener)}
      */
+    @Deprecated
     @Precondition("The specified ConfigManager is not null")
     public static void addConfigManager(final ConfigManager manager) {
-        Logger.assertTrue(manager != null);
+        addIdentityListener(manager);
+    }
+
+    /**
+     * Adds a new identity listener which will be informed of all settings
+     * identities which are added to this manager.
+     *
+     * @param listener The listener to be added
+     * @since 0.6.3
+     */
+    @Precondition("The specified listener is not null")
+    public static void addIdentityListener(final IdentityListener listener) {
+        addIdentityListener(null, listener);
+    }
+
+    @Precondition("The specified listener is not null")
+    public static void addIdentityListener(final String type, final IdentityListener listener) {
+        Logger.assertTrue(listener != null);
         
-        synchronized (managers) {
-            managers.add(manager);
+        synchronized (listeners) {
+            listeners.add(type, listener);
         }
     }
     
@@ -440,7 +493,7 @@ public final class IdentityManager {
      * @since 0.6.3
      */
     public static List<Identity> getCustomIdentities(final String type) {
-        return Collections.unmodifiableList(customIdentities.safeGet(type));
+        return Collections.unmodifiableList(identities.safeGet(type));
     }
     
     /**
@@ -455,7 +508,7 @@ public final class IdentityManager {
         final List<Identity> sources = new ArrayList<Identity>();
         
         synchronized (identities) {
-            for (Identity identity : identities) {
+            for (Identity identity : identities.safeGet(null)) {
                 if (manager.identityApplies(identity)) {
                     sources.add(identity);
                 }
@@ -506,7 +559,7 @@ public final class IdentityManager {
         final String myTarget = (channel + "@" + network).toLowerCase();
         
         synchronized (identities) {
-            for (Identity identity : identities) {
+            for (Identity identity : identities.safeGet(null)) {
                 if (identity.getTarget().getType() == ConfigTarget.TYPE.CHANNEL
                         && identity.getTarget().getData().equalsIgnoreCase(myTarget)) {
                     return identity;
@@ -543,7 +596,7 @@ public final class IdentityManager {
         final String myTarget = network.toLowerCase();
         
         synchronized (identities) {
-            for (Identity identity : identities) {
+            for (Identity identity : identities.safeGet(null)) {
                 if (identity.getTarget().getType() == ConfigTarget.TYPE.NETWORK
                         && identity.getTarget().getData().equalsIgnoreCase(myTarget)) {
                     return identity;
@@ -580,7 +633,7 @@ public final class IdentityManager {
         final String myTarget = server.toLowerCase();
         
         synchronized (identities) {
-            for (Identity identity : identities) {
+            for (Identity identity : identities.safeGet(null)) {
                 if (identity.getTarget().getType() == ConfigTarget.TYPE.SERVER
                         && identity.getTarget().getData().equalsIgnoreCase(myTarget)) {
                     return identity;

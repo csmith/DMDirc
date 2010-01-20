@@ -42,7 +42,7 @@ import java.util.logging.Level;
  * @author chris
  */
 public class ConfigManager extends ConfigSource implements Serializable,
-        ConfigChangeListener {
+        ConfigChangeListener, IdentityListener {
 
     /**
      * A version number for this class. It should be changed whenever the class
@@ -491,4 +491,17 @@ public class ConfigManager extends ConfigSource implements Serializable,
             listener.configChanged(domain, key);
         }
     }
+
+    /** {@inheritDoc} */
+    @Override
+    public void identityAdded(final Identity identity) {
+        checkIdentity(identity);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void identityRemoved(final Identity identity) {
+        removeIdentity(identity);
+    }
+    
 }

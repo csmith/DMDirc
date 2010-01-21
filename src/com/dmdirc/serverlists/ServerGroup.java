@@ -144,4 +144,11 @@ public class ServerGroup implements ServerGroupItem {
             entries.get(0).connect();
         }
     }
+
+    /** {@inheritDoc} */
+    @Override
+    public String toString() {
+        return "[" + getName() + ": links: " + getLinks() + "; desc: "
+                + getDescription() + "; content: " + getItems() + "]";
+    }
 }

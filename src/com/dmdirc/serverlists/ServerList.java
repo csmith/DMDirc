@@ -22,6 +22,11 @@
 
 package com.dmdirc.serverlists;
 
+import com.dmdirc.serverlists.io.ServerGroupReader;
+import com.dmdirc.config.Identity;
+import com.dmdirc.config.IdentityListener;
+import com.dmdirc.config.IdentityManager;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,10 +38,21 @@ import java.util.List;
  * @since 0.6.3
  * @author chris
  */
-public class ServerList {
+public class ServerList implements IdentityListener {
 
     /** A list of all known groups. */
     private final List<ServerGroup> groups = new ArrayList<ServerGroup>();
+
+    /**
+     * Creates a new ServerList and loads groups and servers.
+     */
+    public ServerList() {
+        IdentityManager.addIdentityListener("servergroup", this);
+
+        for (Identity identity : IdentityManager.getCustomIdentities("servergroup")) {
+            identityAdded(identity);
+        }
+    }
 
     /**
      * Adds a server group to the master server list.
@@ -54,6 +70,18 @@ public class ServerList {
      */
     public List<ServerGroup> getServerGroups() {
         return Collections.unmodifiableList(groups);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void identityAdded(final Identity identity) {
+        addServerGroup(new ServerGroupReader(identity).read());
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void identityRemoved(final Identity identity) {
+        // TODO: Remove server group
     }
 
 }

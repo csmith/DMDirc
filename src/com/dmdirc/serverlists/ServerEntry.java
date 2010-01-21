@@ -103,4 +103,10 @@ public class ServerEntry implements ServerGroupItem {
         return IdentityManager.getProfiles().get(0);
     }
 
+    /** {@inheritDoc} */
+    @Override
+    public String toString() {
+        return "[" + getName() + ": address: " + getAddress() + "]";
+    }
+
 }

@@ -30,6 +30,7 @@ import com.dmdirc.updater.Version;
 import com.dmdirc.util.ConfigFile;
 import com.dmdirc.util.InvalidConfigFileException;
 import com.dmdirc.util.MapList;
+import com.dmdirc.util.WeakMapList;
 import com.dmdirc.util.resourcemanager.ResourceManager;
 
 import java.io.File;
@@ -66,7 +67,7 @@ public final class IdentityManager {
      * key, listeners for a specific custom type use their type as the key.
      */
     private static final MapList<String, IdentityListener> listeners
-            = new MapList<String, IdentityListener>();
+            = new WeakMapList<String, IdentityListener>();
 
     /** A logger for this class. */
     private static final java.util.logging.Logger LOGGER = java.util.logging

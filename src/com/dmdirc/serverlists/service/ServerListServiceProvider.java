@@ -117,8 +117,12 @@ public class ServerListServiceProvider implements ServiceProvider {
     public Parser getParser(final MyInfo myInfo, final URI address) {
         ServerGroup group = serverList.getGroupByName(address.getHost());
 
-        if (address.getPath() != null) {
+        if (address.getPath() != null && !address.getPath().isEmpty()) {
             for (String part : address.getPath().split("/")) {
+                if (part.isEmpty()) {
+                    continue;
+                }
+
                 final ServerGroupItem item = group.getItemByName(part);
 
                 if (item == null) {

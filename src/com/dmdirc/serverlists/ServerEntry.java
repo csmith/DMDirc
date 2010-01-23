@@ -66,6 +66,7 @@ public class ServerEntry implements ServerGroupItem {
      *
      * @return This server's address
      */
+    @Override
     public URI getAddress() {
         return address;
     }

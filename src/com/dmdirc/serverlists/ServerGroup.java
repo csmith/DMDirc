@@ -93,6 +93,23 @@ public class ServerGroup implements ServerGroupItem {
     }
 
     /**
+     * Retrieves a ServerGroupItem with the specified name, if one exists. This
+     * method ignores the case of item's name when comparing.
+     *
+     * @param name The name of the item to be retrieved
+     * @return A correspondingly named item, or null if none exists
+     */
+    public ServerGroupItem getItemByName(final String name) {
+        for (ServerGroupItem item : getItems()) {
+            if (item.getName().equalsIgnoreCase(name)) {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Retrieves the description of this group.
      * 
      * @return This group's description
@@ -130,6 +147,21 @@ public class ServerGroup implements ServerGroupItem {
      */
     public void addLink(final String title, final URI address) {
         links.put(title, address);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * Current implementation just selects the first item in this group and
+     * asks for its URI.
+     */
+    @Override
+    public URI getAddress() {
+        if (!entries.isEmpty()) {
+            return entries.get(0).getAddress();
+        }
+
+        return null;
     }
 
     /**

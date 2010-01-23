@@ -22,6 +22,8 @@
 
 package com.dmdirc.serverlists;
 
+import java.net.URI;
+
 /**
  * An item which is included in a server group.
  *
@@ -41,5 +43,13 @@ public interface ServerGroupItem {
      * Initiates a connection attempt for this item.
      */
     void connect();
+
+    /**
+     * Retrieves a URI for this item.
+     *
+     * @return A URI that represents this item or one of its children, or null
+     * if the item has no URIs associated with it.
+     */
+    URI getAddress();
 
 }

@@ -26,6 +26,7 @@ import com.dmdirc.serverlists.io.ServerGroupReader;
 import com.dmdirc.config.Identity;
 import com.dmdirc.config.IdentityListener;
 import com.dmdirc.config.IdentityManager;
+import com.dmdirc.serverlists.service.ServerListServiceProvider;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,6 +53,8 @@ public class ServerList implements IdentityListener {
         for (Identity identity : IdentityManager.getCustomIdentities("servergroup")) {
             identityAdded(identity);
         }
+
+        new ServerListServiceProvider(this).register();
     }
 
     /**
@@ -70,6 +73,23 @@ public class ServerList implements IdentityListener {
      */
     public List<ServerGroup> getServerGroups() {
         return Collections.unmodifiableList(groups);
+    }
+
+    /**
+     * Retrieves a ServerGroup with the specified name, if one exists. This
+     * method ignores the case of group's name when comparing.
+     *
+     * @param name The name of the group to be retrieved
+     * @return A correspondingly named server group, or null if none exists
+     */
+    public ServerGroup getGroupByName(final String name) {
+        for (ServerGroup group : getServerGroups()) {
+            if (group.getName().equalsIgnoreCase(name)) {
+                return group;
+            }
+        }
+
+        return null;
     }
 
     /** {@inheritDoc} */

@@ -45,9 +45,11 @@ import com.dmdirc.plugins.ServiceManager;
 import com.dmdirc.plugins.ServiceProvider;
 import com.dmdirc.ui.WarningDialog;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.joran.JoranConfigurator;
-import ch.qos.logback.core.spi.ContextAware;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.Appender;
+import ch.qos.logback.core.ConsoleAppender;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -104,9 +106,16 @@ public class Main {
     static {
         // TODO: Can this go in a Dagger module?
         final LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
-        final ContextAware configurator = new JoranConfigurator();
-        configurator.setContext(context);
-        context.reset();
+        //final ContextAware configurator = new JoranConfigurator();
+        //configurator.setContext(context);
+        //context.reset();
+
+        final ch.qos.logback.classic.Logger rootLogger = context.getLogger(Logger.ROOT_LOGGER_NAME);
+        final Appender<ILoggingEvent> consoleAppender = new ConsoleAppender<>();
+        consoleAppender.setContext(context);
+        consoleAppender.start();
+        rootLogger.addAppender(consoleAppender);
+        rootLogger.setLevel(Level.ALL);
     }
 
 
@@ -182,7 +191,7 @@ public class Main {
      */
     public void init() {
         Thread.setDefaultUncaughtExceptionHandler(new DMDircExceptionHandler());
-        setupLogback();
+        //setupLogback();
         migrators.stream().filter(Migrator::needsMigration).forEach(Migrator::migrate);
         commands.forEach(c -> commandManager.registerCommand(c.getCommand(), c.getInfo()));
 

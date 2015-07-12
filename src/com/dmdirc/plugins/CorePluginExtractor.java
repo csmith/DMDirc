@@ -26,10 +26,12 @@ import com.dmdirc.commandline.CommandLineOptionsModule.Directory;
 import com.dmdirc.commandline.CommandLineOptionsModule.DirectoryType;
 import com.dmdirc.util.resourcemanager.ResourceManager;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -48,7 +50,7 @@ public class CorePluginExtractor {
     /** The plugin manager to inform when plugins are updated. */
     private final PluginManager pluginManager;
     /** The directory to extract plugins to. */
-    private final String pluginDir;
+    private final Path pluginDir;
 
     /**
      * Creates a new instance of {@link CorePluginExtractor}.
@@ -58,7 +60,7 @@ public class CorePluginExtractor {
      */
     @Inject
     public CorePluginExtractor(final PluginManager pluginManager,
-            @Directory(DirectoryType.PLUGINS) final String pluginDir) {
+            @Directory(DirectoryType.PLUGINS) final Path pluginDir) {
         this.pluginManager = pluginManager;
         this.pluginDir = pluginDir;
     }
@@ -69,38 +71,30 @@ public class CorePluginExtractor {
      * @param prefix If non-null, only plugins whose file name starts with this prefix will be
      *               extracted.
      */
-    public void extractCorePlugins(final String prefix) {
+    public void extractCorePlugins(@Nullable final String prefix) {
+        LOG.debug("Extracting core plugins with prefix '{}'", prefix);
+
         final Map<String, byte[]> resources = ResourceManager.getResourceManager()
                 .getResourcesStartingWithAsBytes("plugins");
         for (Map.Entry<String, byte[]> resource : resources.entrySet()) {
+            if (prefix != null && !resource.getKey().substring(8).startsWith(prefix)) {
+                LOG.trace("Resource doesn't match prefix: {}", resource.getKey());
+                continue;
+            }
+
             try {
-                final String resourceName = pluginDir + resource.getKey().substring(7);
+                final Path targetPath = pluginDir.resolve(resource.getKey().substring(7));
+                LOG.trace("Extracting {} to {}", resource.getKey(), targetPath.toAbsolutePath());
+                Files.createDirectories(targetPath.getParent());
 
-                if (prefix != null && !resource.getKey().substring(8).startsWith(prefix)) {
-                    continue;
-                }
+                ResourceManager.getResourceManager().resourceToFile(resource.getValue(),
+                        targetPath.toFile());
 
-                final File newDir = new File(resourceName.substring(0,
-                        resourceName.lastIndexOf('/')) + '/');
+                final PluginInfo plugin = pluginManager.getPluginInfo(
+                        pluginDir.relativize(targetPath).toString());
 
-                if (!newDir.exists()) {
-                    newDir.mkdirs();
-                }
-
-                final File newFile = new File(newDir,
-                        resourceName.substring(resourceName.lastIndexOf('/') + 1,
-                                resourceName.length()));
-
-                if (!newFile.isDirectory()) {
-                    ResourceManager.getResourceManager().
-                            resourceToFile(resource.getValue(), newFile);
-
-                    final PluginInfo plugin = pluginManager.getPluginInfo(newFile
-                            .getAbsolutePath().substring(pluginDir.length()));
-
-                    if (plugin != null) {
-                        plugin.pluginUpdated();
-                    }
+                if (plugin != null) {
+                    plugin.pluginUpdated();
                 }
             } catch (PluginException | IOException ex) {
                 LOG.info(USER_ERROR, "Failed to extract plugins.", ex);

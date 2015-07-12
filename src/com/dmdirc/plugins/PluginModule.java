@@ -26,7 +26,14 @@ import com.dmdirc.DMDircMBassador;
 import com.dmdirc.interfaces.config.IdentityController;
 import com.dmdirc.updater.manager.UpdateManager;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import javax.inject.Singleton;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import dagger.Module;
 import dagger.ObjectGraph;
@@ -34,6 +41,7 @@ import dagger.Provides;
 
 import static com.dmdirc.commandline.CommandLineOptionsModule.Directory;
 import static com.dmdirc.commandline.CommandLineOptionsModule.DirectoryType;
+import static com.dmdirc.util.LogUtils.FATAL_APP_ERROR;
 
 /**
  * Dagger module for plugin-related components.
@@ -42,6 +50,7 @@ import static com.dmdirc.commandline.CommandLineOptionsModule.DirectoryType;
 @Module(library = true, complete = false)
 public class PluginModule {
 
+    private static final Logger LOG = LoggerFactory.getLogger(PluginModule.class);
 
     @Provides
     @Singleton
@@ -53,12 +62,20 @@ public class PluginModule {
             final ServiceManager serviceManager,
             final CorePluginHelper pluginHelper,
             final PluginFileHandler fileHandler,
-            @Directory(DirectoryType.PLUGINS) final String directory) {
+            @Directory(DirectoryType.PLUGINS) final String directory,
+            @Directory(DirectoryType.PLUGINS) final Path path) {
+        try {
+            Files.createDirectories(path);
+        } catch (IOException ex) {
+            LOG.error(FATAL_APP_ERROR, "Unable to create plugin directory", ex);
+            return null;
+        }
+
         final PluginManager manager = new PluginManager(eventBus, serviceManager,
                 identityController, updateManager, objectGraph, fileHandler, directory);
         manager.refreshPlugins();
 
-        final CorePluginExtractor extractor = new CorePluginExtractor(manager, directory);
+        final CorePluginExtractor extractor = new CorePluginExtractor(manager, path);
         pluginHelper.checkBundledPlugins(extractor, manager,
                 identityController.getGlobalConfiguration());
 

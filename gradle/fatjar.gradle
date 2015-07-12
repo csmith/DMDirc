@@ -53,6 +53,7 @@ task createFatVersionConfig {
 }
 
 task('fatjar', type: Jar) {
+    outputs.file "dist/DMDirc-fat.jar"
     dependsOn createFatVersionConfig
     baseName = 'fat-client'
 
@@ -61,16 +62,24 @@ task('fatjar', type: Jar) {
         rename 'fat.version.config', 'version.config'
     }
 
-    into('plugins') {
-        from configurations.plugin
-        rename '(.*?)-.*(\\.jar)', '$1$2'
-    }
-
     with jar {
         exclude 'com/dmdirc/version.config'
     }
 
     manifest {
         attributes 'Main-Class': 'com.dmdirc.Main'
+    }
+
+    into('plugins') {
+        from configurations.plugin
+        rename '(.*?)-.*(\\.jar)', '$1$2'
+    }
+
+    doLast {
+        copy {
+            from jar.archivePath
+            into "dist/"
+            rename ".*", "DMDirc-fat.jar"
+        }
     }
 }
